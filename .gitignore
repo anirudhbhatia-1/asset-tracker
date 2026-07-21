@@ -1,0 +1,20 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+server/.env
+client/.env
+
+# Dependencies
+node_modules/
+
+# Database & Backups
+data/assets.db
+backups/
+
+# Build outputs
+client/dist/
+
+# Logs & OS files
+*.log
+.DS_Store
