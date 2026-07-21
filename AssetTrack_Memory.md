@@ -814,12 +814,17 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
 > Update this section every session.
 
 ### Status as of July 21, 2026
-- **Phase:** Phase 1 — MVP Core (Week 1 completed, ready for Week 2).
+- **Phase:** Phase 1 — MVP Core (Week 1 & Week 2 completed, ready for Week 3).
 - **Code written:**
   - ✅ Root monorepo structure (`/client`, `/server`, `/data`, `/backups`) initialized and tracked on branch `feat/phase-1-setup`.
   - ✅ Backend (`/server`): Node/Express initialized with `better-sqlite3`, `cors`, `morgan`, `dotenv`, `express-validator`.
   - ✅ SQLite Schema & Seeder (`server/db.js`): All 5 tables (`categories`, `employees`, `assets`, `asset_history`, `google_config`) and indexes created, with initial seed data (4 categories, 8 employees, 15 sample assets with timeline events).
-  - ✅ Express App & Route Stubs (`server/index.js` & `server/routes/*`): Global error handler, 404 handler, health check (`GET /api/health`), and 6 route stubs mounted.
+  - ✅ Express App & Core Middleware (`server/index.js`, `errorHandler.js`, `validateRequest.js`): Global error handler, 404 handler, health check (`GET /api/health`), and request validation rules.
+  - ✅ Backend Core APIs & Service Layer (`server/services/*` & `server/routes/*`):
+    - `categoryService` & `/api/categories`: Full CRUD with conflict check (prevents deletion if referenced by assets).
+    - `employeeService` & `/api/employees`: Full CRUD with soft deletion (`deleted_at`), assigned asset counts, and `/api/employees/:id/assets` listing.
+    - `historyService` & `/api/history`: Immutable append-only audit log, recent activity feed (`/api/history?limit=`), and asset timeline (`/api/assets/:id/history`).
+    - `assetService` & `/api/assets` & `/api/serial/scan/:serial`: Full CRUD with transactional lifecycle actions (`assign`, `return`, `retire`), strict `confirm: true` validation on destructive routes, prohibition of re-assigning retired assets, and serial number lookup.
   - ✅ Frontend (`/client`): React 18 (Vite) initialized with `tailwindcss` (v4 with `@tailwindcss/vite`), `react-router-dom`, `axios`, `lucide-react`, `date-fns`, `react-hot-toast`.
   - ✅ UI Layout & Navigation (`Sidebar.jsx`, `TopBar.jsx`, `MainLayout.jsx`): Matching exact dark-mode design tokens (`bg-slate-900`, `bg-slate-800`, `text-slate-100`, `indigo-500` accent) and navigation links.
   - ✅ 8 Page Stubs & Axios Instance: Stubs for all 8 application screens mounted cleanly in `App.jsx`, API proxy configured to backend port `3001`.
@@ -829,12 +834,12 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
   - ✅ `AssetTrack_Rules.md` — Engineering Rules & Standards (includes AI Boundaries §12)
   - ✅ `AssetTrack_Phases.md` — Project Phases & Delivery Plan
   - ✅ `AssetTrack_Memory.md` — This file
-- **Next action:** Await user review of Week 1 setup → proceed to Week 2 — Backend Core APIs (Categories, Employees, Assets, History).
+- **Next action:** Await user review of Week 2 APIs → proceed to Week 3 — Dashboard & Inventory Pages (`useMetrics`, `MetricCard`, `InventoryBreakdown`, `ActivityFeed`, `SearchBar`, `FilterToolbar`, `AssetTable`).
 
 ### Phase Completion Tracker
 | Phase | Status | Completion |
 |---|---|---|
-| Phase 1 — MVP Core | 🟡 In Progress (Week 1 Done) | 20% |
+| Phase 1 — MVP Core | 🟡 In Progress (Week 1 & 2 Done) | 40% |
 | Phase 2 — Scanner & Google | ⬜ Not Started | 0% |
 | Phase 3 — Polish & QA | ⬜ Not Started | 0% |
 | Phase 4 — v1.1 Enhancements | ⬜ Not Started | 0% |
@@ -873,6 +878,7 @@ These decisions must be made before the relevant phase begins. Track the answer 
 ```
 2026-07-21 | Claude (Anthropic) | Create all planning documentation (PRD, Architecture, Rules, Phases, Memory) | ✅ All 5 documents created and saved to Desktop
 2026-07-21 | Antigravity AI | Phase 1, Week 1 — Monorepo setup, SQLite schema + seeder, Express server & route stubs, React Vite frontend with layout & dark mode tokens | ✅ Completed Week 1 setup; DB seeded with 15 assets/8 employees/4 categories; server running; frontend build verified
+2026-07-21 | Antigravity AI | Phase 1, Week 2 — Backend Core APIs & Service Layer (`categories`, `employees`, `assets`, `history`, `serial`) with transactional lifecycle rules, conflict checks, and automated exit criteria verification | ✅ Completed Week 2 APIs; all endpoints verified via automated integration tests (`api.test.js`); strict architectural separation & validation enforced
 ```
 
 ---
