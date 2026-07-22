@@ -230,31 +230,31 @@
 **Theme:** Build the two remaining core pages.
 
 #### Add Asset Page (`client/src/pages/AddAssetPage.jsx`)
-- [ ] Build `AddAssetForm.jsx` with all fields from PRD §6.7.1.
-- [ ] Category dropdown — loaded from `GET /api/categories`.
-- [ ] Location dropdown — from `OFFICE_LOCATIONS` constant.
-- [ ] Serial number field with **"Auto-gen"** button (Wand icon).
-- [ ] Build `serialGenerator.js` utility — generates `SN-[A-Z]{3}[0-9]{3}` format, checks uniqueness via `GET /api/serial/scan/:serial`.
-- [ ] Cost field — input as dollars (`$XX.XX`), store as cents in backend.
-- [ ] Purchase date field — defaults to today.
-- [ ] Optional "Assign to Employee" section at bottom with employee search dropdown.
-- [ ] On submit:
+- [x] Build `AddAssetForm.jsx` with all fields from PRD §6.7.1.
+- [x] Category dropdown — loaded from `GET /api/categories`.
+- [x] Location dropdown — from `OFFICE_LOCATIONS` constant.
+- [x] Serial number field with **"Auto-gen"** button (Wand icon).
+- [x] Build `serialGenerator.js` utility — generates `SN-[A-Z]{3}[0-9]{3}` format, checks uniqueness via `GET /api/serial/scan/:serial`.
+- [x] Cost field — input as dollars (`$XX.XX`), store as cents in backend.
+- [x] Purchase date field — defaults to today.
+- [x] Optional "Assign to Employee" section at bottom with employee search dropdown.
+- [x] On submit:
   - If no employee selected → `POST /api/assets` with `status='available'`.
   - If employee selected → `POST /api/assets` then `POST /api/assets/:id/assign`.
-- [ ] Success: show toast + redirect to the new asset's detail page.
-- [ ] Inline validation errors beneath each required field.
-- [ ] Submit button disabled during in-flight request.
+- [x] Success: show toast + redirect to the new asset's detail page.
+- [x] Inline validation errors beneath each required field.
+- [x] Submit button disabled during in-flight request.
 
 #### Employees Page (`client/src/pages/EmployeesPage.jsx`)
-- [ ] Create `useEmployees()` hook — fetches `GET /api/employees`.
-- [ ] Build `EmployeeCard.jsx` — avatar (initials fallback), name, department, location, Google sync badge.
-- [ ] Employee directory renders as a responsive card grid.
-- [ ] Search input filters the grid by name, email, or department.
-- [ ] Build `EmployeeAssetDrawer.jsx` — modal showing all assets assigned to a clicked employee.
+- [x] Create `useEmployees()` hook — fetches `GET /api/employees`.
+- [x] Build `EmployeeCard.jsx` — avatar (initials fallback), name, department, location, Google sync badge.
+- [x] Employee directory renders as a responsive card grid.
+- [x] Search input filters the grid by name, email, or department.
+- [x] Build `EmployeeAssetDrawer.jsx` — modal showing all assets assigned to a clicked employee.
   - Fetches `GET /api/employees/:id/assets` on open.
   - Lists each asset: category badge, name, serial, assignment date.
   - Empty state if no assets assigned.
-- [ ] Clicking any employee card opens the drawer.
+- [x] Clicking any employee card opens the drawer.
 
 **Week 5 Exit Criteria:**
 - New asset can be created with all fields; serial auto-generation works and generates unique values.

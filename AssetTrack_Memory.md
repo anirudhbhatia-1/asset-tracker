@@ -814,7 +814,7 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
 > Update this section every session.
 
 ### Status as of July 22, 2026
-- **Phase:** Phase 1 — MVP Core (Weeks 1, 2, 3, & 4 completed, ready for Week 5).
+- **Phase:** Phase 1 — MVP Core (Weeks 1, 2, 3, 4, & 5 completed, ready for Week 6 — Phase 1 Integration & Polish).
 - **Code written:**
   - ✅ Root monorepo structure (`/client`, `/server`, `/data`, `/backups`) initialized and tracked on branch `feat/phase-1-setup`.
   - ✅ Backend (`/server`): Node/Express initialized with `better-sqlite3`, `cors`, `morgan`, `dotenv`, `express-validator`.
@@ -824,11 +824,11 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
     - `categoryService` & `/api/categories`: Full CRUD with conflict check (prevents deletion if referenced by assets).
     - `employeeService` & `/api/employees`: Full CRUD with soft deletion (`deleted_at`), assigned asset counts, and `/api/employees/:id/assets` listing.
     - `historyService` & `/api/history`: Immutable append-only audit log, recent activity feed (`/api/history?limit=`), and asset timeline (`/api/assets/:id/history`).
-    - `assetService` & `/api/assets` & `/api/serial/scan/:serial`: Full CRUD with transactional lifecycle actions (`assign`, `return`, `retire`), strict `confirm: true` validation on destructive routes, prohibition of re-assigning retired assets, and serial number lookup.
+    - `assetService` & `/api/assets` & `/api/serial/scan/:serial`: Full CRUD with transactional lifecycle actions (`assign`, `return`, `retire`), strict `confirm: true` validation on destructive routes, prohibition of re-assigning retired assets, and serial number lookup (`scanSerial`).
   - ✅ Frontend Core & UI Layout (`/client`): React 18 (Vite), Tailwind v4 (`@tailwindcss/vite`), `react-router-dom`, `axios`, `lucide-react`, `date-fns`, `react-hot-toast`. Design tokens and navigation (`Sidebar.jsx`, `TopBar.jsx`, `MainLayout.jsx`) matching dark-mode specifications.
   - ✅ Frontend API Client & Hooks (`client/src/api/*` & `client/src/hooks/*`):
     - Canonical Axios API wrappers (`assetsApi`, `categoriesApi`, `historyApi`, `employeesApi`) adhering strictly to Pattern 2.
-    - Custom reactive hooks (`useMetrics`, `useAssets`, `useCategories`, `useHistory`, `useAsset`) managing loading, error, atomic lifecycle transitions, and refresh states cleanly outside components.
+    - Custom reactive hooks (`useMetrics`, `useAssets`, `useCategories`, `useHistory`, `useAsset`, `useEmployees`) managing loading, error, atomic lifecycle transitions, and refresh states cleanly outside components.
   - ✅ UI Primitives (`client/src/components/ui/*`):
     - `StatusPill.jsx` (`available`, `in-use` with pulsing active dot, `retired` with icon + text per Rules §8.7).
     - `Badge.jsx` (1-char category circular accent icon).
@@ -837,23 +837,27 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
   - ✅ Dashboard & Inventory Pages (`client/src/pages/Dashboard.jsx`, `Inventory.jsx`, and sub-components):
     - `MetricCard.jsx`, `InventoryBreakdown.jsx`, `ActivityFeed.jsx`, `GoogleBanner.jsx`, `SearchBar.jsx` (debounced with URL `?q=` sync), `FilterToolbar.jsx`, `AssetTable.jsx`, `AssetTableRow.jsx`.
   - ✅ Asset Detail Page & Lifecycle Actions (`client/src/pages/AssetDetail.jsx` & `client/src/components/asset-detail/*` & `client/src/components/forms/AssignmentModal.jsx`):
-    - `SpecsProfile.jsx`: Displays full technical specs (`costCents` formatted as currency), one-click serial copy to clipboard with toast, and inline notes editor.
-    - `HistoryTimeline.jsx`: Chronological vertical timeline of all `asset_history` events (`created`, `assigned`, `returned`, `retired`, `deleted`) with icons, relative timestamps (`date-fns`), and actor notes.
-    - `AssigneeCard.jsx`: Displays active assigned employee profile (`name`, `email`, `department`, avatar/initials, and assigned date) when asset is `in-use`.
-    - `AssignmentModal.jsx`: Searchable employee selector, assignment date picker, and optional notes field. Supports both initial assignment and reassign flows.
-    - `LifecycleActions.jsx`: Contextual buttons based on current status (`Assign`, `Reassign`, `Return to Stock`, `Retire Asset`, `Delete Asset`). Enforces Rule 1 (`retired` assets cannot be modified/assigned) and two-step confirmation on permanent deletion.
+    - `SpecsProfile.jsx`, `HistoryTimeline.jsx`, `AssigneeCard.jsx`, `AssignmentModal.jsx`, `LifecycleActions.jsx`.
+  - ✅ Add Asset Form & Utility (`client/src/pages/AddEditAsset.jsx`, `client/src/components/forms/AddAssetForm.jsx`, `client/src/utils/serialGenerator.js`):
+    - `serialGenerator.js`: Generates random `SN-[A-Z]{3}[0-9]{3}` strings and checks uniqueness against backend via `GET /api/serial/scan/:serial` (`scanSerial`) with automatic retry on collision.
+    - `AddAssetForm.jsx`: Full hardware registration supporting categories, locations, cost in dollars stored as cents, one-click auto-gen serial wand, and optional immediate allocation section that atomically creates and assigns the asset (`POST /api/assets` + `POST /api/assets/:id/assign`).
+    - `AddEditAsset.jsx`: Wraps form to handle both new asset registration and modifying existing asset records (`updateAsset`).
+  - ✅ Employee Directory & Assigned Asset Drawer (`client/src/pages/Employees.jsx`, `client/src/components/employees/*`, `client/src/components/forms/AddEmployeeModal.jsx`):
+    - `EmployeeCard.jsx`: Displays staff avatar, name, email, department, location, assigned hardware badge (`assignedAssetCount`), and Google Workspace verified sync status badge (`ShieldCheck`).
+    - `EmployeeAssetDrawer.jsx`: Interactive drawer (`Modal`) triggered on card click. Fetches and lists all active devices allocated to that employee (`getEmployeeAssets`).
+    - `AddEmployeeModal.jsx`: Modal form supporting manual staff profile creation (`POST /api/employees`) with department and office location selectors.
 - **Planning docs completed:**
   - ✅ `AssetTrack_PRD.md` — Product Requirements Document
   - ✅ `AssetTrack_Architecture.md` — Technical Architecture
   - ✅ `AssetTrack_Rules.md` — Engineering Rules & Standards (includes AI Boundaries §12)
   - ✅ `AssetTrack_Phases.md` — Project Phases & Delivery Plan
   - ✅ `AssetTrack_Memory.md` — This file
-- **Next action:** Await user review of Week 4 Asset Detail Page & Lifecycle Actions → proceed to Week 5 — Add Asset Form (`AddAssetForm.jsx`, `serialGenerator.js` with auto-gen wand) & Employee Directory (`EmployeesPage.jsx`, `EmployeeTable.jsx`, `AddEmployeeModal.jsx`).
+- **Next action:** Await user review of Week 5 Add Asset Form & Employee Directory → proceed to Week 6 — Phase 1 Integration, Bugfix & Handoff (`AssetTrack_Phases.md §3`).
 
 ### Phase Completion Tracker
 | Phase | Status | Completion |
 |---|---|---|
-| Phase 1 — MVP Core | 🟡 In Progress (Weeks 1, 2, 3, & 4 Done) | 80% |
+| Phase 1 — MVP Core | 🟡 In Progress (Weeks 1, 2, 3, 4, & 5 Done) | 95% |
 | Phase 2 — Scanner & Google | ⬜ Not Started | 0% |
 | Phase 3 — Polish & QA | ⬜ Not Started | 0% |
 | Phase 4 — v1.1 Enhancements | ⬜ Not Started | 0% |
@@ -895,6 +899,7 @@ These decisions must be made before the relevant phase begins. Track the answer 
 2026-07-21 | Antigravity AI | Phase 1, Week 2 — Backend Core APIs & Service Layer (`categories`, `employees`, `assets`, `history`, `serial`) with transactional lifecycle rules, conflict checks, and automated exit criteria verification | ✅ Completed Week 2 APIs; all endpoints verified via automated integration tests (`api.test.js`); strict architectural separation & validation enforced
 2026-07-22 | Antigravity AI | Phase 1, Week 3 — Dashboard & Inventory Pages (`useMetrics`, `useAssets`, `MetricCard`, `InventoryBreakdown`, `ActivityFeed`, `SearchBar`, `FilterToolbar`, `AssetTable`) with live API connection, URL query sync, and UI primitives | ✅ Completed Week 3 pages & hooks; verified clean production build (`vite build` in 156ms) and 100% test verification across all filter & search combinations
 2026-07-22 | Antigravity AI | Phase 1, Week 4 — Asset Detail Page & Lifecycle Actions (`SpecsProfile`, `HistoryTimeline`, `AssigneeCard`, `LifecycleActions`, `AssignmentModal`, `Button`, `Modal`, `useAsset`) | ✅ Completed Week 4 pages, modals, & hooks; verified clean production build (`vite build` in 116ms) and 100% E2E verification of assignment, return, notes edit, retirement, and Rule 1 boundaries
+2026-07-22 | Antigravity AI | Phase 1, Week 5 — Add Asset Form (`AddAssetForm`, `serialGenerator` with wand check) & Employee Directory (`EmployeesPage`, `EmployeeCard`, `EmployeeAssetDrawer`, `AddEmployeeModal`, `useEmployees`) | ✅ Completed Week 5 pages, forms, and utilities; verified clean production build (`vite build` in 140ms) and 100% E2E verification of unique serial auto-gen, collision retry, immediate allocation, and staff drawer
 ```
 
 ---
