@@ -814,11 +814,11 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
 > Update this section every session.
 
 ### Status as of July 22, 2026
-- **Phase:** Phase 1 — MVP Core (Weeks 1, 2, & 3 completed, ready for Week 4).
+- **Phase:** Phase 1 — MVP Core (Weeks 1, 2, 3, & 4 completed, ready for Week 5).
 - **Code written:**
   - ✅ Root monorepo structure (`/client`, `/server`, `/data`, `/backups`) initialized and tracked on branch `feat/phase-1-setup`.
   - ✅ Backend (`/server`): Node/Express initialized with `better-sqlite3`, `cors`, `morgan`, `dotenv`, `express-validator`.
-  - ✅ SQLite Schema & Seeder (`server/db.js`): All 5 tables (`categories`, `employees`, `assets`, `asset_history`, `google_config`) and indexes created, with initial seed data (4 categories, 8 employees, 15 sample assets with timeline events).
+  - ✅ SQLite Schema & Seeder (`server/db.js`): All 5 tables (`categories`, `employees`, `assets`, `asset_history`, `google_config`) and indexes created, with initial seed data (4 categories, 8 employees, sample assets with timeline events).
   - ✅ Express App & Core Middleware (`server/index.js`, `errorHandler.js`, `validateRequest.js`): Global error handler, 404 handler, health check (`GET /api/health`), and request validation rules.
   - ✅ Backend Core APIs & Service Layer (`server/services/*` & `server/routes/*`):
     - `categoryService` & `/api/categories`: Full CRUD with conflict check (prevents deletion if referenced by assets).
@@ -828,32 +828,32 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
   - ✅ Frontend Core & UI Layout (`/client`): React 18 (Vite), Tailwind v4 (`@tailwindcss/vite`), `react-router-dom`, `axios`, `lucide-react`, `date-fns`, `react-hot-toast`. Design tokens and navigation (`Sidebar.jsx`, `TopBar.jsx`, `MainLayout.jsx`) matching dark-mode specifications.
   - ✅ Frontend API Client & Hooks (`client/src/api/*` & `client/src/hooks/*`):
     - Canonical Axios API wrappers (`assetsApi`, `categoriesApi`, `historyApi`, `employeesApi`) adhering strictly to Pattern 2.
-    - Custom reactive hooks (`useMetrics`, `useAssets`, `useCategories`, `useHistory`) managing loading, error, and refresh states cleanly outside components.
+    - Custom reactive hooks (`useMetrics`, `useAssets`, `useCategories`, `useHistory`, `useAsset`) managing loading, error, atomic lifecycle transitions, and refresh states cleanly outside components.
   - ✅ UI Primitives (`client/src/components/ui/*`):
     - `StatusPill.jsx` (`available`, `in-use` with pulsing active dot, `retired` with icon + text per Rules §8.7).
     - `Badge.jsx` (1-char category circular accent icon).
+    - `Button.jsx` (`primary`, `secondary`, `danger`, `ghost` variants with inline spinner states) & `Modal.jsx` (portal with backdrop blur, Escape closing, and focus lock per Design §4).
     - `EmptyState.jsx` & `Spinner.jsx` & `Skeleton.jsx` (skeleton layout shimmer cards and table blocks per Rules §8.1).
-  - ✅ Dashboard Page & Components (`client/src/pages/Dashboard.jsx` & `client/src/components/dashboard/*`):
-    - `MetricCard.jsx` with smooth count-up animation and status deltas.
-    - `InventoryBreakdown.jsx` rendering horizontal category distribution bars and percentages.
-    - `ActivityFeed.jsx` rendering reverse-chronological immutable audit stream with colored event type tags (`assigned`, `returned`, `created`, `retired`, `google`).
-    - `GoogleBanner.jsx` placeholder banner linking directly to Settings.
-  - ✅ Inventory Page & Components (`client/src/pages/Inventory.jsx` & `client/src/components/inventory/*`):
-    - `SearchBar.jsx` with 300ms debounce and URL `?q=` sync (connected to global search in `TopBar.jsx`).
-    - `FilterToolbar.jsx` supporting category chips, status selection (`all`, `available`, `in-use`, `retired`), location selection (`Bangalore`, `Mumbai`, `Delhi`, `Hyderabad`), and clear filters CTA.
-    - `AssetTable.jsx` & `AssetTableRow.jsx` rendering sortable columns (`name`, `serialNumber`, `status`, `location`, `assigneeName`, `assignedDate`) with detailed status pills, category badges, monospace serial chips, and links to asset details.
+  - ✅ Dashboard & Inventory Pages (`client/src/pages/Dashboard.jsx`, `Inventory.jsx`, and sub-components):
+    - `MetricCard.jsx`, `InventoryBreakdown.jsx`, `ActivityFeed.jsx`, `GoogleBanner.jsx`, `SearchBar.jsx` (debounced with URL `?q=` sync), `FilterToolbar.jsx`, `AssetTable.jsx`, `AssetTableRow.jsx`.
+  - ✅ Asset Detail Page & Lifecycle Actions (`client/src/pages/AssetDetail.jsx` & `client/src/components/asset-detail/*` & `client/src/components/forms/AssignmentModal.jsx`):
+    - `SpecsProfile.jsx`: Displays full technical specs (`costCents` formatted as currency), one-click serial copy to clipboard with toast, and inline notes editor.
+    - `HistoryTimeline.jsx`: Chronological vertical timeline of all `asset_history` events (`created`, `assigned`, `returned`, `retired`, `deleted`) with icons, relative timestamps (`date-fns`), and actor notes.
+    - `AssigneeCard.jsx`: Displays active assigned employee profile (`name`, `email`, `department`, avatar/initials, and assigned date) when asset is `in-use`.
+    - `AssignmentModal.jsx`: Searchable employee selector, assignment date picker, and optional notes field. Supports both initial assignment and reassign flows.
+    - `LifecycleActions.jsx`: Contextual buttons based on current status (`Assign`, `Reassign`, `Return to Stock`, `Retire Asset`, `Delete Asset`). Enforces Rule 1 (`retired` assets cannot be modified/assigned) and two-step confirmation on permanent deletion.
 - **Planning docs completed:**
   - ✅ `AssetTrack_PRD.md` — Product Requirements Document
   - ✅ `AssetTrack_Architecture.md` — Technical Architecture
   - ✅ `AssetTrack_Rules.md` — Engineering Rules & Standards (includes AI Boundaries §12)
   - ✅ `AssetTrack_Phases.md` — Project Phases & Delivery Plan
   - ✅ `AssetTrack_Memory.md` — This file
-- **Next action:** Await user review of Week 3 Dashboard & Inventory Pages → proceed to Week 4 — Asset Detail Page & Lifecycle Actions (`SpecsProfile`, `HistoryTimeline`, `AssigneeCard`, `LifecycleActions`, `AssignmentModal`, confirmation dialogs).
+- **Next action:** Await user review of Week 4 Asset Detail Page & Lifecycle Actions → proceed to Week 5 — Add Asset Form (`AddAssetForm.jsx`, `serialGenerator.js` with auto-gen wand) & Employee Directory (`EmployeesPage.jsx`, `EmployeeTable.jsx`, `AddEmployeeModal.jsx`).
 
 ### Phase Completion Tracker
 | Phase | Status | Completion |
 |---|---|---|
-| Phase 1 — MVP Core | 🟡 In Progress (Weeks 1, 2, & 3 Done) | 60% |
+| Phase 1 — MVP Core | 🟡 In Progress (Weeks 1, 2, 3, & 4 Done) | 80% |
 | Phase 2 — Scanner & Google | ⬜ Not Started | 0% |
 | Phase 3 — Polish & QA | ⬜ Not Started | 0% |
 | Phase 4 — v1.1 Enhancements | ⬜ Not Started | 0% |
@@ -894,6 +894,7 @@ These decisions must be made before the relevant phase begins. Track the answer 
 2026-07-21 | Antigravity AI | Phase 1, Week 1 — Monorepo setup, SQLite schema + seeder, Express server & route stubs, React Vite frontend with layout & dark mode tokens | ✅ Completed Week 1 setup; DB seeded with 15 assets/8 employees/4 categories; server running; frontend build verified
 2026-07-21 | Antigravity AI | Phase 1, Week 2 — Backend Core APIs & Service Layer (`categories`, `employees`, `assets`, `history`, `serial`) with transactional lifecycle rules, conflict checks, and automated exit criteria verification | ✅ Completed Week 2 APIs; all endpoints verified via automated integration tests (`api.test.js`); strict architectural separation & validation enforced
 2026-07-22 | Antigravity AI | Phase 1, Week 3 — Dashboard & Inventory Pages (`useMetrics`, `useAssets`, `MetricCard`, `InventoryBreakdown`, `ActivityFeed`, `SearchBar`, `FilterToolbar`, `AssetTable`) with live API connection, URL query sync, and UI primitives | ✅ Completed Week 3 pages & hooks; verified clean production build (`vite build` in 156ms) and 100% test verification across all filter & search combinations
+2026-07-22 | Antigravity AI | Phase 1, Week 4 — Asset Detail Page & Lifecycle Actions (`SpecsProfile`, `HistoryTimeline`, `AssigneeCard`, `LifecycleActions`, `AssignmentModal`, `Button`, `Modal`, `useAsset`) | ✅ Completed Week 4 pages, modals, & hooks; verified clean production build (`vite build` in 116ms) and 100% E2E verification of assignment, return, notes edit, retirement, and Rule 1 boundaries
 ```
 
 ---
