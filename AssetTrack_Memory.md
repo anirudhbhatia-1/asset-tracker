@@ -813,8 +813,8 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
 
 > Update this section every session.
 
-### Status as of July 21, 2026
-- **Phase:** Phase 1 — MVP Core (Week 1 & Week 2 completed, ready for Week 3).
+### Status as of July 22, 2026
+- **Phase:** Phase 1 — MVP Core (Weeks 1, 2, & 3 completed, ready for Week 4).
 - **Code written:**
   - ✅ Root monorepo structure (`/client`, `/server`, `/data`, `/backups`) initialized and tracked on branch `feat/phase-1-setup`.
   - ✅ Backend (`/server`): Node/Express initialized with `better-sqlite3`, `cors`, `morgan`, `dotenv`, `express-validator`.
@@ -825,21 +825,35 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
     - `employeeService` & `/api/employees`: Full CRUD with soft deletion (`deleted_at`), assigned asset counts, and `/api/employees/:id/assets` listing.
     - `historyService` & `/api/history`: Immutable append-only audit log, recent activity feed (`/api/history?limit=`), and asset timeline (`/api/assets/:id/history`).
     - `assetService` & `/api/assets` & `/api/serial/scan/:serial`: Full CRUD with transactional lifecycle actions (`assign`, `return`, `retire`), strict `confirm: true` validation on destructive routes, prohibition of re-assigning retired assets, and serial number lookup.
-  - ✅ Frontend (`/client`): React 18 (Vite) initialized with `tailwindcss` (v4 with `@tailwindcss/vite`), `react-router-dom`, `axios`, `lucide-react`, `date-fns`, `react-hot-toast`.
-  - ✅ UI Layout & Navigation (`Sidebar.jsx`, `TopBar.jsx`, `MainLayout.jsx`): Matching exact dark-mode design tokens (`bg-slate-900`, `bg-slate-800`, `text-slate-100`, `indigo-500` accent) and navigation links.
-  - ✅ 8 Page Stubs & Axios Instance: Stubs for all 8 application screens mounted cleanly in `App.jsx`, API proxy configured to backend port `3001`.
+  - ✅ Frontend Core & UI Layout (`/client`): React 18 (Vite), Tailwind v4 (`@tailwindcss/vite`), `react-router-dom`, `axios`, `lucide-react`, `date-fns`, `react-hot-toast`. Design tokens and navigation (`Sidebar.jsx`, `TopBar.jsx`, `MainLayout.jsx`) matching dark-mode specifications.
+  - ✅ Frontend API Client & Hooks (`client/src/api/*` & `client/src/hooks/*`):
+    - Canonical Axios API wrappers (`assetsApi`, `categoriesApi`, `historyApi`, `employeesApi`) adhering strictly to Pattern 2.
+    - Custom reactive hooks (`useMetrics`, `useAssets`, `useCategories`, `useHistory`) managing loading, error, and refresh states cleanly outside components.
+  - ✅ UI Primitives (`client/src/components/ui/*`):
+    - `StatusPill.jsx` (`available`, `in-use` with pulsing active dot, `retired` with icon + text per Rules §8.7).
+    - `Badge.jsx` (1-char category circular accent icon).
+    - `EmptyState.jsx` & `Spinner.jsx` & `Skeleton.jsx` (skeleton layout shimmer cards and table blocks per Rules §8.1).
+  - ✅ Dashboard Page & Components (`client/src/pages/Dashboard.jsx` & `client/src/components/dashboard/*`):
+    - `MetricCard.jsx` with smooth count-up animation and status deltas.
+    - `InventoryBreakdown.jsx` rendering horizontal category distribution bars and percentages.
+    - `ActivityFeed.jsx` rendering reverse-chronological immutable audit stream with colored event type tags (`assigned`, `returned`, `created`, `retired`, `google`).
+    - `GoogleBanner.jsx` placeholder banner linking directly to Settings.
+  - ✅ Inventory Page & Components (`client/src/pages/Inventory.jsx` & `client/src/components/inventory/*`):
+    - `SearchBar.jsx` with 300ms debounce and URL `?q=` sync (connected to global search in `TopBar.jsx`).
+    - `FilterToolbar.jsx` supporting category chips, status selection (`all`, `available`, `in-use`, `retired`), location selection (`Bangalore`, `Mumbai`, `Delhi`, `Hyderabad`), and clear filters CTA.
+    - `AssetTable.jsx` & `AssetTableRow.jsx` rendering sortable columns (`name`, `serialNumber`, `status`, `location`, `assigneeName`, `assignedDate`) with detailed status pills, category badges, monospace serial chips, and links to asset details.
 - **Planning docs completed:**
   - ✅ `AssetTrack_PRD.md` — Product Requirements Document
   - ✅ `AssetTrack_Architecture.md` — Technical Architecture
   - ✅ `AssetTrack_Rules.md` — Engineering Rules & Standards (includes AI Boundaries §12)
   - ✅ `AssetTrack_Phases.md` — Project Phases & Delivery Plan
   - ✅ `AssetTrack_Memory.md` — This file
-- **Next action:** Await user review of Week 2 APIs → proceed to Week 3 — Dashboard & Inventory Pages (`useMetrics`, `MetricCard`, `InventoryBreakdown`, `ActivityFeed`, `SearchBar`, `FilterToolbar`, `AssetTable`).
+- **Next action:** Await user review of Week 3 Dashboard & Inventory Pages → proceed to Week 4 — Asset Detail Page & Lifecycle Actions (`SpecsProfile`, `HistoryTimeline`, `AssigneeCard`, `LifecycleActions`, `AssignmentModal`, confirmation dialogs).
 
 ### Phase Completion Tracker
 | Phase | Status | Completion |
 |---|---|---|
-| Phase 1 — MVP Core | 🟡 In Progress (Week 1 & 2 Done) | 40% |
+| Phase 1 — MVP Core | 🟡 In Progress (Weeks 1, 2, & 3 Done) | 60% |
 | Phase 2 — Scanner & Google | ⬜ Not Started | 0% |
 | Phase 3 — Polish & QA | ⬜ Not Started | 0% |
 | Phase 4 — v1.1 Enhancements | ⬜ Not Started | 0% |
@@ -879,6 +893,7 @@ These decisions must be made before the relevant phase begins. Track the answer 
 2026-07-21 | Claude (Anthropic) | Create all planning documentation (PRD, Architecture, Rules, Phases, Memory) | ✅ All 5 documents created and saved to Desktop
 2026-07-21 | Antigravity AI | Phase 1, Week 1 — Monorepo setup, SQLite schema + seeder, Express server & route stubs, React Vite frontend with layout & dark mode tokens | ✅ Completed Week 1 setup; DB seeded with 15 assets/8 employees/4 categories; server running; frontend build verified
 2026-07-21 | Antigravity AI | Phase 1, Week 2 — Backend Core APIs & Service Layer (`categories`, `employees`, `assets`, `history`, `serial`) with transactional lifecycle rules, conflict checks, and automated exit criteria verification | ✅ Completed Week 2 APIs; all endpoints verified via automated integration tests (`api.test.js`); strict architectural separation & validation enforced
+2026-07-22 | Antigravity AI | Phase 1, Week 3 — Dashboard & Inventory Pages (`useMetrics`, `useAssets`, `MetricCard`, `InventoryBreakdown`, `ActivityFeed`, `SearchBar`, `FilterToolbar`, `AssetTable`) with live API connection, URL query sync, and UI primitives | ✅ Completed Week 3 pages & hooks; verified clean production build (`vite build` in 156ms) and 100% test verification across all filter & search combinations
 ```
 
 ---
