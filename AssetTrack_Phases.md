@@ -62,16 +62,16 @@
 
 ### Phase 1 Objectives
 
-- [ ] Project scaffold and development environment working for all developers.
-- [ ] SQLite database schema created with seed data.
-- [ ] All backend REST API endpoints for assets, employees, categories, and history are functional.
-- [ ] Dashboard with live metrics and activity feed.
-- [ ] Inventory list with search and filters.
-- [ ] Asset detail page with specifications and history timeline.
-- [ ] Add new asset form with auto-serial generation.
-- [ ] Assignment modal with employee picker and date selection.
-- [ ] Employee directory grid with per-employee asset drawer.
-- [ ] All P0 features from the PRD are implemented and manually tested.
+- [x] Project scaffold and development environment working for all developers.
+- [x] SQLite database schema created with seed data.
+- [x] All backend REST API endpoints for assets, employees, categories, and history are functional.
+- [x] Dashboard with live metrics and activity feed.
+- [x] Inventory list with search and filters.
+- [x] Asset detail page with specifications and history timeline.
+- [x] Add new asset form with auto-serial generation.
+- [x] Assignment modal with employee picker and date selection.
+- [x] Employee directory grid with per-employee asset drawer.
+- [x] All P0 features from the PRD are implemented and manually tested.
 
 ---
 
@@ -80,31 +80,31 @@
 **Theme:** Get every developer running the same working environment.
 
 #### Backend Tasks
-- [ ] Initialise Node.js + Express project in `server/` with `npm init`.
-- [ ] Install dependencies: `express`, `better-sqlite3`, `cors`, `dotenv`, `morgan`, `express-validator`.
-- [ ] Create `server/db.js` — SQLite connection, schema creation (`CREATE TABLE IF NOT EXISTS`), and seeder.
-- [ ] Create all 5 tables: `assets`, `employees`, `categories`, `asset_history`, `google_config`.
-- [ ] Create all indexes (see Architecture §5.4).
-- [ ] Write seed data: 4 categories, 8 employees across 4 offices, 15 sample assets with mixed statuses.
-- [ ] Create `server/index.js` — Express app with CORS, JSON parsing, morgan, and route mounting stubs.
-- [ ] Create `.env.example` with all required variables.
-- [ ] Verify server starts clean on `npm run dev` (nodemon).
+- [x] Initialise Node.js + Express project in `server/` with `npm init`.
+- [x] Install dependencies: `express`, `better-sqlite3`, `cors`, `dotenv`, `morgan`, `express-validator`.
+- [x] Create `server/db.js` — SQLite connection, schema creation (`CREATE TABLE IF NOT EXISTS`), and seeder.
+- [x] Create all 5 tables: `assets`, `employees`, `categories`, `asset_history`, `google_config`.
+- [x] Create all indexes (see Architecture §5.4).
+- [x] Write seed data: 4 categories, 8 employees across 4 offices, 15 sample assets with mixed statuses.
+- [x] Create `server/index.js` — Express app with CORS, JSON parsing, morgan, and route mounting stubs.
+- [x] Create `.env.example` with all required variables.
+- [x] Verify server starts clean on `npm run dev` (nodemon).
 
 #### Frontend Tasks
-- [ ] Initialise React + Vite project in `client/` using `npm create vite@latest`.
-- [ ] Install dependencies: `react-router-dom`, `axios`, `tailwindcss`, `lucide-react`, `date-fns`, `react-hot-toast`.
-- [ ] Configure Tailwind CSS with dark-mode theme tokens (see PRD §9.1 design tokens).
-- [ ] Import Inter font from Google Fonts in `index.html`.
-- [ ] Create base `App.jsx` with `BrowserRouter` and route stubs for all 8 pages.
-- [ ] Create `Sidebar.jsx` and `TopBar.jsx` layout components with placeholder nav links.
-- [ ] Create `axiosInstance.js` with base URL from env and placeholder interceptors.
-- [ ] Verify app loads at `http://localhost:5173` with sidebar visible.
+- [x] Initialise React + Vite project in `client/` using `npm create vite@latest`.
+- [x] Install dependencies: `react-router-dom`, `axios`, `tailwindcss`, `lucide-react`, `date-fns`, `react-hot-toast`.
+- [x] Configure Tailwind CSS with dark-mode theme tokens (see PRD §9.1 design tokens).
+- [x] Import Inter font from Google Fonts in `index.html`.
+- [x] Create base `App.jsx` with `BrowserRouter` and route stubs for all 8 pages.
+- [x] Create `Sidebar.jsx` and `TopBar.jsx` layout components with placeholder nav links.
+- [x] Create `axiosInstance.js` with base URL from env and placeholder interceptors.
+- [x] Verify app loads at `http://localhost:5173` with sidebar visible.
 
 #### Devops / Shared Tasks
-- [ ] Create root `README.md` with setup instructions (clone → install → seed → run).
-- [ ] Create `.gitignore` covering all excluded paths from Architecture §11.
-- [ ] Set up Git repository with `main` branch protection (require PR + review).
-- [ ] Create `feat/phase-1-setup` branch as the working branch.
+- [x] Create root `README.md` with setup instructions (clone → install → seed → run).
+- [x] Create `.gitignore` covering all excluded paths from Architecture §11.
+- [x] Set up Git repository with `main` branch protection (require PR + review).
+- [x] Create `feat/phase-1-setup` branch as the working branch.
 
 **Week 1 Exit Criteria:**
 - Server starts without errors and database file is created with seeded data.
@@ -118,36 +118,36 @@
 **Theme:** Build the complete REST API layer for core resources.
 
 #### Assets API (`server/routes/assets.js` + `server/services/assetService.js`)
-- [ ] `GET /api/assets` — list all assets with optional query params (`?status=`, `?category_id=`, `?location=`, `?q=`).
-- [ ] `GET /api/assets/:id` — get single asset with full history and assignee details (JOIN query).
-- [ ] `POST /api/assets` — create asset; validate all required fields; log `created` history event.
-- [ ] `PUT /api/assets/:id` — update asset fields; log `updated` history event.
-- [ ] `DELETE /api/assets/:id` — log `deleted` event first, then hard delete.
-- [ ] `POST /api/assets/:id/assign` — set `status='in-use'`, record assignee, log `assigned` event. Use `db.transaction()`.
-- [ ] `POST /api/assets/:id/return` — set `status='available'`, clear assignee, log `returned` event.
-- [ ] `POST /api/assets/:id/retire` — set `status='retired'`, log `retired` event.
-- [ ] `GET /api/serial/scan/:serial` — look up asset by serial number.
+- [x] `GET /api/assets` — list all assets with optional query params (`?status=`, `?category_id=`, `?location=`, `?q=`).
+- [x] `GET /api/assets/:id` — get single asset with full history and assignee details (JOIN query).
+- [x] `POST /api/assets` — create asset; validate all required fields; log `created` history event.
+- [x] `PUT /api/assets/:id` — update asset fields; log `updated` history event.
+- [x] `DELETE /api/assets/:id` — log `deleted` event first, then hard delete.
+- [x] `POST /api/assets/:id/assign` — set `status='in-use'`, record assignee, log `assigned` event. Use `db.transaction()`.
+- [x] `POST /api/assets/:id/return` — set `status='available'`, clear assignee, log `returned` event.
+- [x] `POST /api/assets/:id/retire` — set `status='retired'`, log `retired` event.
+- [x] `GET /api/serial/scan/:serial` — look up asset by serial number.
 
 #### Employees API (`server/routes/employees.js` + `server/services/employeeService.js`)
-- [ ] `GET /api/employees` — list all employees.
-- [ ] `GET /api/employees/:id` — get single employee.
-- [ ] `GET /api/employees/:id/assets` — get all assets currently assigned to this employee.
-- [ ] `POST /api/employees` — create employee manually.
-- [ ] `PUT /api/employees/:id` — update employee.
-- [ ] `DELETE /api/employees/:id` — soft delete (set `deleted_at` timestamp).
+- [x] `GET /api/employees` — list all employees.
+- [x] `GET /api/employees/:id` — get single employee.
+- [x] `GET /api/employees/:id/assets` — get all assets currently assigned to this employee.
+- [x] `POST /api/employees` — create employee manually.
+- [x] `PUT /api/employees/:id` — update employee.
+- [x] `DELETE /api/employees/:id` — soft delete (set `deleted_at` timestamp).
 
 #### Categories & History APIs
-- [ ] `GET /api/categories` — list all.
-- [ ] `POST /api/categories` — create.
-- [ ] `PUT /api/categories/:id` — update.
-- [ ] `DELETE /api/categories/:id` — delete with conflict check.
-- [ ] `GET /api/history` — recent activity feed (last 20 events, reverse chronological).
-- [ ] `GET /api/assets/:id/history` — full history for one asset.
+- [x] `GET /api/categories` — list all.
+- [x] `POST /api/categories` — create.
+- [x] `PUT /api/categories/:id` — update.
+- [x] `DELETE /api/categories/:id` — delete with conflict check.
+- [x] `GET /api/history` — recent activity feed (last 20 events, reverse chronological).
+- [x] `GET /api/assets/:id/history` — full history for one asset.
 
 #### Middleware
-- [ ] Create `middleware/validateRequest.js` — reads `validationResult`, returns `400` with errors if any.
-- [ ] Create `middleware/errorHandler.js` — global error handler, formats `{ error, message, code }`.
-- [ ] Add `express-validator` rules to all POST/PUT routes.
+- [x] Create `middleware/validateRequest.js` — reads `validationResult`, returns `400` with errors if any.
+- [x] Create `middleware/errorHandler.js` — global error handler, formats `{ error, message, code }`.
+- [x] Add `express-validator` rules to all POST/PUT routes.
 
 **Week 2 Exit Criteria:**
 - All API endpoints respond correctly when tested with a REST client (Postman / curl / Thunder Client).
@@ -161,25 +161,25 @@
 **Theme:** Build the two most-visited pages with real data from the API.
 
 #### Dashboard Page (`client/src/pages/DashboardPage.jsx`)
-- [ ] Create `useMetrics()` hook that fetches aggregate counts from `GET /api/assets`.
-- [ ] Build `MetricCard.jsx` — displays label, count, icon, and count-up animation on mount.
-- [ ] Render 4 metric cards: Total, In Use, Available, Retired.
-- [ ] Build `InventoryBreakdown.jsx` — fetches assets, groups by category, renders percentage bars.
-- [ ] Build `ActivityFeed.jsx` — fetches `GET /api/history`, renders reverse-chronological list with color-coded type tags.
-- [ ] Build `GoogleBanner.jsx` — placeholder banner showing "Google Workspace — Not Configured" with link to Settings.
-- [ ] Dashboard page assembles all 4 components in a responsive grid layout.
+- [x] Create `useMetrics()` hook that fetches aggregate counts from `GET /api/assets`.
+- [x] Build `MetricCard.jsx` — displays label, count, icon, and count-up animation on mount.
+- [x] Render 4 metric cards: Total, In Use, Available, Retired.
+- [x] Build `InventoryBreakdown.jsx` — fetches assets, groups by category, renders percentage bars.
+- [x] Build `ActivityFeed.jsx` — fetches `GET /api/history`, renders reverse-chronological list with color-coded type tags.
+- [x] Build `GoogleBanner.jsx` — placeholder banner showing "Google Workspace — Not Configured" with link to Settings.
+- [x] Dashboard page assembles all 4 components in a responsive grid layout.
 
 #### Inventory Page (`client/src/pages/InventoryPage.jsx`)
-- [ ] Build `SearchBar.jsx` — controlled input, debounced (300ms), updates URL query param `?q=`.
-- [ ] Build `FilterToolbar.jsx` — category chips + status dropdown. Active filters visually highlighted.
-- [ ] Create `useAssets()` hook — fetches from `GET /api/assets`, re-fetches when filters change.
-- [ ] Build `AssetTable.jsx` — renders table with all columns from PRD §6.2.3.
-- [ ] Build `AssetTableRow.jsx` — category badge icon, status pill, asset name link, action button.
-- [ ] Build `StatusPill.jsx` primitive — renders correct color based on status value.
-- [ ] Build `Badge.jsx` primitive — 1-char colored badge for category.
-- [ ] Wire asset name click to navigate to `AssetDetailPage` (`/inventory/:id`).
-- [ ] Implement empty state for no results with icon + message.
-- [ ] Implement loading skeleton rows while data is fetching.
+- [x] Build `SearchBar.jsx` — controlled input, debounced (300ms), updates URL query param `?q=`.
+- [x] Build `FilterToolbar.jsx` — category chips + status dropdown. Active filters visually highlighted.
+- [x] Create `useAssets()` hook — fetches from `GET /api/assets`, re-fetches when filters change.
+- [x] Build `AssetTable.jsx` — renders table with all columns from PRD §6.2.3.
+- [x] Build `AssetTableRow.jsx` — category badge icon, status pill, asset name link, action button.
+- [x] Build `StatusPill.jsx` primitive — renders correct color based on status value.
+- [x] Build `Badge.jsx` primitive — 1-char colored badge for category.
+- [x] Wire asset name click to navigate to `AssetDetailPage` (`/inventory/:id`).
+- [x] Implement empty state for no results with icon + message.
+- [x] Implement loading skeleton rows while data is fetching.
 
 **Week 3 Exit Criteria:**
 - Dashboard loads with real counts from the seeded database.
@@ -195,27 +195,27 @@
 **Theme:** Build the full asset detail view and all lifecycle controls.
 
 #### Asset Detail Page (`client/src/pages/AssetDetailPage.jsx`)
-- [ ] Create `useAsset(id)` hook — fetches `GET /api/assets/:id` on mount and on any action.
-- [ ] Build `SpecsProfile.jsx` — displays all spec fields from PRD §6.3.1 with copy-to-clipboard on serial.
-- [ ] Build `HistoryTimeline.jsx` — chronological timeline of all `asset_history` events with icon, event type, date, assignee, and note.
-- [ ] Build `AssigneeCard.jsx` — shown only when status is `in-use`; displays employee details.
-- [ ] Build `LifecycleActions.jsx` — renders contextual action buttons (Assign, Return, Retire, Delete) based on current status.
-- [ ] Implement inline notes edit — click pencil icon, textarea appears, save triggers `PUT /api/assets/:id`.
+- [x] Create `useAsset(id)` hook — fetches `GET /api/assets/:id` on mount and on any action.
+- [x] Build `SpecsProfile.jsx` — displays all spec fields from PRD §6.3.1 with copy-to-clipboard on serial.
+- [x] Build `HistoryTimeline.jsx` — chronological timeline of all `asset_history` events with icon, event type, date, assignee, and note.
+- [x] Build `AssigneeCard.jsx` — shown only when status is `in-use`; displays employee details.
+- [x] Build `LifecycleActions.jsx` — renders contextual action buttons (Assign, Return, Retire, Delete) based on current status.
+- [x] Implement inline notes edit — click pencil icon, textarea appears, save triggers `PUT /api/assets/:id`.
 
 #### Assignment Modal (`client/src/components/forms/AssignmentModal.jsx`)
-- [ ] Modal opens when "Assign" or "Reassign" is clicked.
-- [ ] Searchable employee list loaded from `GET /api/employees`.
-- [ ] Date picker for assignment date (defaults to today).
-- [ ] Optional notes field.
-- [ ] On submit: calls `POST /api/assets/:id/assign`, closes modal, refreshes asset detail.
-- [ ] If asset is already assigned, modal shows "Reassign" title and pre-populates current assignee.
-- [ ] Modal closes on Escape key and backdrop click.
+- [x] Modal opens when "Assign" or "Reassign" is clicked.
+- [x] Searchable employee list loaded from `GET /api/employees`.
+- [x] Date picker for assignment date (defaults to today).
+- [x] Optional notes field.
+- [x] On submit: calls `POST /api/assets/:id/assign`, closes modal, refreshes asset detail.
+- [x] If asset is already assigned, modal shows "Reassign" title and pre-populates current assignee.
+- [x] Modal closes on Escape key and backdrop click.
 
 #### Confirmation Dialogs
-- [ ] Build reusable `Modal.jsx` primitive with title, body slot, and configurable action buttons.
-- [ ] "Return to Stock" — confirmation modal → calls `POST /api/assets/:id/return`.
-- [ ] "Retire Asset" — confirmation modal with red confirm button → calls `POST /api/assets/:id/retire`.
-- [ ] "Delete Asset" — two-step confirmation (type asset name to confirm) → calls `DELETE /api/assets/:id`.
+- [x] Build reusable `Modal.jsx` primitive with title, body slot, and configurable action buttons.
+- [x] "Return to Stock" — confirmation modal → calls `POST /api/assets/:id/return`.
+- [x] "Retire Asset" — confirmation modal with red confirm button → calls `POST /api/assets/:id/retire`.
+- [x] "Delete Asset" — two-step confirmation (type asset name to confirm) → calls `DELETE /api/assets/:id`.
 
 **Week 4 Exit Criteria:**
 - Asset detail page shows full specs, current assignee card, and history timeline.
@@ -643,8 +643,8 @@ v1.1+│    │    │    │    │    │    │    │    │    │    │  
 | Production server / VM provisioned (for HTTPS) | Phase 3, Week 12 | IT Admin | ⬜ Pending |
 | TLS certificate obtained for production domain | Phase 3, Week 12 | IT Admin | ⬜ Pending |
 | Decision on hosting: on-premise vs. cloud VM | Before Phase 2 | Engineering Lead | ⬜ Pending |
-| Final list of office locations confirmed | Phase 1, Week 1 | Operations | ⬜ Pending |
-| All developers onboarded and machines set up | Phase 1, Week 1 | Engineering Lead | ⬜ Pending |
+| Final list of office locations confirmed | Phase 1, Week 1 | Operations | ✅ Resolved (4 offices) |
+| All developers onboarded and machines set up | Phase 1, Week 1 | Engineering Lead | ✅ Completed |
 | Existing asset data (if CSV import needed at launch) | Phase 1, Week 6 | IT Admin | ⬜ Pending |
 
 ---
