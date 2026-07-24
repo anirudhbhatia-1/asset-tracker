@@ -6,9 +6,9 @@ const categoryService = require('../services/categoryService');
 const router = express.Router();
 
 // GET /api/categories — list all categories
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const categories = categoryService.getCategories();
+    const categories = await categoryService.getCategories();
     res.status(200).json({
       data: categories,
       total: categories.length,
@@ -23,9 +23,9 @@ router.get('/', (req, res, next) => {
 router.get('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const category = categoryService.getCategoryById(Number(req.params.id));
+    const category = await categoryService.getCategoryById(Number(req.params.id));
     res.status(200).json({
       data: category,
       message: 'OK',
@@ -38,13 +38,13 @@ router.get('/:id', [
 // POST /api/categories — create category
 router.post('/', [
   body('name').notEmpty().withMessage('Category name is required').trim().isLength({ max: 100 }),
-  body('description').optional().isString().trim().isLength({ max: 500 }),
-  body('badgeChar').optional().isString().trim().isLength({ max: 1 }).withMessage('badgeChar must be at most 1 character'),
-  body('color').optional().isString().trim().isLength({ max: 50 }),
+  body('description').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
+  body('badgeChar').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 1 }).withMessage('badgeChar must be at most 1 character'),
+  body('color').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 50 }),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const created = categoryService.createCategory(req.body);
+    const created = await categoryService.createCategory(req.body);
     res.status(201).json({
       data: created,
       message: 'Category created successfully',
@@ -57,14 +57,14 @@ router.post('/', [
 // PUT /api/categories/:id — update category
 router.put('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
-  body('name').optional().notEmpty().trim().isLength({ max: 100 }),
-  body('description').optional().isString().trim().isLength({ max: 500 }),
-  body('badgeChar').optional().isString().trim().isLength({ max: 1 }),
-  body('color').optional().isString().trim().isLength({ max: 50 }),
+  body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 100 }),
+  body('description').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
+  body('badgeChar').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 1 }),
+  body('color').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 50 }),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const updated = categoryService.updateCategory(Number(req.params.id), req.body);
+    const updated = await categoryService.updateCategory(Number(req.params.id), req.body);
     res.status(200).json({
       data: updated,
       message: 'Category updated successfully',
@@ -78,9 +78,9 @@ router.put('/:id', [
 router.delete('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const result = categoryService.deleteCategory(Number(req.params.id));
+    const result = await categoryService.deleteCategory(Number(req.params.id));
     res.status(200).json({
       data: result,
       message: 'Category deleted successfully',

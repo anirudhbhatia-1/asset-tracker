@@ -43,25 +43,31 @@ These tokens are fixed by PRD §9.1 and are treated as source of truth; the tabl
 
 ### 2.1 Color
 
-| Token | Hex | Usage |
-|---|---|---|
-| `bg-base` | `#0F172A` (slate-900) | App background |
-| `bg-surface` | `#1E293B` (slate-800) | Cards, sidebar, table rows |
-| `bg-surface-raised` | `#27354A` | Modals, dropdowns, hover surfaces |
-| `border-default` | `#334155` (slate-700) | Card borders, dividers, input borders |
-| `text-primary` | `#F1F5F9` (slate-100) | Headings, primary content |
-| `text-secondary` | `#94A3B8` (slate-400) | Labels, meta text, placeholders |
-| `accent-primary` | `#6366F1` (indigo-500) | Primary buttons, active nav, links, focus ring |
-| `accent-primary-hover` | `#818CF8` (indigo-400) | Hover state on primary elements |
-| `success` | `#10B981` (emerald-500) | Available status, success toasts, positive deltas |
-| `warning` | `#F59E0B` (amber-500) | Status-change activity tag, pending states |
-| `danger` | `#F43F5E` (rose-500) | Retire/delete actions, error toasts, retired status text |
-| `info-blue` | `#3B82F6` | In-Use status, assignment activity tag |
-| `info-purple` | `#8B5CF6` | Category activity tag |
+| Token | Dark (Default) | Light (New) | Usage |
+|---|---|---|---|
+| `bg-base` | `#0F172A` (slate-900) | `#F1F5F9` (slate-100) | App background |
+| `bg-surface` | `#1E293B` (slate-800) | `#FFFFFF` | Cards, sidebar, table rows |
+| `bg-surface-raised` | `#27354A` | `#FFFFFF` | Modals, dropdowns, hover surfaces |
+| `border-default` | `#334155` (slate-700) | `#E2E8F0` (slate-200) | Card borders, dividers, input borders |
+| `text-primary` | `#F1F5F9` (slate-100) | `#0F172A` (slate-900) | Headings, primary content |
+| `text-secondary` | `#94A3B8` (slate-400) | `#64748B` (slate-500) | Labels, meta text, placeholders |
+| `accent-primary` | `#6366F1` (indigo-500) | `#6366F1` (indigo-500) | Primary buttons, active nav, links, focus ring |
+| `accent-primary-hover` | `#818CF8` (indigo-400) | `#4F46E5` (indigo-600) | Hover state on primary elements |
+| `success` | `#10B981` (emerald-500) | `#059669` (emerald-600) | Available status, success toasts, positive deltas |
+| `warning` | `#F59E0B` (amber-500) | `#D97706` (amber-600) | Status-change activity tag, pending states |
+| `danger` | `#F43F5E` (rose-500) | `#E11D48` (rose-600) | Retire/delete actions, error toasts, retired status text |
+| `info-blue` | `#3B82F6` | `#2563EB` (blue-600) | In-Use status, assignment activity tag |
+| `info-purple` | `#8B5CF6` | `#7C3AED` (purple-600) | Category activity tag |
 
 Category accent palette (8 curated options, PRD §6.6.2): Blue `#3B82F6` · Indigo `#6366F1` · Purple `#8B5CF6` · Teal `#14B8A6` · Cyan `#06B6D4` · Emerald `#10B981` · Amber `#F59E0B` · Rose `#F43F5E`.
 
-### 2.2 Typography
+### 2.2 Theme State & Toggle
+
+- **Persistence**: Managed via a React `ThemeContext` and persisted in `localStorage` under `assettrack-theme`.
+- **Default Behavior**: Defaults to `dark` for new visitors (matching the "dark by default" product decision).
+- **Toggle**: Available in the `TopBar` as a `Sun`/`Moon` icon next to the notifications bell.
+
+### 2.3 Typography
 
 | Role | Font | Notes |
 |---|---|---|
@@ -79,7 +85,7 @@ Category accent palette (8 curated options, PRD §6.6.2): Blue `#3B82F6` · Indi
 | Small | 12px / 500 | Meta text, timestamps, badge labels |
 | Mono | 13px / 500, monospace | Serial numbers, client IDs |
 
-### 2.3 Spacing & Shape
+### 2.4 Spacing & Shape
 
 | Token | Value |
 |---|---|
@@ -90,7 +96,7 @@ Category accent palette (8 curated options, PRD §6.6.2): Blue `#3B82F6` · Indi
 | Card padding | `20px` (mobile: `16px`) |
 | Page gutter | `32px` desktop / `16px` mobile |
 
-### 2.4 Elevation
+### 2.5 Elevation
 
 Flat by default (dark UIs rely on borders, not shadows, for separation). Two exceptions:
 - **Card hover:** `translateY(-2px)` + soft shadow (`0 8px 24px rgba(0,0,0,0.35)`).
@@ -226,9 +232,11 @@ Per PRD §9.3:
 
 | Breakpoint | Width | Behavior |
 |---|---|---|
-| Mobile | < 768px | Sidebar → bottom tab bar (5 primary icons); single-column stacks everywhere; tables become horizontally scrollable card-rows |
+| Mobile | < 768px | Sidebar → bottom tab bar (5 primary icons); single-column stacks everywhere; tables become horizontally scrollable |
 | Tablet | 768–1024px | Sidebar collapses to icon-only rail; 2-column grids |
 | Desktop | > 1024px | Full sidebar with labels; up to 4-column grids |
+
+*Implementation Note (July 2026)*: The bottom tab bar strictly includes the 5 primary views (Dashboard, Inventory, Scanner, Employees, Categories). To prevent crowding, the `Settings` route is moved to the TopBar admin menu on mobile, and `+ Add Asset` is placed prominently in the TopBar as a primary action. For the Inventory table, rather than a full card-based rewrite on mobile, it utilizes horizontal scrollability with an inset edge shadow to preserve column sorting and dense data scanning.
 
 Minimum tap target on mobile: 44×44px (Rules §8.7).
 

@@ -6,9 +6,9 @@ const employeeService = require('../services/employeeService');
 const router = express.Router();
 
 // GET /api/employees — list all employees
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const employees = employeeService.getEmployees(req.query);
+    const employees = await employeeService.getEmployees(req.query);
     res.status(200).json({
       data: employees,
       total: employees.length,
@@ -23,9 +23,9 @@ router.get('/', (req, res, next) => {
 router.get('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const employee = employeeService.getEmployeeById(Number(req.params.id));
+    const employee = await employeeService.getEmployeeById(Number(req.params.id));
     res.status(200).json({
       data: employee,
       message: 'OK',
@@ -39,9 +39,9 @@ router.get('/:id', [
 router.get('/:id/assets', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const assets = employeeService.getEmployeeAssets(Number(req.params.id));
+    const assets = await employeeService.getEmployeeAssets(Number(req.params.id));
     res.status(200).json({
       data: assets,
       total: assets.length,
@@ -56,13 +56,13 @@ router.get('/:id/assets', [
 router.post('/', [
   body('name').notEmpty().withMessage('Employee name is required').trim().isLength({ max: 150 }),
   body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Must be a valid email').normalizeEmail(),
-  body('department').optional().isString().trim().isLength({ max: 100 }),
-  body('location').optional().isString().trim().isLength({ max: 100 }),
-  body('avatarUrl').optional().isURL().withMessage('Must be a valid URL'),
+  body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL().withMessage('Must be a valid URL'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const created = employeeService.createEmployee(req.body);
+    const created = await employeeService.createEmployee(req.body);
     res.status(201).json({
       data: created,
       message: 'Employee created successfully',
@@ -75,15 +75,15 @@ router.post('/', [
 // PUT /api/employees/:id — update employee
 router.put('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
-  body('name').optional().notEmpty().trim().isLength({ max: 150 }),
-  body('email').optional().isEmail().withMessage('Must be a valid email').normalizeEmail(),
-  body('department').optional().isString().trim().isLength({ max: 100 }),
-  body('location').optional().isString().trim().isLength({ max: 100 }),
-  body('avatarUrl').optional().isURL(),
+  body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 150 }),
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Must be a valid email').normalizeEmail(),
+  body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL(),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const updated = employeeService.updateEmployee(Number(req.params.id), req.body);
+    const updated = await employeeService.updateEmployee(Number(req.params.id), req.body);
     res.status(200).json({
       data: updated,
       message: 'Employee updated successfully',
@@ -97,9 +97,9 @@ router.put('/:id', [
 router.delete('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const result = employeeService.deleteEmployee(Number(req.params.id));
+    const result = await employeeService.deleteEmployee(Number(req.params.id));
     res.status(200).json({
       data: result,
       message: 'Employee soft-deleted successfully',

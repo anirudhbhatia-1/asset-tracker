@@ -11,23 +11,50 @@ export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { categories, loading: categoriesLoading } = useCategories();
 
-  // Read initial query from URL search params (`?q=`) or filters
-  const urlQuery = searchParams.get('q') || '';
-  const [searchQuery, setSearchQuery] = useState(urlQuery);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedLocation, setSelectedLocation] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [selectedCategoryId, setSelectedCategoryId] = useState(searchParams.get('categoryId') || 'all');
+  const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || 'all');
+  const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || 'all');
 
-  // Sync URL ?q= parameter when search input updates
+  // Sync state when URL search params change (e.g. navigation from Dashboard or back button)
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+    setSelectedCategoryId(searchParams.get('categoryId') || 'all');
+    setSelectedStatus(searchParams.get('status') || 'all');
+    setSelectedLocation(searchParams.get('location') || 'all');
+  }, [searchParams]);
+
+  const updateFilterParams = useCallback((newParams) => {
+    const updated = new URLSearchParams(searchParams);
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (!value || value === 'all') {
+        updated.delete(key);
+      } else {
+        updated.set(key, value);
+      }
+    });
+    setSearchParams(updated, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const handleSearchChange = useCallback((query) => {
     setSearchQuery(query);
-    if (query) {
-      setSearchParams({ q: query }, { replace: true });
-    } else {
-      searchParams.delete('q');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+    updateFilterParams({ q: query });
+  }, [updateFilterParams]);
+
+  const handleSelectCategory = (catId) => {
+    setSelectedCategoryId(catId);
+    updateFilterParams({ categoryId: catId });
+  };
+
+  const handleSelectStatus = (status) => {
+    setSelectedStatus(status);
+    updateFilterParams({ status });
+  };
+
+  const handleSelectLocation = (loc) => {
+    setSelectedLocation(loc);
+    updateFilterParams({ location: loc });
+  };
 
   // Construct query filters object for API
   const filters = useMemo(() => {
@@ -42,10 +69,11 @@ export default function Inventory() {
   const { assets, loading: assetsLoading, error, refresh } = useAssets(filters);
 
   const handleClearFilters = () => {
-    handleSearchChange('');
+    setSearchQuery('');
     setSelectedCategoryId('all');
     setSelectedStatus('all');
     setSelectedLocation('all');
+    setSearchParams({}, { replace: true });
   };
 
   return (
@@ -53,8 +81,8 @@ export default function Inventory() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Hardware Inventory</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold text-primary tracking-tight">Hardware Inventory</h1>
+          <p className="text-sm text-secondary mt-1">
             Browse, filter, search, and manage the lifecycle of all registered hardware devices.
           </p>
         </div>
@@ -62,15 +90,15 @@ export default function Inventory() {
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors shadow-sm cursor-pointer"
             title="Refresh list"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${assetsLoading ? 'animate-spin text-indigo-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${assetsLoading ? 'animate-spin text-accent' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
           <Link
             to="/inventory/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-md shadow-indigo-600/20 shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-white transition-colors shadow-md shadow-accent/20 shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Add Asset</span>
@@ -80,7 +108,7 @@ export default function Inventory() {
 
       {/* Error banner if fetching failed */}
       {error && (
-        <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-sm text-rose-300 flex items-center justify-between">
+        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-sm text-danger flex items-center justify-between">
           <span>{error}</span>
           <button onClick={refresh} className="underline text-xs hover:text-white cursor-pointer">
             Retry
@@ -94,11 +122,11 @@ export default function Inventory() {
         <FilterToolbar
           categories={categories}
           selectedCategoryId={selectedCategoryId}
-          onSelectCategory={setSelectedCategoryId}
+          onSelectCategory={handleSelectCategory}
           selectedStatus={selectedStatus}
-          onSelectStatus={setSelectedStatus}
+          onSelectStatus={handleSelectStatus}
           selectedLocation={selectedLocation}
-          onSelectLocation={setSelectedLocation}
+          onSelectLocation={handleSelectLocation}
           onClearFilters={handleClearFilters}
         />
       </div>

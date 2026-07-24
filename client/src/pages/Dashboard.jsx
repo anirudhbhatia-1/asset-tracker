@@ -22,24 +22,24 @@ export default function Dashboard() {
       {/* Header & Quick Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">System Overview</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold text-primary tracking-tight">System Overview</h1>
+          <p className="text-sm text-secondary mt-1">
             Live hardware asset counts, categorical distribution, and immutable audit stream.
           </p>
         </div>
         <button
           type="button"
           onClick={handleRefresh}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors self-start sm:self-center shadow-sm cursor-pointer"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors self-start sm:self-center shadow-sm cursor-pointer"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${metricsLoading || historyLoading ? 'animate-spin text-indigo-400' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${metricsLoading || historyLoading ? 'animate-spin text-accent' : ''}`} />
           <span>Refresh Data</span>
         </button>
       </div>
 
       {/* Error banner if fetching failed */}
       {(metricsError || historyError) && (
-        <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-sm text-rose-300 flex items-center justify-between">
+        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-sm text-danger flex items-center justify-between">
           <span>{metricsError || historyError}</span>
           <button onClick={handleRefresh} className="underline text-xs hover:text-white cursor-pointer">
             Retry
@@ -64,7 +64,7 @@ export default function Dashboard() {
               icon={Package}
               delta="100% Tracked"
               deltaPositive={true}
-              colorClass="text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
+              colorClass="text-accent bg-accent/10 border-accent/20"
             />
             <MetricCard
               title="In Use / Assigned"
@@ -72,7 +72,7 @@ export default function Dashboard() {
               icon={Clock}
               delta={`${metrics.total ? Math.round((metrics.inUse / metrics.total) * 100) : 0}% Active`}
               deltaPositive={true}
-              colorClass="text-blue-400 bg-blue-500/10 border-blue-500/20"
+              colorClass="text-info-blue bg-info-blue/10 border-info-blue/20"
             />
             <MetricCard
               title="Available in Stock"
@@ -80,7 +80,7 @@ export default function Dashboard() {
               icon={CheckCircle2}
               delta={`${metrics.total ? Math.round((metrics.available / metrics.total) * 100) : 0}% Ready`}
               deltaPositive={true}
-              colorClass="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+              colorClass="text-success bg-success/10 border-success/20"
             />
             <MetricCard
               title="Retired / Decommissioned"
@@ -88,7 +88,7 @@ export default function Dashboard() {
               icon={Archive}
               delta={`${metrics.total ? Math.round((metrics.retired / metrics.total) * 100) : 0}% EOL`}
               deltaPositive={false}
-              colorClass="text-slate-400 bg-slate-500/10 border-slate-500/20"
+              colorClass="text-secondary bg-secondary/10 border-secondary/20"
             />
           </>
         )}

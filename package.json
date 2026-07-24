@@ -1,0 +1,19 @@
+{
+  "name": "assettrack-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AssetTrack - IT Asset Management Internal Web Application Monorepo",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"bgBlue.bold,bgGreen.bold\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "start": "npm run dev",
+    "seed": "npm run seed --prefix server",
+    "build": "npm run build --prefix client",
+    "test": "npm test --prefix server"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "concurrently": "^9.1.2"
+  }
+}

@@ -6,22 +6,36 @@ export default function useHistory(limit = 20) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchHistoryData = useCallback(async () => {
-    setLoading(true);
+  const fetchHistoryData = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setError(null);
     try {
       const res = await getHistory(limit);
-      setHistory(res.data || []);
+      setHistory(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
       setError(err.message || 'Failed to load history events');
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }, [limit]);
 
   useEffect(() => {
-    fetchHistoryData();
+    fetchHistoryData(false);
+
+    // Re-fetch when window gets focus
+    const handleFocus = () => fetchHistoryData(true);
+    window.addEventListener('focus', handleFocus);
+
+    // Poll every 60 seconds in the background
+    const intervalId = setInterval(() => {
+      fetchHistoryData(true);
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
   }, [fetchHistoryData]);
 
-  return { history, loading, error, refresh: fetchHistoryData };
+  return { history: Array.isArray(history) ? history : [], loading, error, refresh: () => fetchHistoryData(false) };
 }

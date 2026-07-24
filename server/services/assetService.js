@@ -1,4 +1,4 @@
-const db = require('../db');
+const { pool, withTransaction } = require('../db');
 const historyService = require('./historyService');
 
 const mapAsset = (row) => {
@@ -23,35 +23,43 @@ const mapAsset = (row) => {
     assigneeEmail: row.assignee_email || null,
     assigneeDepartment: row.assignee_department || null,
     assigneeAvatarUrl: row.assignee_avatar_url || null,
+    assignee: row.assigned_to ? {
+      id: row.assigned_to,
+      name: row.assignee_name || null,
+      email: row.assignee_email || null,
+      department: row.assignee_department || null,
+      avatarUrl: row.assignee_avatar_url || null
+    } : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 };
 
-const getAssets = (filters = {}) => {
+const getAssets = async (filters = {}) => {
   const conditions = [];
   const params = [];
 
   if (filters.status && filters.status !== 'all') {
-    conditions.push('a.status = ?');
     params.push(filters.status);
+    conditions.push(`a.status = $${params.length}`);
   }
 
   const categoryId = filters.category_id || filters.categoryId;
   if (categoryId && categoryId !== 'all') {
-    conditions.push('a.category_id = ?');
     params.push(Number(categoryId));
+    conditions.push(`a.category_id = $${params.length}`);
   }
 
   if (filters.location && filters.location !== 'all') {
-    conditions.push('a.location = ?');
     params.push(filters.location);
+    conditions.push(`a.location = $${params.length}`);
   }
 
   if (filters.q) {
-    conditions.push('(a.name LIKE ? OR a.model LIKE ? OR a.serial_number LIKE ?)');
     const likeQuery = `%${filters.q}%`;
-    params.push(likeQuery, likeQuery, likeQuery);
+    params.push(likeQuery);
+    const pos = params.length;
+    conditions.push(`(a.name ILIKE $${pos} OR a.model ILIKE $${pos} OR a.serial_number ILIKE $${pos})`);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -67,69 +75,67 @@ const getAssets = (filters = {}) => {
     ORDER BY a.updated_at DESC, a.id DESC
   `;
 
-  const rows = db.prepare(sql).all(...params);
-  return rows.map(mapAsset);
+  const result = await pool.query(sql, params);
+  return result.rows.map(mapAsset);
 };
 
-const getAssetById = (id) => {
-  const row = db.prepare(`
+const getAssetById = async (id, client = pool) => {
+  const result = await client.query(`
     SELECT a.*,
            c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color,
            e.name AS assignee_name, e.email AS assignee_email, e.department AS assignee_department, e.avatar_url AS assignee_avatar_url
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
     LEFT JOIN employees e ON a.assigned_to = e.id
-    WHERE a.id = ?
-  `).get(id);
+    WHERE a.id = $1
+  `, [id]);
 
-  if (!row) {
+  if (result.rows.length === 0) {
     const err = new Error('Asset not found');
     err.statusCode = 404;
     throw err;
   }
 
-  const asset = mapAsset(row);
-  asset.history = historyService.getAssetHistory(id);
+  const asset = mapAsset(result.rows[0]);
+  asset.history = await historyService.getAssetHistory(id, client);
   return asset;
 };
 
-const getAssetBySerial = (serialNumber) => {
-  const row = db.prepare(`
+const getAssetBySerial = async (serialNumber) => {
+  const result = await pool.query(`
     SELECT a.*,
            c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color,
            e.name AS assignee_name, e.email AS assignee_email, e.department AS assignee_department, e.avatar_url AS assignee_avatar_url
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
     LEFT JOIN employees e ON a.assigned_to = e.id
-    WHERE a.serial_number = ?
-  `).get(serialNumber);
+    WHERE UPPER(a.serial_number) = UPPER($1)
+  `, [serialNumber]);
 
-  if (!row) {
+  if (result.rows.length === 0) {
     const err = new Error(`Asset not found for serial number: ${serialNumber}`);
     err.statusCode = 404;
     throw err;
   }
 
-  const asset = mapAsset(row);
-  asset.history = historyService.getAssetHistory(asset.id);
+  const asset = mapAsset(result.rows[0]);
+  asset.history = await historyService.getAssetHistory(asset.id);
   return asset;
 };
 
-const createAsset = (data, performedBy = 'Rajan Sharma') => {
+const createAsset = async (data, performedBy = 'Rajan Sharma') => {
   const {
     name, categoryId, model, serialNumber, status = 'available',
     location, costCents = 0, purchaseDate, notes, assignedTo, assignedDate
   } = data;
 
-  // Check unique serial number
-  const existing = db.prepare('SELECT id FROM assets WHERE serial_number = ?').get(serialNumber);
-  if (existing) {
+  const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1', [serialNumber]);
+  if (existing.rows.length > 0) {
     const err = new Error('Serial number already exists');
     err.statusCode = 409;
     throw err;
   }
 
-  // Validate status
   if (!['available', 'in-use', 'retired'].includes(status)) {
     const err = new Error('Invalid status value');
     err.statusCode = 400;
@@ -145,8 +151,8 @@ const createAsset = (data, performedBy = 'Rajan Sharma') => {
       err.statusCode = 400;
       throw err;
     }
-    const emp = db.prepare('SELECT id FROM employees WHERE id = ? AND deleted_at IS NULL').get(assignedTo);
-    if (!emp) {
+    const emp = await pool.query('SELECT id FROM employees WHERE id = $1 AND deleted_at IS NULL', [assignedTo]);
+    if (emp.rows.length === 0) {
       const err = new Error('Assigned employee not found');
       err.statusCode = 404;
       throw err;
@@ -155,34 +161,32 @@ const createAsset = (data, performedBy = 'Rajan Sharma') => {
     finalAssignedDate = assignedDate || new Date().toISOString().substring(0, 10);
   }
 
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-  let newAssetId;
-  const doCreate = db.transaction(() => {
-    const result = db.prepare(`
+  const newAssetId = await withTransaction(async (client) => {
+    const result = await client.query(`
       INSERT INTO assets (name, category_id, model, serial_number, status, location, cost_cents, purchase_date, notes, assigned_to, assigned_date, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+      RETURNING id
+    `, [
       name, categoryId || null, model || null, serialNumber, status,
       location || null, Number(costCents), purchaseDate || null, notes || null,
-      finalAssignedTo, finalAssignedDate, timestamp, timestamp
-    );
+      finalAssignedTo, finalAssignedDate
+    ]);
 
-    newAssetId = result.lastInsertRowid;
-
-    historyService.logEvent(newAssetId, 'created', performedBy, null, `Initial registration: ${name}`, timestamp);
+    const id = result.rows[0].id;
+    await historyService.logEvent(id, 'created', performedBy, null, `Initial registration: ${name}`, null, client);
 
     if (status === 'in-use' && finalAssignedTo) {
-      historyService.logEvent(newAssetId, 'assigned', performedBy, finalAssignedTo, 'Assigned upon creation', timestamp);
+      await historyService.logEvent(id, 'assigned', performedBy, finalAssignedTo, 'Assigned upon creation', null, client);
     }
+    
+    return id;
   });
 
-  doCreate();
   return getAssetById(newAssetId);
 };
 
-const updateAsset = (id, data, performedBy = 'Rajan Sharma') => {
-  const current = getAssetById(id);
+const updateAsset = async (id, data, performedBy = 'Rajan Sharma') => {
+  const current = await getAssetById(id);
 
   if (current.status === 'retired') {
     const err = new Error('Retired assets cannot be updated or modified');
@@ -195,30 +199,28 @@ const updateAsset = (id, data, performedBy = 'Rajan Sharma') => {
   } = data;
 
   if (serialNumber && serialNumber !== current.serialNumber) {
-    const existing = db.prepare('SELECT id FROM assets WHERE serial_number = ? AND id != ?').get(serialNumber, id);
-    if (existing) {
+    const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1 AND id != $2', [serialNumber, id]);
+    if (existing.rows.length > 0) {
       const err = new Error('Serial number already exists');
       err.statusCode = 409;
       throw err;
     }
   }
 
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-  const doUpdate = db.transaction(() => {
-    db.prepare(`
+  await withTransaction(async (client) => {
+    await client.query(`
       UPDATE assets
-      SET name = ?,
-          category_id = ?,
-          model = ?,
-          serial_number = ?,
-          location = ?,
-          cost_cents = ?,
-          purchase_date = ?,
-          notes = ?,
-          updated_at = ?
-      WHERE id = ?
-    `).run(
+      SET name = $1,
+          category_id = $2,
+          model = $3,
+          serial_number = $4,
+          location = $5,
+          cost_cents = $6,
+          purchase_date = $7,
+          notes = $8,
+          updated_at = NOW()
+      WHERE id = $9
+    `, [
       name !== undefined ? name : current.name,
       categoryId !== undefined ? (categoryId ? Number(categoryId) : null) : current.categoryId,
       model !== undefined ? model : current.model,
@@ -227,39 +229,34 @@ const updateAsset = (id, data, performedBy = 'Rajan Sharma') => {
       costCents !== undefined ? Number(costCents) : current.costCents,
       purchaseDate !== undefined ? purchaseDate : current.purchaseDate,
       notes !== undefined ? notes : current.notes,
-      timestamp,
       id
-    );
+    ]);
 
-    historyService.logEvent(id, 'updated', performedBy, current.assignedTo, data.note || 'Asset metadata updated', timestamp);
+    await historyService.logEvent(id, 'updated', performedBy, current.assignedTo, data.note || 'Asset metadata updated', null, client);
   });
 
-  doUpdate();
   return getAssetById(id);
 };
 
-const deleteAsset = (id, confirm, performedBy = 'Rajan Sharma') => {
+const deleteAsset = async (id, confirm, performedBy = 'Rajan Sharma') => {
   if (confirm !== true && confirm !== 'true') {
     const err = new Error('Destructive actions require confirm: true in request body');
     err.statusCode = 400;
     throw err;
   }
 
-  const current = getAssetById(id);
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const current = await getAssetById(id);
 
-  const doDelete = db.transaction(() => {
-    // Log deleted event first per Rule / Decision 8
-    historyService.logEvent(id, 'deleted', performedBy, current.assignedTo, `Permanently deleted asset: ${current.name} (${current.serialNumber})`, timestamp);
-    db.prepare('DELETE FROM assets WHERE id = ?').run(id);
+  await withTransaction(async (client) => {
+    await historyService.logEvent(id, 'deleted', performedBy, current.assignedTo, `Permanently deleted asset: ${current.name} (${current.serialNumber})`, null, client);
+    await client.query('DELETE FROM assets WHERE id = $1', [id]);
   });
 
-  doDelete();
   return { id: Number(id), deleted: true };
 };
 
-const assignAsset = (id, employeeId, assignedDate, note, performedBy = 'Rajan Sharma') => {
-  const current = getAssetById(id);
+const assignAsset = async (id, employeeId, assignedDate, note, performedBy = 'Rajan Sharma') => {
+  const current = await getAssetById(id);
 
   if (current.status === 'retired') {
     const err = new Error('Cannot assign a retired asset');
@@ -267,35 +264,33 @@ const assignAsset = (id, employeeId, assignedDate, note, performedBy = 'Rajan Sh
     throw err;
   }
 
-  const emp = db.prepare('SELECT id, name FROM employees WHERE id = ? AND deleted_at IS NULL').get(employeeId);
-  if (!emp) {
+  const emp = await pool.query('SELECT id, name FROM employees WHERE id = $1 AND deleted_at IS NULL', [employeeId]);
+  if (emp.rows.length === 0) {
     const err = new Error('Assigned employee not found or is deleted');
     err.statusCode = 404;
     throw err;
   }
 
   const dateToSet = assignedDate || new Date().toISOString().substring(0, 10);
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  const doAssign = db.transaction(() => {
-    db.prepare(`
+  await withTransaction(async (client) => {
+    await client.query(`
       UPDATE assets
       SET status = 'in-use',
-          assigned_to = ?,
-          assigned_date = ?,
-          updated_at = ?
-      WHERE id = ?
-    `).run(employeeId, dateToSet, timestamp, id);
+          assigned_to = $1,
+          assigned_date = $2,
+          updated_at = NOW()
+      WHERE id = $3
+    `, [employeeId, dateToSet, id]);
 
-    historyService.logEvent(id, 'assigned', performedBy, employeeId, note || `Assigned to ${emp.name}`, timestamp);
+    await historyService.logEvent(id, 'assigned', performedBy, employeeId, note || `Assigned to ${emp.rows[0].name}`, null, client);
   });
 
-  doAssign();
   return getAssetById(id);
 };
 
-const returnAsset = (id, note, performedBy = 'Rajan Sharma') => {
-  const current = getAssetById(id);
+const returnAsset = async (id, note, performedBy = 'Rajan Sharma') => {
+  const current = await getAssetById(id);
 
   if (current.status === 'retired') {
     const err = new Error('Cannot return a retired asset');
@@ -310,50 +305,46 @@ const returnAsset = (id, note, performedBy = 'Rajan Sharma') => {
   }
 
   const previousAssignee = current.assignedTo;
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  const doReturn = db.transaction(() => {
-    db.prepare(`
+  await withTransaction(async (client) => {
+    await client.query(`
       UPDATE assets
       SET status = 'available',
           assigned_to = NULL,
           assigned_date = NULL,
-          updated_at = ?
-      WHERE id = ?
-    `).run(timestamp, id);
+          updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
 
-    historyService.logEvent(id, 'returned', performedBy, previousAssignee, note || 'Returned to stock', timestamp);
+    await historyService.logEvent(id, 'returned', performedBy, previousAssignee, note || 'Returned to stock', null, client);
   });
 
-  doReturn();
   return getAssetById(id);
 };
 
-const retireAsset = (id, note, confirm, performedBy = 'Rajan Sharma') => {
+const retireAsset = async (id, note, confirm, performedBy = 'Rajan Sharma') => {
   if (confirm !== true && confirm !== 'true') {
     const err = new Error('Destructive actions require confirm: true in request body');
     err.statusCode = 400;
     throw err;
   }
 
-  const current = getAssetById(id);
+  const current = await getAssetById(id);
   const previousAssignee = current.assignedTo;
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  const doRetire = db.transaction(() => {
-    db.prepare(`
+  await withTransaction(async (client) => {
+    await client.query(`
       UPDATE assets
       SET status = 'retired',
           assigned_to = NULL,
           assigned_date = NULL,
-          updated_at = ?
-      WHERE id = ?
-    `).run(timestamp, id);
+          updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
 
-    historyService.logEvent(id, 'retired', performedBy, previousAssignee, note || 'Asset decommissioned and retired', timestamp);
+    await historyService.logEvent(id, 'retired', performedBy, previousAssignee, note || 'Asset decommissioned and retired', null, client);
   });
 
-  doRetire();
   return getAssetById(id);
 };
 

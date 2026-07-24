@@ -111,7 +111,7 @@ The system provides a single source of truth for hardware lifecycle management, 
 - Category management with visual themes.
 - Dashboard with metrics, inventory breakdown, and activity feed.
 - Settings for OAuth configuration and category creation.
-- SQLite database (server-side, via Node.js backend).
+- Supabase Postgres database (server-side, via Node.js backend).
 
 ### Out of Scope (v1.0 — Considered for v2+)
 - Mobile native app (iOS/Android).
@@ -407,7 +407,7 @@ Fields:
 - Admin inputs:
   - **Google Client ID** (from Google Cloud Console) — format: `XXXXXXXXXX-abcde.apps.googleusercontent.com`
   - **Organization Domain** — format: `company.com`
-- Configuration is persisted to the `google_config` table in SQLite via the backend.
+- Configuration is persisted to the `google_config` table in Supabase Postgres via the backend.
 - Page includes **step-by-step setup instructions** for creating OAuth credentials in Google Cloud Console (can be an expandable accordion or a linked guide).
 
 #### 6.8.2 Directory Search & Sync Checklist
@@ -453,7 +453,7 @@ Additional future settings tabs (v1.1+):
 | Routing | React Router v6 | Declarative SPA routing |
 | State Management | React Context + `useState`/`useReducer` | Sufficient for v1; upgrade to Zustand for v2 |
 | Backend | Node.js + Express | Lightweight REST API server |
-| Database | SQLite (via `better-sqlite3`) | Zero-infrastructure, file-based, ideal for SMB deployments |
+| Database | Supabase Postgres (via `pg`) | Cloud-production-ready managed database with generous free tier |
 | Barcode Scanning | `@zxing/library` or `quagga2` | Open-source, browser-native barcode decoding |
 | Google Auth | Google OAuth 2.0 + Admin SDK | Official Google identity and directory access |
 | Deployment | Docker container (optional) | Portable; can run on any office server or cloud VM |
@@ -483,7 +483,7 @@ Additional future settings tabs (v1.1+):
 │         └───────────────────┴────────────────────┘          │
 │                             │                               │
 │                     ┌───────▼──────┐                        │
-│                     │  SQLite DB   │                        │
+│                     │ Supabase DB  │                        │
 │                     │ (assets.db)  │                        │
 │                     └──────────────┘                        │
 └──────────────────────────────────────┬──────────────────────┘
@@ -657,7 +657,7 @@ Sidebar (collapsible on mobile)
 - Initial page load (FCP): < 2 seconds on a standard office network.
 - Inventory table render (up to 500 assets): < 500ms.
 - Search debounce: 300ms.
-- API response time (P95): < 200ms for read operations on SQLite.
+- API response time (P95): < 200ms for read operations on Supabase Postgres.
 
 ### 10.2 Security
 - Google OAuth tokens must not be persisted in localStorage; use sessionStorage or in-memory.
@@ -667,7 +667,7 @@ Sidebar (collapsible on mobile)
 - Admin actions (delete, retire) must include confirmation dialogs to prevent accidental data loss.
 
 ### 10.3 Reliability
-- SQLite database file must be backed up on a daily schedule (cron or equivalent).
+- Database is automatically backed up via Supabase managed services.
 - Graceful error handling: all API failures must display user-friendly error toasts.
 - Offline state detection: if the backend is unreachable, display a banner.
 
@@ -689,7 +689,7 @@ Sidebar (collapsible on mobile)
 ### Phase 1 — MVP (Target: ~6 weeks)
 > Core inventory, CRUD, assignment, history log, dashboard.
 
-- [ ] Project scaffold (Vite + Express + SQLite)
+- [ ] Project scaffold (Vite + Express + Supabase Postgres)
 - [ ] Database schema and seed data
 - [ ] Dashboard with metrics and activity feed
 - [ ] Inventory list with search and filters
@@ -735,7 +735,7 @@ Sidebar (collapsible on mobile)
 |---|---|---|---|
 | 1 | Will the application be hosted on-premise (internal server) or on a cloud provider (GCP/AWS)? This affects OAuth redirect URI configuration. | IT Lead | High |
 | 2 | Should the system support multiple concurrent admin sessions, or is single-admin sufficient for v1? | Product | High |
-| 3 | What is the expected maximum asset count? (< 500? < 5,000? > 10,000?) This informs whether SQLite is sufficient or Postgres is needed. | IT Lead | High |
+| 3 | What is the expected maximum asset count? (< 500? < 5,000? > 10,000?) (Resolved: Migrated to Supabase Postgres to handle scale). | IT Lead | High |
 | 4 | Should Finance (read-only persona) have a separate login/role, or is full admin access acceptable for v1? | Leadership | Medium |
 | 5 | Are all four offices (Bangalore, Mumbai, Delhi, Hyderabad) in scope at launch, or phased by office? | Ops | Medium |
 | 6 | Is USD the only cost currency, or do we need INR support as well? | Finance | Medium |

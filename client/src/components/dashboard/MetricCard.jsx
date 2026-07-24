@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function MetricCard({ title, count = 0, icon: Icon, delta, deltaPositive = true, colorClass = 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' }) {
+export default function MetricCard({ title, count = 0, icon: Icon, delta, deltaPositive = true, colorClass = 'text-accent bg-accent/10 border-accent/20' }) {
   const [displayCount, setDisplayCount] = useState(0);
 
   useEffect(() => {
@@ -32,9 +32,9 @@ export default function MetricCard({ title, count = 0, icon: Icon, delta, deltaP
   }, [count]);
 
   return (
-    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700/60 shadow-sm hover:border-slate-600 transition-all duration-200 flex flex-col justify-between">
+    <div className="bg-surface rounded-xl p-5 border border-border/60 shadow-sm hover:border-border transition-all duration-200 flex flex-col justify-between">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-secondary">{title}</span>
         {Icon && (
           <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${colorClass}`}>
             <Icon className="w-4.5 h-4.5" />
@@ -42,13 +42,13 @@ export default function MetricCard({ title, count = 0, icon: Icon, delta, deltaP
         )}
       </div>
       <div className="mt-4 flex items-baseline justify-between">
-        <span className="text-3xl font-bold text-slate-100 tracking-tight">{displayCount}</span>
+        <span className="text-3xl font-bold text-primary tracking-tight">{displayCount}</span>
         {delta && (
           <span
             className={`text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 ${
               deltaPositive
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                ? 'bg-success/10 text-success border border-success/20'
+                : 'bg-danger/10 text-danger border border-danger/20'
             }`}
           >
             <span>{deltaPositive ? '▲' : '▼'}</span>

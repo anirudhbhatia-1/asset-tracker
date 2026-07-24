@@ -7,9 +7,9 @@ const historyService = require('../services/historyService');
 const router = express.Router();
 
 // GET /api/assets — list assets with optional filters
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const assets = assetService.getAssets(req.query);
+    const assets = await assetService.getAssets(req.query);
     res.status(200).json({
       data: assets,
       total: assets.length,
@@ -24,9 +24,9 @@ router.get('/', (req, res, next) => {
 router.get('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const asset = assetService.getAssetById(Number(req.params.id));
+    const asset = await assetService.getAssetById(Number(req.params.id));
     res.status(200).json({
       data: asset,
       message: 'OK',
@@ -40,11 +40,11 @@ router.get('/:id', [
 router.get('/:id/history', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
     // Ensure asset exists first
-    assetService.getAssetById(Number(req.params.id));
-    const history = historyService.getAssetHistory(Number(req.params.id));
+    await assetService.getAssetById(Number(req.params.id));
+    const history = await historyService.getAssetHistory(Number(req.params.id));
     res.status(200).json({
       data: history,
       total: history.length,
@@ -59,19 +59,19 @@ router.get('/:id/history', [
 router.post('/', [
   body('name').notEmpty().withMessage('Asset name is required').trim().isLength({ max: 150 }),
   body('serialNumber').notEmpty().withMessage('Serial number is required').trim().isLength({ max: 100 }),
-  body('categoryId').optional().isInt({ min: 1 }),
-  body('model').optional().isString().trim().isLength({ max: 150 }),
-  body('status').optional().isIn(['available', 'in-use', 'retired']).withMessage('Invalid status'),
-  body('location').optional().isString().trim().isLength({ max: 100 }),
-  body('costCents').optional().isInt({ min: 0 }).withMessage('Cost must be positive integer cents'),
-  body('purchaseDate').optional().isISO8601().withMessage('Must be valid ISO date (YYYY-MM-DD)'),
-  body('notes').optional().isString().trim().isLength({ max: 1000 }),
-  body('assignedTo').optional().isInt({ min: 1 }),
-  body('assignedDate').optional().isISO8601(),
+  body('categoryId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
+  body('model').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 150 }),
+  body('status').optional({ nullable: true, checkFalsy: true }).isIn(['available', 'in-use', 'retired']).withMessage('Invalid status'),
+  body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('costCents').optional({ nullable: true, checkFalsy: true }).isInt({ min: 0 }).withMessage('Cost must be positive integer cents'),
+  body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Must be valid ISO date (YYYY-MM-DD)'),
+  body('notes').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 1000 }),
+  body('assignedTo').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
+  body('assignedDate').optional({ nullable: true, checkFalsy: true }).isISO8601(),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const created = assetService.createAsset(req.body);
+    const created = await assetService.createAsset(req.body);
     res.status(201).json({
       data: created,
       message: 'Asset created successfully',
@@ -84,18 +84,18 @@ router.post('/', [
 // PUT /api/assets/:id — update asset
 router.put('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
-  body('name').optional().notEmpty().trim().isLength({ max: 150 }),
-  body('serialNumber').optional().notEmpty().trim().isLength({ max: 100 }),
-  body('categoryId').optional().isInt({ min: 1 }),
-  body('model').optional().isString().trim().isLength({ max: 150 }),
-  body('location').optional().isString().trim().isLength({ max: 100 }),
-  body('costCents').optional().isInt({ min: 0 }),
-  body('purchaseDate').optional().isISO8601(),
-  body('notes').optional().isString().trim().isLength({ max: 1000 }),
+  body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 150 }),
+  body('serialNumber').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 100 }),
+  body('categoryId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
+  body('model').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 150 }),
+  body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('costCents').optional({ nullable: true, checkFalsy: true }).isInt({ min: 0 }),
+  body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601(),
+  body('notes').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 1000 }),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const updated = assetService.updateAsset(Number(req.params.id), req.body);
+    const updated = await assetService.updateAsset(Number(req.params.id), req.body);
     res.status(200).json({
       data: updated,
       message: 'Asset updated successfully',
@@ -109,9 +109,9 @@ router.put('/:id', [
 router.delete('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const result = assetService.deleteAsset(Number(req.params.id), req.body?.confirm);
+    const result = await assetService.deleteAsset(Number(req.params.id), req.body?.confirm);
     res.status(200).json({
       data: result,
       message: 'Asset permanently deleted',
@@ -128,9 +128,9 @@ router.post('/:id/assign', [
   body('assignedDate').optional().isISO8601().withMessage('Must be valid ISO date'),
   body('note').optional().isString().trim().isLength({ max: 500 }),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const assigned = assetService.assignAsset(
+    const assigned = await assetService.assignAsset(
       Number(req.params.id),
       Number(req.body.employeeId),
       req.body.assignedDate,
@@ -150,9 +150,9 @@ router.post('/:id/return', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('note').optional().isString().trim().isLength({ max: 500 }),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const returned = assetService.returnAsset(Number(req.params.id), req.body?.note);
+    const returned = await assetService.returnAsset(Number(req.params.id), req.body?.note);
     res.status(200).json({
       data: returned,
       message: 'Asset returned to stock successfully',
@@ -167,9 +167,9 @@ router.post('/:id/retire', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('note').optional().isString().trim().isLength({ max: 500 }),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
-    const retired = assetService.retireAsset(Number(req.params.id), req.body?.note, req.body?.confirm);
+    const retired = await assetService.retireAsset(Number(req.params.id), req.body?.note, req.body?.confirm);
     res.status(200).json({
       data: retired,
       message: 'Asset decommissioned and retired successfully',

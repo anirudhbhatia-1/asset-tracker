@@ -23,9 +23,9 @@ export default function useMetrics() {
       ]);
 
       setData({
-        assets: assetsRes.data || [],
-        categories: categoriesRes.data || [],
-        employees: employeesRes.data || [],
+        assets: assetsRes.data?.data || (Array.isArray(assetsRes.data) ? assetsRes.data : []),
+        categories: categoriesRes.data?.data || (Array.isArray(categoriesRes.data) ? categoriesRes.data : []),
+        employees: employeesRes.data?.data || (Array.isArray(employeesRes.data) ? employeesRes.data : []),
       });
     } catch (err) {
       setError(err.message || 'Failed to fetch dashboard metrics');
@@ -39,7 +39,7 @@ export default function useMetrics() {
   }, [fetchMetrics]);
 
   const metrics = useMemo(() => {
-    const assets = data.assets;
+    const assets = Array.isArray(data.assets) ? data.assets : [];
     const total = assets.length;
     const inUse = assets.filter((a) => a.status === 'in-use').length;
     const available = assets.filter((a) => a.status === 'available').length;
@@ -49,16 +49,18 @@ export default function useMetrics() {
   }, [data.assets]);
 
   const breakdown = useMemo(() => {
-    const assets = data.assets;
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    const categories = Array.isArray(data.categories) ? data.categories : [];
     const total = assets.length || 1; // prevent div by zero
     const map = new Map();
 
     // Initialize with all categories so even 0-count categories show or we sort neatly
-    data.categories.forEach((cat) => {
+    categories.forEach((cat) => {
+      if (!cat) return;
       map.set(cat.id, {
         id: cat.id,
-        name: cat.name,
-        badgeChar: cat.badgeChar || cat.name.charAt(0),
+        name: cat.name || `Category #${cat.id}`,
+        badgeChar: cat.badgeChar || (cat.name ? cat.name.charAt(0) : '?'),
         color: cat.color || '#6366F1',
         count: 0,
       });
@@ -66,9 +68,9 @@ export default function useMetrics() {
 
     assets.forEach((asset) => {
       const catId = asset.categoryId;
-      if (catId && map.has(catId)) {
+      if (catId !== undefined && catId !== null && map.has(catId)) {
         map.get(catId).count += 1;
-      } else if (catId) {
+      } else if (catId !== undefined && catId !== null) {
         map.set(catId, {
           id: catId,
           name: asset.categoryName || 'Other',
@@ -100,9 +102,9 @@ export default function useMetrics() {
 
   return {
     metrics,
-    breakdown,
-    categories: data.categories,
-    employees: data.employees,
+    breakdown: Array.isArray(breakdown) ? breakdown : [],
+    categories: Array.isArray(data.categories) ? data.categories : [],
+    employees: Array.isArray(data.employees) ? data.employees : [],
     loading,
     error,
     refresh: fetchMetrics,

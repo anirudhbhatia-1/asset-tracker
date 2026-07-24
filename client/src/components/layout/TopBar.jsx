@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Bell, User } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 const TopBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (location.pathname === '/inventory') {
@@ -31,72 +34,126 @@ const TopBar = () => {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && location.pathname !== '/inventory' && query.trim()) {
       navigate(`/inventory?q=${encodeURIComponent(query.trim())}`);
+      setIsSearchExpanded(false);
     }
   };
 
   const getPageTitle = (pathname) => {
     if (pathname === '/') return 'Dashboard';
-    if (pathname === '/inventory') return 'Hardware Inventory';
-    if (pathname.startsWith('/inventory/new')) return 'Register New Asset';
+    if (pathname === '/inventory') return 'Inventory';
+    if (pathname.startsWith('/inventory/new')) return 'Register Asset';
     if (pathname.startsWith('/inventory/')) return 'Asset Details';
-    if (pathname === '/scanner') return 'Barcode Scanner';
-    if (pathname === '/employees') return 'Employee Directory';
-    if (pathname === '/categories') return 'Asset Categories';
-    if (pathname === '/settings') return 'System Settings';
+    if (pathname === '/scanner') return 'Scanner';
+    if (pathname === '/employees') return 'Directory';
+    if (pathname === '/categories') return 'Categories';
+    if (pathname === '/settings') return 'Settings';
     return 'AssetTrack';
   };
 
   return (
-    <header className="h-16 bg-slate-800/80 backdrop-blur-md border-b border-slate-700 sticky top-0 z-30 flex items-center justify-between px-8">
-      {/* Page Title & Search */}
-      <div className="flex items-center gap-6 flex-1 max-w-xl">
-        <h1 className="text-lg font-semibold text-slate-100 min-w-max">
-          {getPageTitle(location.pathname)}
-        </h1>
-        <div className="relative w-full max-w-sm hidden md:block">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={handleSearchChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Search assets by serial or name..."
-            className="w-full pl-9 pr-4 py-1.5 bg-slate-900/60 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Quick Actions & User Profile */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/inventory/new"
-          className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-all flex items-center gap-2 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Asset</span>
-        </Link>
-
-        <div className="h-6 w-[1px] bg-slate-700 mx-1" />
-
-        <button className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors relative">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500" />
-        </button>
-
-        <div className="flex items-center gap-3 pl-2">
-          <div className="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-slate-300 font-semibold text-xs">
-            RS
+    <header className="h-16 bg-surface/80 backdrop-blur-md border-b border-border sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
+      
+      {/* Mobile Expanded Search */}
+      {isSearchExpanded ? (
+        <div className="flex-1 flex items-center gap-2">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+            <input
+              type="text"
+              autoFocus
+              value={query}
+              onChange={handleSearchChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Search assets..."
+              className="w-full pl-9 pr-4 py-1.5 bg-base/60 border border-border rounded-lg text-base md:text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+            />
           </div>
-          <div className="hidden sm:block text-left">
-            <span className="block text-xs font-semibold text-slate-200 leading-none">
-              Rajan Sharma
-            </span>
-            <span className="block text-[11px] text-slate-400 mt-0.5">
-              IT Administrator
-            </span>
-          </div>
+          <button 
+            onClick={() => setIsSearchExpanded(false)}
+            className="p-2 text-secondary hover:text-primary"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Page Title & Desktop Search */}
+          <div className="flex items-center gap-3 sm:gap-6 flex-1 max-w-xl overflow-hidden">
+            <div className="md:hidden w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <h1 className="text-lg font-semibold text-primary truncate">
+              {getPageTitle(location.pathname)}
+            </h1>
+            
+            <div className="relative w-full max-w-sm hidden md:block">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+              <input
+                type="text"
+                value={query}
+                onChange={handleSearchChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Search assets by serial or name..."
+                className="w-full pl-9 pr-4 py-1.5 bg-base/60 border border-border rounded-lg text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Quick Actions & User Profile */}
+          <div className="flex items-center gap-1 sm:gap-4 shrink-0 ml-2">
+            
+            <button 
+              className="md:hidden p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50"
+              onClick={() => setIsSearchExpanded(true)}
+            >
+              <Search className="w-5 h-5" />
+            </button>
+
+            <Link
+              to="/inventory/new"
+              className="bg-accent hover:bg-accent/90 text-white p-2 md:px-4 md:py-2 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+              aria-label="Add Asset"
+            >
+              <Plus className="w-5 h-5 md:w-4 md:h-4" />
+              <span className="hidden md:inline">Add Asset</span>
+            </Link>
+
+            <div className="hidden sm:block h-6 w-[1px] bg-raised mx-1" />
+
+            <button 
+              onClick={toggleTheme}
+              className="hidden sm:flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            <button className="hidden sm:flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative">
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
+            </button>
+
+            <div className="flex items-center gap-3 sm:pl-2">
+              {/* Mobile Profile Icon (Visible instead of Settings) */}
+              <div className="md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-raised border border-border text-secondary font-semibold text-[10px]">
+                RS
+              </div>
+              
+              <div className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-raised border border-border text-secondary font-semibold text-xs">
+                RS
+              </div>
+              <div className="hidden sm:block text-left">
+                <span className="block text-xs font-semibold text-primary leading-none">
+                  Rajan Sharma
+                </span>
+                <span className="block text-[11px] text-secondary mt-0.5">
+                  IT Administrator
+                </span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </header>
   );
 };

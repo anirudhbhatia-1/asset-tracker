@@ -12,7 +12,7 @@ export default function useEmployees() {
     setError(null);
     try {
       const res = await getEmployees();
-      setEmployees(res.data || []);
+      setEmployees(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
       setError(err.message || 'Failed to load employees');
     } finally {
@@ -27,9 +27,10 @@ export default function useEmployees() {
   const addEmployee = async (data) => {
     try {
       const res = await createEmployee(data);
-      setEmployees((prev) => [res.data, ...prev]);
+      const newEmp = res.data?.data || res.data;
+      setEmployees((prev) => [newEmp, ...prev]);
       toast.success('Employee profile created successfully');
-      return res.data;
+      return newEmp;
     } catch (err) {
       toast.error(err.message || 'Failed to add employee');
       throw err;
@@ -49,7 +50,7 @@ export default function useEmployees() {
   };
 
   return {
-    employees,
+    employees: Array.isArray(employees) ? employees : [],
     loading,
     error,
     refresh: fetchEmployeesData,

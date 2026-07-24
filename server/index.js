@@ -41,10 +41,29 @@ app.use((req, res, next) => {
 // Global Error Handler
 app.use(errorHandler);
 
+let server;
 if (require.main === module) {
-  app.listen(PORT, () => {
+  server = app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
   });
 }
 
 module.exports = app;
+
+// Graceful Shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+      db.pool.end(() => {
+        console.log('Postgres pool closed');
+        process.exit(0);
+      });
+    });
+  } else {
+    db.pool.end(() => {
+      process.exit(0);
+    });
+  }
+});

@@ -35,7 +35,7 @@ export default function Modal({
       {/* Backdrop with blur per Design 4 */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity duration-200 animate-fadeIn"
+        className="fixed inset-0 bg-base/75 backdrop-blur-sm transition-opacity duration-200 animate-fadeIn"
       />
 
       {/* Modal Dialog Content */}
@@ -43,17 +43,17 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`relative w-full ${maxWidth} bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-200 animate-scaleUp z-10`}
+        className={`relative w-full ${maxWidth} bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-200 animate-scaleUp z-10`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/80 bg-slate-800/90">
-          <h3 id="modal-title" className="text-base font-semibold text-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-surface/90">
+          <h3 id="modal-title" className="text-base font-semibold text-primary">
             {title}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-4.5 h-4.5" />

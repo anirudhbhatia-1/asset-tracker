@@ -29,8 +29,9 @@ export async function generateUniqueSerial(maxRetries = 10) {
     const candidate = generateSerialPattern();
     try {
       const res = await scanSerial(candidate);
+      const assetData = res.data?.data || res.data;
       // If scanSerial returns 200/found asset, collision exists! Try again.
-      if (!res.data || !res.data.id) {
+      if (!assetData || !assetData.id) {
         return candidate;
       }
     } catch (err) {

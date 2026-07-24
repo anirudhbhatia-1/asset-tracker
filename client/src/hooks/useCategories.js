@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCategories } from '../api/categoriesApi';
+import { getCategories, createCategory, deleteCategoryApi } from '../api/categoriesApi';
+import toast from 'react-hot-toast';
 
 export default function useCategories() {
   const [categories, setCategories] = useState([]);
@@ -11,7 +12,7 @@ export default function useCategories() {
     setError(null);
     try {
       const res = await getCategories();
-      setCategories(res.data || []);
+      setCategories(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
       setError(err.message || 'Failed to load categories');
     } finally {
@@ -23,5 +24,38 @@ export default function useCategories() {
     fetchCategoriesData();
   }, [fetchCategoriesData]);
 
-  return { categories, loading, error, refresh: fetchCategoriesData };
+  const addCategory = async (payload) => {
+    try {
+      const res = await createCategory(payload);
+      toast.success(`Category "${payload.name}" created successfully`);
+      await fetchCategoriesData();
+      return { success: true, data: res.data };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to create category';
+      toast.error(msg);
+      return { success: false, error: msg };
+    }
+  };
+
+  const removeCategory = async (id, name) => {
+    try {
+      await deleteCategoryApi(id);
+      toast.success(`Category "${name}" deleted`);
+      await fetchCategoriesData();
+      return { success: true };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Cannot delete category in use';
+      toast.error(msg);
+      return { success: false, error: msg };
+    }
+  };
+
+  return { 
+    categories: Array.isArray(categories) ? categories : [], 
+    loading, 
+    error, 
+    refresh: fetchCategoriesData,
+    addCategory,
+    removeCategory
+  };
 }

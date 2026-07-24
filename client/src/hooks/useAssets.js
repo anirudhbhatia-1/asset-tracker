@@ -14,7 +14,7 @@ export default function useAssets(filters = {}) {
     setError(null);
     try {
       const res = await getAssets(filters);
-      setAssets(res.data || []);
+      setAssets(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
       setError(err.message || 'Failed to load assets');
     } finally {
@@ -26,5 +26,5 @@ export default function useAssets(filters = {}) {
     fetchAssetsData();
   }, [fetchAssetsData]);
 
-  return { assets, loading, error, refresh: fetchAssetsData };
+  return { assets: Array.isArray(assets) ? assets : [], loading, error, refresh: fetchAssetsData };
 }

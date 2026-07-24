@@ -9,10 +9,10 @@ const router = express.Router();
 router.get('/', [
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
   validateRequest,
-], (req, res, next) => {
+], async (req, res, next) => {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : 20;
-    const history = historyService.getRecentHistory(limit);
+    const history = await historyService.getRecentHistory(limit);
     res.status(200).json({
       data: history,
       total: history.length,

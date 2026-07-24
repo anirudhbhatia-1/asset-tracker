@@ -1,78 +1,117 @@
-# AssetTrack
+# AssetTrack — Hardware Inventory & Lifecycle Management System
 
-A full-stack internal web application for IT asset management across multiple office locations (Bangalore, Mumbai, Delhi, Hyderabad).
+AssetTrack is an enterprise-grade internal web application engineered for IT Administrators to track, assign, and audit physical hardware devices (laptops, monitors, peripherals, workstations) across multiple regional offices (Bangalore, Mumbai, Delhi, Hyderabad).
 
-## Tech Stack
-- **Frontend (`/client`)**: React 18 (Vite), Tailwind CSS, Lucide Icons, Axios, React Router v6
-- **Backend (`/server`)**: Node.js, Express, better-sqlite3 (synchronous SQLite), express-validator
-- **Database**: SQLite (`/data/assets.db`)
+---
+
+## Tech Stack & Architecture Overview
+
+### Core Technologies
+- **Frontend (`/client`)**: React 18 (Vite), Tailwind CSS v4, Lucide Icons, Axios, React Router v6, React Hot Toast
+- **Backend (`/server`)**: Node.js v20+, Express v5, `better-sqlite3` (synchronous SQLite), `express-validator`
+- **Database**: Synchronous local SQLite (`/data/assets.db`) with WAL (Write-Ahead Logging) mode and enforced foreign keys (`PRAGMA foreign_keys = ON;`)
+- **Testing**: Vitest (`vitest`) & Supertest (`supertest`) across frontend unit tests and backend API integration tests
+
+### Architectural Pattern: Pattern 2 (Axios -> Hooks -> Components)
+The frontend architecture enforces **Pattern 2: API Layer $\rightarrow$ Custom Hooks $\rightarrow$ Component UI**:
+1. **API Layer (`/client/src/api/`)**: Centralized Axios wrappers (`assetsApi.js`, `employeesApi.js`, `categoriesApi.js`, `historyApi.js`) handling base URLs, serialization, and error response transformations.
+2. **State & Mutation Hooks (`/client/src/hooks/`)**: Custom React hooks (`useAsset.js`, `useAssets.js`, `useEmployees.js`, `useCategories.js`, `useHistory.js`) encapsulating data fetching, loading/skeleton state, error states, and optimistic UI updates/refreshes.
+3. **Component Layer (`/client/src/components/` & `/client/src/pages/`)**: Pure UI presentation components rendering dark-mode flat UIs, loading skeletons, empty states with CTAs, and triggering hook actions (`assignAsset`, `returnAsset`, `retireAsset`).
 
 ---
 
 ## Getting Started
 
-### 1. Prerequisites
+### Prerequisites
 - Node.js 20.x LTS or higher
 - npm 10.x or higher
 
-### 2. Environment Setup
-Copy the example environment files to set up your local environment variables:
-```bash
-# Backend environment setup
-cd server
-cp .env.example .env
+### One-Command Setup & Launch (Monorepo Root)
+The monorepo root includes `concurrently` for seamless development startup:
 
-# Frontend environment setup
-cd ../client
-cp .env.example .env
-```
-
-### 3. Installation & Database Seeding
-Install dependencies and seed the SQLite database:
 ```bash
-# Install backend dependencies & initialize/seed database on startup
-cd server
+# 1. Install root dependencies and trigger recursive postinstall for both client & server
 npm install
 
-# Install frontend dependencies
-cd ../client
-npm install
-```
+# 2. Copy example environment files
+cp server/.env.example server/.env
+cp client/.env.example client/.env
 
-### 4. Running Locally during Development
-Start both dev servers in two separate terminal windows:
-
-**Terminal 1 — Backend API Server (running on port 3001)**:
-```bash
-cd server
+# 3. Start both backend API server (port 3001) and frontend Vite server (port 5173) simultaneously
 npm run dev
 ```
 
-**Terminal 2 — Frontend Dev Server (running on port 5173 with API proxy to 3001)**:
+Open `http://localhost:5173` in your browser. The SQLite database schema (`assets.db`) and realistic seed data (4 regional offices, 5 categories, 15+ employees, and 20+ tracked hardware assets) are automatically initialized on backend startup.
+
+### Running Automated Suite (Unit & Integration Tests)
+Run the 100% passing test suite across both server and client:
 ```bash
-cd client
-npm run dev
+# Run server unit tests (assetService) and API integration tests (Supertest)
+npm test --prefix server
+
+# Run client unit tests (serialGenerator & formatters)
+npm test --prefix client
 ```
 
-Open `http://localhost:5173` in your browser to view the application.
+---
+
+## API Endpoints Table
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/dashboard/metrics` | Summary KPIs (total, assigned, available, maintenance, total valuation) |
+| `GET` | `/api/assets` | List all assets with optional filtering (`status`, `categoryId`, `location`, `q`) |
+| `POST` | `/api/assets` | Register a new asset (auto-checks unique serial & creates audit log) |
+| `GET` | `/api/assets/:id` | Fetch single asset details with complete chronological audit timeline |
+| `PUT` | `/api/assets/:id` | Update asset metadata (name, category, cost, location, notes) |
+| `DELETE` | `/api/assets/:id` | Permanently delete asset record (`confirm: true` required in body) |
+| `POST` | `/api/assets/:id/assign` | Assign available asset to employee (`status` transitions to `in-use`) |
+| `POST` | `/api/assets/:id/return` | Return assigned asset back to IT stock (`status` transitions to `available`) |
+| `POST` | `/api/assets/:id/retire` | Decommission asset (`confirm: true` required, `status` transitions to `retired`) |
+| `GET` | `/api/assets/:id/history` | Get full chronological audit trail (`history` table) for an asset |
+| `GET` | `/api/employees` | List all active employees (`?location=`, `?department=`, `?q=`) |
+| `GET` | `/api/employees/:id` | Fetch employee details along with all currently assigned assets |
+| `POST` | `/api/employees` | Create a new employee directory entry |
+| `DELETE` | `/api/employees/:id` | Soft-delete employee (`deleted_at = CURRENT_TIMESTAMP`) |
+| `GET` | `/api/categories` | List hardware classification categories with counts |
+| `POST` | `/api/categories` | Create new classification category (`name`, `badgeChar`, `color`) |
+| `DELETE` | `/api/categories/:id` | Delete category (blocked if active assets reference it) |
+| `GET` | `/api/history` | Global activity feed across all devices (with limit/pagination) |
+| `GET` | `/api/serial/scan/:serial` | Check serial number uniqueness during barcode or manual entry |
+
+---
+
+## Assumptions & Design Decisions Log
+
+Every technical implementation strictly conforms to the foundational engineering memory records:
+1. **Decision 1 (Soft Deletes vs Hard Deletes)**: Employees are **soft-deleted** (`deleted_at` timestamp) to preserve historical integrity for audit trails and past asset assignments. Assets are **hard-deleted** when explicitly removed (`deleteAsset`), but their audit trails are logged right before deletion.
+2. **Decision 2 (Synchronous SQLite via `better-sqlite3`)**: All database operations execute synchronously using `db.prepare().run()` and atomic `db.transaction()` blocks, preventing race conditions or partial state updates during multi-table lifecycle mutations.
+3. **Decision 3 (Audit Logging Philosophy)**: Every asset lifecycle event (`created`, `assigned`, `returned`, `retired`, `updated`, `deleted`) is logged atomically within the same database transaction as the asset status update, guaranteeing zero drift between `assets.status` and `history`.
+4. **Decision 4 (Assigned Asset Constraints)**: If an asset is `assigned` during creation (`status: 'in-use'`), both a `created` and `assigned` event are written atomically. Retired assets (`status: 'retired'`) are locked and cannot be re-assigned or returned (`Rule 1`).
+5. **Decision 5 (Flat Dark UI & Skeletons)**: UIs avoid heavy drop shadows (`Rule 10`), using crisp 1px borders (`border-slate-700/60`), muted slate backgrounds (`bg-slate-800`), and smooth pulse skeletons (`SkeletonCard`) instead of spinning loaders during data queries.
+6. **Decision 6 (Offline & Background Polling)**: The global `OfflineBanner` alerts users when network connectivity is lost. `useHistory` polls activity logs every 60 seconds and re-fetches on window focus (`isBackground: true`) without jarring full-screen loading flickers.
 
 ---
 
 ## Project Structure
 ```
 comppro/ (Monorepo Root)
-├── client/          # React Vite frontend
-├── server/          # Node.js Express backend
-├── data/            # SQLite DB file (assets.db, gitignored)
-├── backups/         # DB backups folder (gitignored)
-├── .gitignore
+├── package.json          # Root scripts (`npm run dev` via concurrently)
+├── client/               # React 18 / Tailwind v4 Vite Frontend
+│   ├── src/
+│   │   ├── api/          # Axios API wrappers
+│   │   ├── components/   # UI components (dashboard, inventory, asset-detail, employees, layout, ui)
+│   │   ├── hooks/        # State management hooks (useAssets, useAsset, useEmployees, useCategories, useHistory)
+│   │   ├── pages/        # Route pages (Dashboard, Inventory, AssetDetail, AddEditAsset, Employees, Categories)
+│   │   └── utils/        # Utilities (serialGenerator, formatters)
+│   └── package.json
+├── server/               # Node.js Express Backend
+│   ├── middleware/       # Error handler & request validators
+│   ├── routes/           # REST endpoints (assets, dashboard, employees, categories, history, serial)
+│   ├── services/         # Business logic & SQLite transactions (assetService, historyService, etc.)
+│   ├── tests/            # Vitest unit & Supertest integration tests
+│   └── db.js             # SQLite initialization, schema migration & seed runner
+├── data/                 # Local database storage (`assets.db`)
+├── backups/              # Automatic daily/manual SQLite backups directory
 └── README.md
 ```
-
-## Documentation
-- `AssetTrack_Memory.md` — Single source of truth & project context
-- `AssetTrack_PRD.md` — Product Requirements Document
-- `AssetTrack_Architecture.md` — Technical Architecture & API Map
-- `AssetTrack_Design.md` — UI/UX Design System & Screen Specs
-- `AssetTrack_Rules.md` — Engineering Rules, Standards & AI Boundaries
-- `AssetTrack_Phases.md` — Delivery Plan & Week-by-Week Breakdown

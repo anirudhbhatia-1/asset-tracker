@@ -1,4 +1,4 @@
-const db = require('../db');
+const { pool } = require('../db');
 
 const mapEmployee = (row) => {
   if (!row) return null;
@@ -17,7 +17,6 @@ const mapEmployee = (row) => {
   };
 };
 
-// Helper to map assets when returning getEmployeeAssets
 const mapAssetMini = (row) => {
   if (!row) return null;
   return {
@@ -41,29 +40,29 @@ const mapAssetMini = (row) => {
   };
 };
 
-const getEmployees = (filters = {}) => {
+const getEmployees = async (filters = {}) => {
   const conditions = [];
   const params = [];
 
-  // Default: exclude soft-deleted unless explicitly requested
   if (filters.includeDeleted !== 'true' && filters.includeDeleted !== true) {
     conditions.push('e.deleted_at IS NULL');
   }
 
   if (filters.location) {
-    conditions.push('e.location = ?');
     params.push(filters.location);
+    conditions.push(`e.location = $${params.length}`);
   }
 
   if (filters.department) {
-    conditions.push('e.department = ?');
     params.push(filters.department);
+    conditions.push(`e.department = $${params.length}`);
   }
 
   if (filters.q) {
-    conditions.push('(e.name LIKE ? OR e.email LIKE ?)');
     const likeQuery = `%${filters.q}%`;
-    params.push(likeQuery, likeQuery);
+    params.push(likeQuery);
+    const pos = params.length;
+    conditions.push(`(e.name ILIKE $${pos} OR e.email ILIKE $${pos})`);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -79,107 +78,105 @@ const getEmployees = (filters = {}) => {
     ORDER BY e.name ASC
   `;
 
-  const rows = db.prepare(sql).all(...params);
-  return rows.map(mapEmployee);
+  const result = await pool.query(sql, params);
+  return result.rows.map(mapEmployee);
 };
 
-const getEmployeeById = (id) => {
-  const row = db.prepare(`
+const getEmployeeById = async (id) => {
+  const result = await pool.query(`
     SELECT e.id, e.name, e.email, e.department, e.location, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
     FROM employees e
     LEFT JOIN assets a ON e.id = a.assigned_to
-    WHERE e.id = ?
+    WHERE e.id = $1
     GROUP BY e.id
-  `).get(id);
+  `, [id]);
 
-  if (!row) {
+  if (result.rows.length === 0) {
     const err = new Error('Employee not found');
     err.statusCode = 404;
     throw err;
   }
-  return mapEmployee(row);
+  return mapEmployee(result.rows[0]);
 };
 
-const getEmployeeAssets = (id) => {
-  getEmployeeById(id); // throws 404 if employee does not exist
+const getEmployeeAssets = async (id) => {
+  await getEmployeeById(id);
 
-  const rows = db.prepare(`
+  const result = await pool.query(`
     SELECT a.*, c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
-    WHERE a.assigned_to = ? AND a.status = 'in-use'
+    WHERE a.assigned_to = $1 AND a.status = 'in-use'
     ORDER BY a.assigned_date DESC, a.name ASC
-  `).all(id);
+  `, [id]);
 
-  return rows.map(mapAssetMini);
+  return result.rows.map(mapAssetMini);
 };
 
-const createEmployee = (data) => {
+const createEmployee = async (data) => {
   const { name, email, department, location, googleId, avatarUrl } = data;
 
-  // Check unique email
-  const existing = db.prepare('SELECT id FROM employees WHERE email = ?').get(email);
-  if (existing) {
+  const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
+  if (existing.rows.length > 0) {
     const err = new Error('Employee email already exists');
     err.statusCode = 409;
     throw err;
   }
 
-  const result = db.prepare(`
+  const result = await pool.query(`
     INSERT INTO employees (name, email, department, location, google_id, avatar_url, is_google_synced, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))
-  `).run(name, email, department ?? null, location ?? null, googleId ?? null, avatarUrl ?? null);
+    VALUES ($1, $2, $3, $4, $5, $6, 0, NOW())
+    RETURNING id
+  `, [name, email, department ?? null, location ?? null, googleId ?? null, avatarUrl ?? null]);
 
-  return getEmployeeById(result.lastInsertRowid);
+  return getEmployeeById(result.rows[0].id);
 };
 
-const updateEmployee = (id, data) => {
-  const current = getEmployeeById(id);
+const updateEmployee = async (id, data) => {
+  const current = await getEmployeeById(id);
   const { name, email, department, location, avatarUrl } = data;
 
   if (email && email !== current.email) {
-    const existing = db.prepare('SELECT id FROM employees WHERE email = ? AND id != ?').get(email, id);
-    if (existing) {
+    const existing = await pool.query('SELECT id FROM employees WHERE email = $1 AND id != $2', [email, id]);
+    if (existing.rows.length > 0) {
       const err = new Error('Employee email already exists');
       err.statusCode = 409;
       throw err;
     }
   }
 
-  db.prepare(`
+  await pool.query(`
     UPDATE employees
-    SET name = ?,
-        email = ?,
-        department = ?,
-        location = ?,
-        avatar_url = ?
-    WHERE id = ?
-  `).run(
+    SET name = $1,
+        email = $2,
+        department = $3,
+        location = $4,
+        avatar_url = $5
+    WHERE id = $6
+  `, [
     name !== undefined ? name : current.name,
     email !== undefined ? email : current.email,
     department !== undefined ? department : current.department,
     location !== undefined ? location : current.location,
     avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
     id
-  );
+  ]);
 
   return getEmployeeById(id);
 };
 
-const deleteEmployee = (id) => {
-  const current = getEmployeeById(id); // throws 404 if not found
-  if (current.deletedAt !== null) {
-    const err = new Error('Employee is already deleted');
-    err.statusCode = 400;
-    throw err;
+const deleteEmployee = async (id) => {
+  const current = await getEmployeeById(id);
+  
+  if (current.deletedAt) {
+    return { id: Number(id), deleted: true };
   }
 
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  db.prepare('UPDATE employees SET deleted_at = ? WHERE id = ?').run(timestamp, id);
-
-  return { id: Number(id), deleted: true, deletedAt: timestamp };
+  // Soft delete
+  await pool.query('UPDATE employees SET deleted_at = NOW() WHERE id = $1', [id]);
+  return { id: Number(id), deleted: true };
 };
 
 module.exports = {

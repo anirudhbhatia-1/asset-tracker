@@ -78,7 +78,8 @@ AssetTrack is a web dashboard for IT admins to:
 | `react` | 18.x | UI framework |
 | `vite` | 5.x | Build tool + dev server |
 | `react-router-dom` | 6.x | SPA routing |
-| `tailwindcss` | 3.x | Utility-first styling |
+| `tailwindcss` | 4.x | Utility-first styling |
+| `@tailwindcss/vite` | 4.x | Tailwind Vite Plugin |
 | `lucide-react` | latest | Icons |
 | `axios` | 1.x | HTTP client |
 | `@zxing/library` | 0.21.x | Barcode decoding from video frames |
@@ -114,17 +115,17 @@ Every decision here was deliberate. Do not change these without documenting a ne
 
 ---
 
-### Decision 1: SQLite over PostgreSQL
-**Chosen:** SQLite via `better-sqlite3`  
+### Decision 1: Supabase Postgres over SQLite
+**Chosen:** Supabase Managed PostgreSQL via `pg` driver  
 **Rationale:**
-- Zero infrastructure — runs as a single file; no separate DB server to manage.
-- Synchronous API simplifies Express route logic.
-- Sufficient for up to ~100,000 rows across all tables.
-- Easy to back up (copy one file).
-- Upgrade path to PostgreSQL is straightforward when needed.
+- **Pivot from SQLite to Supabase Postgres** to ensure cloud production readiness.
+- Managed hosting provides point-in-time recovery and high availability with a generous free tier.
+- Leaves room to adopt Supabase Realtime or Auth later without another infrastructure migration.
+- Raw parameterized SQL approach remains exactly the same (no ORM used).
+- Connection via Supabase Session Pooler (port 5432) ensures persistent Express servers don't exhaust connection limits.
+- Local parity achieved easily via Supabase CLI.
 
-**Upgrade trigger:** > 100K rows combined OR concurrent write contention.  
-**Do not switch to PostgreSQL prematurely.**
+**Note:** The `@supabase/supabase-js` client is deliberately omitted for data queries. The backend API is the single source of truth.
 
 ---
 
@@ -169,16 +170,13 @@ Every decision here was deliberate. Do not change these without documenting a ne
 
 ---
 
-### Decision 6: Session Tokens in-Memory (Map), Not in DB
-**Chosen:** In-memory `Map` on the Node.js process  
+### Decision 6: Session Tokens in Database, Not in-Memory
+**Chosen:** Backed by `sessions` table in Supabase Postgres  
 **Rationale:**
-- Simplicity: no DB round-trip to validate every request.
-- Session token is a UUID returned after OAuth exchange.
+- **Pivot from In-memory `Map`:** In-memory sessions do not survive multiple app instances or server restarts in a cloud environment.
+- Sessions are stored in the database (`token`, `admin_identifier`, `created_at`, `expires_at`).
+- Evaluated on each request, ensuring persistent and synchronizable sessions.
 - Sessions expire after 8 hours inactivity.
-- Acceptable for v1 (single-process, single-admin use case).
-
-**Limitation:** Sessions are lost on server restart. Acceptable for v1.  
-**Upgrade path for v2:** Store sessions in a `sessions` table or use Redis.
 
 ---
 
@@ -227,6 +225,16 @@ server: {
 - The Admin SDK allows fetching the entire company directory (`admin.users.list`).
 - Requires the IT Admin to have a Google Workspace Super Admin account.
 - The Admin SDK access token is stored in-memory on the server — never in the frontend.
+
+---
+
+### Decision 11: Dynamic Theming via CSS Custom Properties
+**Chosen:** Tailwind v4 `@theme` block configuring CSS custom properties (variables) for dark/light mode instead of utility literal classes.
+**Rationale:**
+- Hardcoding colors (e.g. `bg-slate-900`) made supporting multiple themes impossible without a massive rewrite.
+- Defining a semantic token layer (`bg-base`, `text-primary`, `success`) tied to CSS variables mapped on `:root` and `:root.dark` allows real-time theming.
+- Ensures all new UI code is theme-agnostic.
+- Matches the product requirement to support an admin-toggled Light/Dark mode.
 
 ---
 
@@ -779,7 +787,10 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
 - ❌ Never `DELETE FROM asset_history` for any reason
 - ❌ Never `DROP TABLE` in any non-migration context
 - ❌ Never `SELECT *` in service functions — select named columns
-- ❌ Never run multiple writes without `db.transaction()`
+- ❌ Never run multiple writes without a Postgres transaction block (`BEGIN`/`COMMIT`)
+- ❌ Never commit the Supabase connection string/password to Git
+- ❌ Never use the Supabase Transaction Pooler (port 6543) for the persistent Express server; always use Session Pooler (port 5432)
+- ❌ Never add `@supabase/supabase-js` frontend calls that bypass the existing API layer without an explicit decision to do so
 
 ### Security
 - ❌ Never commit `.env` files to Git
@@ -800,7 +811,6 @@ These are absolute prohibitions. If you find yourself about to do any of these, 
 ### Architecture
 - ❌ Never put business logic in route handler files — it belongs in service files
 - ❌ Never let a service function call `res` or `req` — services are HTTP-agnostic
-- ❌ Never change the database engine (SQLite → Postgres) without documenting the decision in this file
 
 ### AI Usage
 - ❌ Never paste real employee data, real serial numbers, or real `.env` values into an AI prompt
@@ -891,6 +901,7 @@ These decisions must be made before the relevant phase begins. Track the answer 
 ## 15. Session Log
 
 > Append a new entry at the start of each AI session. One line per session.
+- **2026-07-24 (Phase 2):** Documented architectural pivot from SQLite to Supabase Postgres for cloud production readiness, migrating session storage to the DB, and establishing new database rules.
 > Format: `YYYY-MM-DD | AI Tool | Session Goal | Outcome`
 
 ```
@@ -900,6 +911,8 @@ These decisions must be made before the relevant phase begins. Track the answer 
 2026-07-22 | Antigravity AI | Phase 1, Week 3 — Dashboard & Inventory Pages (`useMetrics`, `useAssets`, `MetricCard`, `InventoryBreakdown`, `ActivityFeed`, `SearchBar`, `FilterToolbar`, `AssetTable`) with live API connection, URL query sync, and UI primitives | ✅ Completed Week 3 pages & hooks; verified clean production build (`vite build` in 156ms) and 100% test verification across all filter & search combinations
 2026-07-22 | Antigravity AI | Phase 1, Week 4 — Asset Detail Page & Lifecycle Actions (`SpecsProfile`, `HistoryTimeline`, `AssigneeCard`, `LifecycleActions`, `AssignmentModal`, `Button`, `Modal`, `useAsset`) | ✅ Completed Week 4 pages, modals, & hooks; verified clean production build (`vite build` in 116ms) and 100% E2E verification of assignment, return, notes edit, retirement, and Rule 1 boundaries
 2026-07-22 | Antigravity AI | Phase 1, Week 5 — Add Asset Form (`AddAssetForm`, `serialGenerator` with wand check) & Employee Directory (`EmployeesPage`, `EmployeeCard`, `EmployeeAssetDrawer`, `AddEmployeeModal`, `useEmployees`) | ✅ Completed Week 5 pages, forms, and utilities; verified clean production build (`vite build` in 140ms) and 100% E2E verification of unique serial auto-gen, collision retry, immediate allocation, and staff drawer
+2026-07-24 | Antigravity AI | Phase 2, Theming — Implement Light/Dark mode toggle | ✅ Abstracted Tailwind color literals into theme tokens, updated rules to enforce semantic tokens, and added `ThemeContext` along with UI toggle.
+2026-07-24 | Antigravity AI | Phase 3, Mobile Responsiveness — Full audit and implementation | ✅ Completed UI refactoring: bottom tab bar navigation, fixed touch target sizes, horizontal scrolling inventory, responsive modal/drawer layouts, and stacked card grids. Verified clean production build.
 ```
 
 ---

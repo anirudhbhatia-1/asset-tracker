@@ -19,7 +19,7 @@ export default function AddEditAsset() {
       const res = await updateAssetApi(id, updatedPayload);
       toast.success('Asset details updated successfully');
       navigate(`/inventory/${id}`);
-      return res.data;
+      return res.data?.data || res.data;
     } catch (err) {
       toast.error(err.message || 'Failed to update asset');
       throw err;
@@ -29,7 +29,7 @@ export default function AddEditAsset() {
   if (isEdit && loading) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto animate-pulse">
-        <div className="h-6 w-48 bg-slate-800 rounded" />
+        <div className="h-6 w-48 bg-surface rounded" />
         <SkeletonCard />
         <SkeletonCard />
       </div>
@@ -39,12 +39,12 @@ export default function AddEditAsset() {
   if (isEdit && (error || !asset)) {
     return (
       <div className="max-w-4xl mx-auto py-12 text-center">
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8">
-          <h3 className="text-lg font-bold text-slate-100">Asset Not Found</h3>
-          <p className="text-sm text-slate-400 mt-1">We couldn't load the asset to edit.</p>
+        <div className="bg-surface border border-border rounded-2xl p-8">
+          <h3 className="text-lg font-bold text-primary">Asset Not Found</h3>
+          <p className="text-sm text-secondary mt-1">We couldn't load the asset to edit.</p>
           <Link
             to="/inventory"
-            className="inline-block mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold"
+            className="inline-block mt-4 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold"
           >
             Back to Inventory
           </Link>
@@ -59,17 +59,17 @@ export default function AddEditAsset() {
       <div className="flex items-center gap-4">
         <Link
           to={isEdit ? `/inventory/${id}` : '/inventory'}
-          className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 transition-colors shadow-sm cursor-pointer"
+          className="p-2 rounded-xl bg-surface border border-border text-secondary hover:text-primary hover:bg-raised/60 transition-colors shadow-sm cursor-pointer"
           title="Go back"
         >
           <ArrowLeft className="w-4.5 h-4.5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            {isEdit ? <Edit3 className="w-6 h-6 text-indigo-400" /> : <PlusCircle className="w-6 h-6 text-indigo-400" />}
+          <h1 className="text-2xl font-bold text-primary tracking-tight flex items-center gap-2.5">
+            {isEdit ? <Edit3 className="w-6 h-6 text-accent" /> : <PlusCircle className="w-6 h-6 text-accent" />}
             <span>{isEdit ? `Edit Asset: ${asset?.name || `#${id}`}` : 'Register New Hardware Asset'}</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-secondary mt-1">
             {isEdit
               ? 'Modify asset metadata, specifications, and physical location.'
               : 'Add a new hardware device with unique serial verification and optional immediate employee allocation.'}

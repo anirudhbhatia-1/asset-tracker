@@ -26,7 +26,7 @@
    - 4.3 API Design Rules
    - 4.4 Error Handling Rules
    - 4.5 Input Validation Rules
-5. [Database Rules (SQLite)](#5-database-rules-sqlite)
+5. [Database Rules (Supabase Postgres)](#5-database-rules-supabase-postgres)
 6. [Security Rules](#6-security-rules)
 7. [Git & Version Control Rules](#7-git--version-control-rules)
 8. [UI/UX Rules](#8-uiux-rules)
@@ -287,10 +287,21 @@ Use Tailwind utility classes exclusively. Inline styles are only permitted for d
 
 ```jsx
 // ❌ Avoid
-<div style={{ backgroundColor: '#1e293b', padding: '16px' }}>
+<div style={{ backgroundColor: 'var(--theme-surface)', padding: '16px' }}>
 
 // ✅ Use Tailwind
-<div className="bg-slate-800 p-4">
+<div className="bg-surface p-4">
+```
+
+#### Enforce Theme Tokens Over Literal Colors
+Never use hardcoded Tailwind color literals (e.g., `bg-slate-900`, `text-slate-100`, `text-emerald-500`) in new UI code. Always use the dynamic CSS custom properties mapped in the theme (e.g., `bg-base`, `text-primary`, `text-success`) to ensure compatibility with Light/Dark modes.
+
+```jsx
+// ❌ Avoid hardcoded literals
+<div className="bg-slate-800 border-slate-700 text-slate-100">
+
+// ✅ Use theme tokens
+<div className="bg-surface border-border text-primary">
 ```
 
 #### No Arbitrary Values Unless Necessary
@@ -311,11 +322,11 @@ Follow this order for Tailwind classes:
 #### Status Color Mapping (Always Use These)
 | Status | Background | Text | Usage |
 |---|---|---|---|
-| `in-use` | `bg-blue-500/20` | `text-blue-400` | Status pill |
-| `available` | `bg-emerald-500/20` | `text-emerald-400` | Status pill |
-| `retired` | `bg-slate-500/20` | `text-slate-400` | Status pill |
-| Error | `bg-rose-500/20` | `text-rose-400` | Error states |
-| Warning | `bg-amber-500/20` | `text-amber-400` | Warnings |
+| `in-use` | `bg-info-blue/10` | `text-info-blue` | Status pill |
+| `available` | `bg-success/10` | `text-success` | Status pill |
+| `retired` | `bg-secondary/10` | `text-secondary` | Status pill |
+| Error | `bg-danger/10` | `text-danger` | Error states |
+| Warning | `bg-warning/10` | `text-warning` | Warnings |
 
 ### 3.6 Routing Rules
 
@@ -367,7 +378,7 @@ router.post('/:id/assign', [
 - Service functions must be **pure in intent** — same inputs produce the same database outcome.
 - Service functions must not call `res` or `req` — they are HTTP-agnostic.
 - Service functions must always log audit history when modifying an asset's state.
-- If multiple database writes are needed in one operation (e.g., update asset + insert history), they **must** be wrapped in a SQLite transaction.
+- If multiple database writes are needed in one operation (e.g., update asset + insert history), they **must** be wrapped in a Postgres transaction using a checked-out `pg` client.
 
 ```javascript
 // ✅ Correct — atomic transaction
@@ -465,36 +476,40 @@ const getAsset = (id) => {
 
 ---
 
-## 5. Database Rules (SQLite)
+## 5. Database Rules (Supabase Postgres)
 
 ### 5.1 Parameterized Queries — Non-Negotiable
 
-**NEVER** build SQL strings with user input. **ALWAYS** use `better-sqlite3` placeholders.
+**NEVER** build SQL strings with user input. **ALWAYS** use `pg` placeholders (`$1`, `$2`, ...).
 
 ```javascript
 // 🚨 FORBIDDEN — SQL injection vulnerability
-db.exec(`SELECT * FROM assets WHERE name = '${req.body.name}'`);
+db.query(`SELECT * FROM assets WHERE name = '${req.body.name}'`);
 
 // ✅ REQUIRED — parameterized
-db.prepare('SELECT * FROM assets WHERE name = ?').get(req.body.name);
+db.query('SELECT * FROM assets WHERE name = $1', [req.body.name]);
 ```
 
-### 5.2 Transaction Rule
-Any operation that requires more than one write (INSERT + UPDATE, etc.) **must** use `db.transaction()`. This ensures atomicity — either all writes succeed or none do.
+### 5.2 Async/Await Rule
+All DB-touching functions are asynchronous. **ALWAYS** use `async/await` when querying the database.
 
-### 5.3 Schema Modification Rules
-- Never modify the schema directly on the production database file.
-- All schema changes must be written as numbered migration scripts in `server/migrations/`.
-- Migration files must be named: `001_initial_schema.sql`, `002_add_index_assets_status.sql`, etc.
-- The server startup script in `db.js` must apply all pending migrations in order.
+### 5.3 Transaction Rule
+Any operation that requires more than one write (INSERT + UPDATE, etc.) **must** use a checked-out `pg` client with `BEGIN`, `COMMIT`, and `ROLLBACK` for atomicity, rather than relying on synchronous transaction methods.
 
-### 5.4 Query Performance Rules
+### 5.4 Schema Modification Rules
+- Never modify the schema directly on the production database.
+- Migrations are only ever created and applied via the Supabase CLI. Never hand-edit directly against the remote database.
+
+### 5.5 Query Performance Rules
 - Every foreign key column **must** have an index.
 - Any column used in a `WHERE` clause more than once across the codebase **must** have an index.
 - Avoid `SELECT *` in service functions — select only the columns the caller needs.
 - Use `LIMIT` on all list queries. Default limit: `100`. Maximum limit: `500`.
 
-### 5.5 Soft vs. Hard Delete
+### 5.6 Single Point of Access
+- **NEVER** introduce `@supabase/supabase-js` calls from the frontend for data we already serve through our own REST API. The Express backend remains the single point of database access. No ORM is used.
+
+### 5.7 Soft vs. Hard Delete
 - **Assets**: Hard delete is permitted (and logs a `deleted` history event beforehand).
 - **Employees**: Soft delete only — add a `deleted_at` column; never `DELETE FROM employees` (preserves historical assignment records).
 - **Categories**: Hard delete only if no assets reference it. If assets reference it, return `409 Conflict`.
@@ -677,7 +692,7 @@ client/dist/
 
 ### 9.3 Test Rules
 - Each test must be independent — no test should rely on the state left by a previous test.
-- Use a separate in-memory SQLite database for backend tests — never run tests against `assets.db`.
+- Use an isolated test schema or local test database for backend tests — never run tests against the production database.
 - Test names must be descriptive: `"should return 404 when asset ID does not exist"` not `"test 1"`.
 - Cover both the happy path and at least one error/edge case per function.
 - Never mock the database in service tests — use a real in-memory DB.
@@ -901,7 +916,7 @@ When using AI tools for this project, follow these prompt rules to avoid leaking
 
 #### Prompt Template (recommended for code generation tasks):
 ```
-Context: I am building AssetTrack, a Node.js/Express + SQLite asset management system.
+Context: I am building AssetTrack, a Node.js/Express + Supabase Postgres asset management system.
 File: server/services/assetService.js
 Task: Write a function called [functionName] that [does X].
 Constraints:

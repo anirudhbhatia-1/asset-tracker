@@ -20,7 +20,7 @@ export default function useAsset(id) {
     setError(null);
     try {
       const res = await getAsset(id);
-      setAsset(res.data || null);
+      setAsset(res.data?.data || res.data || null);
     } catch (err) {
       setError(err.message || 'Failed to load asset details');
     } finally {
@@ -35,9 +35,10 @@ export default function useAsset(id) {
   const updateNotes = async (notes) => {
     try {
       const res = await updateAssetApi(id, { notes });
-      setAsset(res.data);
+      const updated = res.data?.data || res.data;
+      setAsset(updated);
       toast.success('Asset notes updated');
-      return res.data;
+      return updated;
     } catch (err) {
       toast.error(err.message || 'Failed to update notes');
       throw err;
@@ -47,9 +48,10 @@ export default function useAsset(id) {
   const assignToEmployee = async (employeeId, assignedDate, note) => {
     try {
       const res = await assignAssetApi(id, { employeeId, assignedDate, note });
-      setAsset(res.data);
+      const updated = res.data?.data || res.data;
+      setAsset(updated);
       toast.success('Asset assigned successfully');
-      return res.data;
+      return updated;
     } catch (err) {
       toast.error(err.message || 'Failed to assign asset');
       throw err;
@@ -59,9 +61,10 @@ export default function useAsset(id) {
   const returnToStock = async (note) => {
     try {
       const res = await returnAssetApi(id, note);
-      setAsset(res.data);
+      const updated = res.data?.data || res.data;
+      setAsset(updated);
       toast.success('Asset returned to stock');
-      return res.data;
+      return updated;
     } catch (err) {
       toast.error(err.message || 'Failed to return asset');
       throw err;
@@ -71,9 +74,10 @@ export default function useAsset(id) {
   const retireAsset = async (note) => {
     try {
       const res = await retireAssetApi(id, note);
-      setAsset(res.data);
+      const updated = res.data?.data || res.data;
+      setAsset(updated);
       toast.success('Asset decommissioned and retired');
-      return res.data;
+      return updated;
     } catch (err) {
       toast.error(err.message || 'Failed to retire asset');
       throw err;

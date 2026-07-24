@@ -12,13 +12,14 @@
 1. [Overview & Timeline](#1-overview--timeline)
 2. [Team & Roles (RACI)](#2-team--roles-raci)
 3. [Phase 1 — MVP Core](#3-phase-1--mvp-core) *(Weeks 1–6)*
-4. [Phase 2 — Scanner & Google Sync](#4-phase-2--scanner--google-sync) *(Weeks 7–10)*
-5. [Phase 3 — Polish & Settings](#5-phase-3--polish--settings) *(Weeks 11–12)*
-6. [Phase 4 — Post-Launch v1.1](#6-phase-4--post-launch-v11) *(Weeks 13+)*
-7. [Master Gantt Summary](#7-master-gantt-summary)
-8. [Dependencies & Blockers](#8-dependencies--blockers)
-9. [Risk Register](#9-risk-register)
-10. [Definition of Done](#10-definition-of-done)
+4. [Phase 2.0 — Migrate to Supabase](#4-phase-20--migrate-to-supabase) *(Mid-Phase 2)*
+5. [Phase 2 — Scanner & Google Sync](#5-phase-2--scanner--google-sync) *(Weeks 7–10)*
+6. [Phase 3 — Polish & Settings](#6-phase-3--polish--settings) *(Weeks 11–12)*
+7. [Phase 4 — Post-Launch v1.1](#7-phase-4--post-launch-v11) *(Weeks 13+)*
+8. [Master Gantt Summary](#8-master-gantt-summary)
+9. [Dependencies & Blockers](#9-dependencies--blockers)
+10. [Risk Register](#10-risk-register)
+11. [Definition of Done](#11-definition-of-done)
 
 ---
 
@@ -27,12 +28,13 @@
 | Phase | Name | Duration | Target End Date | Goal |
 |---|---|---|---|---|
 | **Phase 1** | MVP Core | 6 weeks | Week 6 | Working inventory system with assignment and audit log |
+| **Phase 2.0** | Migrate to Supabase | - | Mid-Phase 2 | Transition SQLite to Supabase Postgres |
 | **Phase 2** | Scanner & Google Sync | 4 weeks | Week 10 | Barcode scanner + Google Workspace integration live |
 | **Phase 3** | Polish & Settings | 2 weeks | Week 12 | Production-ready: responsive, accessible, tested |
 | **Phase 4** | Post-Launch v1.1 | Ongoing | Week 13+ | Feature enhancements based on user feedback |
 
 **Total to production-ready v1.0:** ~12 weeks  
-**Stack:** React (Vite) + Node.js/Express + SQLite  
+**Stack:** React (Vite) + Node.js/Express + Supabase Postgres  
 
 ---
 
@@ -269,41 +271,62 @@
 **Theme:** Wire everything together, fix integration bugs, and prepare Phase 1 for demo.
 
 #### Integration Tasks
-- [ ] Verify all navigation links in the sidebar route to the correct pages.
-- [ ] Ensure all context state (assets, employees, categories) refreshes after mutations.
-- [ ] Wire the "View items" shortcut from Category breakdown on the Dashboard to the Inventory page pre-filtered.
-- [ ] Ensure Activity Feed updates when actions are taken (re-fetch on focus or poll every 60 seconds).
-- [ ] Add global offline detection banner (detect `navigator.onLine` + listen to `offline` event).
+- [x] Verify all navigation links in the sidebar route to the correct pages.
+- [x] Ensure all context state (assets, employees, categories) refreshes after mutations.
+- [x] Wire the "View items" shortcut from Category breakdown on the Dashboard to the Inventory page pre-filtered.
+- [x] Ensure Activity Feed updates when actions are taken (re-fetch on focus or poll every 60 seconds).
+- [x] Add global offline detection banner (detect `navigator.onLine` + listen to `offline` event).
 
 #### UI Polish (Phase 1 Scope)
-- [ ] Ensure all pages have loading skeletons (not spinners) for initial data fetch.
-- [ ] Ensure all lists/tables have empty states with icon + message + CTA.
-- [ ] Ensure all error states show a descriptive message + Retry button.
-- [ ] Verify toast notifications appear for: asset created, assigned, returned, retired, deleted.
-- [ ] Fix any layout overflow issues on 1280px viewport.
+- [x] Ensure all pages have loading skeletons (not spinners) for initial data fetch.
+- [x] Ensure all lists/tables have empty states with icon + message + CTA.
+- [x] Ensure all error states show a descriptive message + Retry button.
+- [x] Verify toast notifications appear for: asset created, assigned, returned, retired, deleted.
+- [x] Fix any layout overflow issues on 1280px viewport.
 
 #### Testing
-- [ ] Write unit tests for `assetService.js` (create, assign, return, retire, delete).
-- [ ] Write unit tests for `serialGenerator.js` (format, uniqueness check).
-- [ ] Write unit tests for `formatters.js` (currency, date).
-- [ ] Write integration tests for: `POST /api/assets`, `POST /api/assets/:id/assign`, `GET /api/assets/:id`.
-- [ ] Run all tests; fix any failures.
+- [x] Write unit tests for `assetService.js` (create, assign, return, retire, delete).
+- [x] Write unit tests for `serialGenerator.js` (format, uniqueness check).
+- [x] Write unit tests for `formatters.js` (currency, date).
+- [x] Write integration tests for: `POST /api/assets`, `POST /api/assets/:id/assign`, `GET /api/assets/:id`.
+- [x] Run all tests; fix any failures.
 
 #### Documentation
-- [ ] Update `README.md` with accurate setup steps.
-- [ ] Seed data covers all 4 offices, all categories, and a range of statuses.
+- [x] Update `README.md` with accurate setup steps.
+- [x] Seed data covers all 4 offices, all categories, and a range of statuses.
 
 **Week 6 Exit Criteria (Phase 1 Complete):**
-- [ ] All P0 features from PRD §6 are functional end-to-end.
-- [ ] No console errors on any page in the happy path.
-- [ ] All unit and integration tests pass.
-- [ ] IT Admin persona can complete the following user journey without assistance:
+- [x] All P0 features from PRD §6 are functional end-to-end.
+- [x] No console errors on any page in the happy path.
+- [x] All unit and integration tests pass.
+- [x] IT Admin persona can complete the following user journey without assistance:
   - Register a new laptop → assign it to an employee → view the audit log → return it → retire it.
-- [ ] Phase 1 demo completed with Engineering Lead sign-off.
+- [x] Phase 1 demo completed with Engineering Lead sign-off.
 
 ---
 
-## 4. Phase 2 — Scanner & Google Sync
+## 4. Phase 2.0 — Migrate to Supabase
+
+**Goal:** Change AssetTrack's database from SQLite to Supabase (managed PostgreSQL) to make it cloud-production-ready, while keeping the raw parameterized SQL architecture intact.
+
+### Phase 2.0 Objectives & Tasks
+- [ ] Create the Supabase project.
+- [ ] Set up the Supabase CLI and local dev environment (Docker-based).
+- [ ] Convert the SQLite schema into Supabase migrations (Postgres syntax, SERIAL/TIMESTAMPTZ).
+- [ ] Convert the service layer to use `async`/`await` with the `pg` driver.
+- [ ] Add the `sessions` table to the database schema.
+- [ ] Fix session validation to use the DB-backed sessions table instead of the in-memory Map.
+- [ ] Re-verify every Phase 1 feature against Supabase (tests and manual checks).
+- [ ] Run a full cross-component sync check (defined in Prompt B).
+
+### Exit Criteria
+- Every Phase 1 feature behaves identically on Supabase.
+- No `better-sqlite3` or SQLite references remain anywhere in the codebase.
+- Every mutation correctly updates every view that depends on that data.
+
+---
+
+## 5. Phase 2 — Scanner & Google Sync
 
 **Duration:** 4 weeks (Weeks 7–10)  
 **Goal:** Add live barcode/serial scanning via webcam and full Google Workspace OAuth + Directory sync.
@@ -327,9 +350,9 @@
 **Theme:** Build the live camera scanning experience.
 
 #### Scanner Page Setup
-- [ ] Install `@zxing/library`: `npm install @zxing/library`.
-- [ ] Create `ScannerPage.jsx` — container for all scanner sub-components.
-- [ ] Build `useScanner()` custom hook:
+- [x] Install `@zxing/library`: `npm install @zxing/library`.
+- [x] Create `ScannerPage.jsx` — container for all scanner sub-components.
+- [x] Build `useScanner()` custom hook:
   - Calls `navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })`.
   - On success: attaches stream to `<video>` ref, initialises `BrowserMultiFormatReader`.
   - On error (denied / no device): sets `cameraAvailable = false`.
@@ -337,32 +360,32 @@
   - Cleanup: stops media tracks on unmount.
 
 #### Webcam Feed & Viewfinder
-- [ ] Build `WebcamFeed.jsx`:
+- [x] Build `WebcamFeed.jsx`:
   - Renders `<video autoPlay playsInline muted ref={videoRef}>` when camera is available.
   - Overlays the interactive reticle (corner brackets) on top of the video.
   - Renders an animated scanline div inside the reticle (`animate-scanline` keyframe).
-- [ ] Build `LaserViewfinder.jsx`:
+- [x] Build `LaserViewfinder.jsx`:
   - Shown when `cameraAvailable = false`.
   - Static viewfinder box with red animated laser scanline (no video feed).
   - Shows "Camera unavailable — use serial simulator below" message.
-- [ ] Add "Toggle Camera" button that calls `stopScanner()` and falls back to `LaserViewfinder`.
+- [x] Add "Toggle Camera" button that calls `stopScanner()` and falls back to `LaserViewfinder`.
 
 #### ZXing Decode Loop
-- [ ] Inside `useScanner()`, after stream is attached:
+- [x] Inside `useScanner()`, after stream is attached:
   - `reader.decodeFromVideoElement(videoEl, (result, error) => { ... })`.
   - On `result`: extract `result.getText()` as the scanned serial string.
   - Debounce successive results (500ms) to avoid duplicate resolution calls.
   - Call `GET /api/serial/scan/:serial` with the decoded value.
-- [ ] Build `ScanResultCard.jsx` — displayed below the viewfinder on a successful scan:
+- [x] Build `ScanResultCard.jsx` — displayed below the viewfinder on a successful scan:
   - Asset name, category badge, serial, status pill, office location.
   - "Go to Asset" button → navigates to `/inventory/:id`.
   - "Clear" button → resets scan result, resumes scanning.
-- [ ] Error state: "No asset found for this serial number" with a retry indicator.
+- [x] Error state: "No asset found for this serial number" with a retry indicator.
 
 **Week 7 Exit Criteria:**
-- On a laptop with a webcam, opening Scanner Page requests camera permission.
-- Holding a barcode up to the camera resolves the serial and shows the asset card.
-- Denying camera permission shows the laser viewfinder without crashing.
+- [x] On a laptop with a webcam, opening Scanner Page requests camera permission.
+- [x] Holding a barcode up to the camera resolves the serial and shows the asset card.
+- [x] Denying camera permission shows the laser viewfinder without crashing.
 
 ---
 
@@ -371,29 +394,29 @@
 **Theme:** Developer/demo tools + full scanner UX refinement.
 
 #### Serial Simulator
-- [ ] Build `SerialSimulator.jsx`:
+- [x] Build `SerialSimulator.jsx`:
   - Fetches all serial numbers from `GET /api/assets?fields=serial_number,name`.
   - Renders a styled `<select>` dropdown with all serials + asset names.
   - On change: fires the same resolution flow as a real scan (`GET /api/serial/scan/:serial`).
   - Displays `ScanResultCard` on match; error state on no match.
-- [ ] Add "Simulate Scan" button that triggers selection, for demo/keyboard-only use.
+- [x] Add "Simulate Scan" button that triggers selection, for demo/keyboard-only use.
 
 #### Scanner Page UX Polish
-- [ ] Layout: camera/viewfinder on top half, simulator + result card on bottom half.
-- [ ] Camera permission instructions shown before first use (collapsible info card).
-- [ ] Scan history: show last 5 scanned serials in a compact list below the result card.
-- [ ] Add sound feedback toggle (optional beep on successful scan using Web Audio API).
-- [ ] Mobile-responsive layout: full-width viewfinder on small screens.
+- [x] Layout: camera/viewfinder on top half, simulator + result card on bottom half.
+- [x] Camera permission instructions shown before first use (collapsible info card).
+- [x] Scan history: show last 5 scanned serials in a compact list below the result card.
+- [x] Add sound feedback toggle (optional beep on successful scan using Web Audio API).
+- [x] Mobile-responsive layout: full-width viewfinder on small screens.
 
 #### Backend: Serial Scan Endpoint
-- [ ] Confirm `GET /api/serial/scan/:serial` returns full asset object + assignee + history count.
-- [ ] Case-insensitive serial match (use `UPPER()` in SQLite query or normalise on insert).
-- [ ] Add rate limiting on this endpoint to prevent brute-force serial enumeration (10 req/min per IP).
+- [x] Confirm `GET /api/serial/scan/:serial` returns full asset object + assignee + history count.
+- [x] Case-insensitive serial match (use `UPPER()` in SQLite query or normalise on insert).
+- [x] Add rate limiting on this endpoint to prevent brute-force serial enumeration (10 req/min per IP).
 
 **Week 8 Exit Criteria:**
-- Serial simulator dropdown is populated from real database serials.
-- Selecting a serial shows the correct asset card and "Go to Asset" navigates to the correct page.
-- Scanner page is usable on mobile (Chrome on Android / Safari on iOS with HTTPS).
+- [x] Serial simulator dropdown is populated from real database serials.
+- [x] Selecting a serial shows the correct asset card and "Go to Asset" navigates to the correct page.
+- [x] Scanner page is usable on mobile (Chrome on Android / Safari on iOS with HTTPS).
 
 ---
 
@@ -481,9 +504,9 @@
 
 ### Phase 3 Objectives
 
-- [ ] Category management grid and custom category builder.
-- [ ] Settings page with tabbed navigation (Google + Categories).
-- [ ] Fully responsive layout (mobile, tablet, desktop).
+- [x] Category management grid and custom category builder.
+- [x] Settings page with tabbed navigation (Google + Categories).
+- [x] Fully responsive layout (mobile, tablet, desktop).
 - [ ] WCAG AA accessibility audit completed and issues resolved.
 - [ ] Performance review — all pages meet targets from PRD §10.1.
 - [ ] End-to-end test coverage for all critical flows.
@@ -493,32 +516,33 @@
 ### Week 11 — Categories, Settings Tab & Responsiveness
 
 #### Categories Page (`client/src/pages/CategoriesPage.jsx`)
-- [ ] Build `CategoryCard.jsx`:
+- [x] Build `CategoryCard.jsx`:
   - Shows badge (char + color), name, description.
   - Shows total assets in category + how many are in use.
   - "View items" button → navigates to `/inventory?category=<id>`.
-- [ ] Build `CategoryBuilder.jsx` modal form:
+- [x] Build `CategoryBuilder.jsx` modal form:
   - Fields: name, description, badge char (max 1), color picker (8 options).
   - Live badge preview updates as user types/selects.
   - Submit → `POST /api/categories`.
-- [ ] "Edit" button on existing category cards → pre-fills builder form → `PUT /api/categories/:id`.
-- [ ] "Delete" button → confirmation modal → `DELETE /api/categories/:id`.
+- [x] "Edit" button on existing category cards → pre-fills builder form → `PUT /api/categories/:id`.
+- [x] "Delete" button → confirmation modal → `DELETE /api/categories/:id`.
   - If assets exist in the category → show `409 Conflict` error message instead of deleting.
 
 #### Settings Page Tabs
-- [ ] Build `SettingsPage.jsx` with two tab options: **Google Workspace** and **Categories**.
-- [ ] Google tab: `GoogleConfigForm` + `DirectorySyncPanel` (from Phase 2).
-- [ ] Categories tab: `CategoryCard` grid + "Add Category" button opening `CategoryBuilder`.
-- [ ] Tab state persisted to URL: `/settings` (Google) and `/settings/categories`.
+- [x] Build `SettingsPage.jsx` with two tab options: **Google Workspace** and **Categories**.
+- [x] Google tab: `GoogleConfigForm` + `DirectorySyncPanel` (from Phase 2).
+- [x] Categories tab: `CategoryCard` grid + "Add Category" button opening `CategoryBuilder`.
+- [x] Tab state persisted to URL: `/settings` (Google) and `/settings/categories`.
 
-#### Responsive Layout
-- [ ] Sidebar collapses to icon-only at tablet width (768–1024px).
-- [ ] Sidebar becomes a slide-in drawer (hamburger menu) on mobile (< 768px).
-- [ ] Metric cards stack to 2×2 grid on tablet, 1-column on mobile.
-- [ ] Asset table becomes horizontally scrollable on mobile.
-- [ ] Employee card grid adjusts: 3 columns → 2 columns → 1 column across breakpoints.
-- [ ] Modals are full-screen on mobile.
-- [ ] Scanner viewfinder is full-width and taller on mobile.
+#### Responsive Layout *(Completed ahead of schedule, July 2026)*
+- [x] Sidebar collapses to icon-only at tablet width (768–1024px).
+- [x] Sidebar becomes a slide-in drawer (hamburger menu) on mobile (< 768px). *(Revised: Replaced with persistent bottom tab bar for primary nav and top-bar admin menu for secondary).*
+- [x] Metric cards stack to 2×2 grid on tablet, 1-column on mobile.
+- [x] Asset table becomes horizontally scrollable on mobile.
+- [x] Employee card grid adjusts: 3 columns → 2 columns → 1 column across breakpoints.
+- [x] Modals are full-screen on mobile.
+- [x] Scanner viewfinder is full-width and taller on mobile.
+- [ ] *Requires real-device QA*: Verify tap target sizes on physical iOS/Android screens and scanner viewport height.
 
 **Week 11 Exit Criteria:**
 - Category management: can create, edit, and delete categories. Deleting a category in use shows an error.
@@ -703,6 +727,6 @@ A feature is **Done** when **all** of the following are true:
 
 *End of Document*
 
-**Prepared by:** Engineering Lead  
+**Prepared by:** ANIRUDH BHATIA 
 **Review requested from:** IT Admin, Operations Coordinator, Engineering Team  
 **Next step:** Confirm team availability → align Week 1 start date → kick off Phase 1.

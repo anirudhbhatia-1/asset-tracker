@@ -47,7 +47,7 @@ AssetTrack is a **full-stack, single-page web application** built as a lightweig
 
 - A **React (Vite) SPA** that handles all user interaction.
 - A **Node.js / Express REST API** that serves data and coordinates business logic.
-- A **SQLite database** (`assets.db`) as the single persistence layer — no external database server required.
+- A **Supabase Postgres database** managed via the Supabase CLI as the single persistence layer.
 - A **Google Workspace integration layer** for OAuth login and employee directory sync.
 
 The system is designed to run as a **self-hosted service** within the company's internal network, or optionally deployed on a single cloud VM (GCP/AWS/Azure).
@@ -93,15 +93,15 @@ The system is designed to run as a **self-hosted service** within the company's 
 ║  └──────────────┬───────────────┘ ║
 ║                 │                 ║
 ║  ┌──────────────▼───────────────┐ ║
-║  │  better-sqlite3 Driver       │ ║
+║  │  node-postgres (pg) Driver   │ ║
 ║  └──────────────┬───────────────┘ ║
 ║                 │                 ║
 ╚═════════════════╪═════════════════╝
                   │
-        ┌─────────▼──────────┐
-        │   SQLite File DB   │
-        │   (assets.db)      │
-        └────────────────────┘
+        ┌─────────▼─────────────┐
+        │   Supabase Postgres   │
+        │   (Session Pooler)    │
+        └───────────────────────┘
 ```
 
 ---
@@ -115,7 +115,7 @@ The system is designed to run as a **self-hosted service** within the company's 
 | Framework | React | 18.x |
 | Build Tool | Vite | 5.x |
 | Routing | React Router | 6.x |
-| Styling | Tailwind CSS | 3.x |
+| Styling | Tailwind CSS | 4.x |
 | Icons | Lucide React | latest |
 | HTTP Client | Axios | 1.x |
 | Barcode Scanning | @zxing/library | 0.21.x |
@@ -378,7 +378,7 @@ export default api;
 ```
 server/
 ├── index.js                  # Entry point: Express app + server start
-├── db.js                     # SQLite connection + schema init
+├── db.js                     # Postgres connection pool setup
 │
 ├── routes/
 │   ├── assets.js             # /api/assets/*
@@ -511,31 +511,31 @@ listAssets(filters)           // Parameterized filter query
 
 ### 5.1 Engine & Rationale
 
-**SQLite** via `better-sqlite3` was chosen for v1 because:
-- Zero external infrastructure — runs as a single file (`assets.db`).
-- Synchronous API is simpler for a single-process Express server.
-- Sufficient for up to ~50,000 rows with proper indexing.
-- Easy to back up (just copy the `.db` file).
-- Upgrade path to PostgreSQL is straightforward if scale demands it.
+**Supabase Postgres** was chosen because:
+- Cloud-production-ready managed PostgreSQL with a generous free tier.
+- Raw SQL queries remain intact (no ORM used, `pg` driver replaces `better-sqlite3`).
+- Easy local parity using the Supabase CLI (Docker-based local dev).
+- Connection via Session Pooler (port 5432) ensures persistent Express servers don't exhaust connections, as opposed to Transaction Pooler (port 6543) meant for serverless environments.
+- Provides room to adopt Supabase Realtime or Auth in the future if needed, without another infra migration.
 
-> **Upgrade trigger:** If total asset + history rows exceed 100,000, or concurrent writes cause lock contention, migrate to PostgreSQL using the same query structure (minimal changes needed).
+> **Note:** The `@supabase/supabase-js` client is deliberately omitted for database operations. The Express backend remains the single source of truth for DB access.
 
 ### 5.2 Schema (DDL)
 
 ```sql
 -- Categories (created first; assets reference it)
 CREATE TABLE IF NOT EXISTS categories (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  id          SERIAL PRIMARY KEY,
   name        TEXT    UNIQUE NOT NULL,
   description TEXT,
   badge_char  TEXT    CHECK(length(badge_char) <= 1),
   color       TEXT,
-  created_at  TEXT    DEFAULT (datetime('now'))
+  created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Employees
 CREATE TABLE IF NOT EXISTS employees (
-  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  id               SERIAL PRIMARY KEY,
   name             TEXT    NOT NULL,
   email            TEXT    UNIQUE NOT NULL,
   department       TEXT,
@@ -543,12 +543,12 @@ CREATE TABLE IF NOT EXISTS employees (
   google_id        TEXT,
   avatar_url       TEXT,
   is_google_synced INTEGER DEFAULT 0,
-  created_at       TEXT    DEFAULT (datetime('now'))
+  created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Assets
 CREATE TABLE IF NOT EXISTS assets (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  id              SERIAL PRIMARY KEY,
   name            TEXT    NOT NULL,
   category_id     INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   model           TEXT,
@@ -561,13 +561,13 @@ CREATE TABLE IF NOT EXISTS assets (
   notes           TEXT,
   assigned_to     INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   assigned_date   TEXT,
-  created_at      TEXT    DEFAULT (datetime('now')),
-  updated_at      TEXT    DEFAULT (datetime('now'))
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Audit / History Log
 CREATE TABLE IF NOT EXISTS asset_history (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  id           SERIAL PRIMARY KEY,
   asset_id     INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
   event_type   TEXT    NOT NULL
                        CHECK(event_type IN
@@ -575,15 +575,23 @@ CREATE TABLE IF NOT EXISTS asset_history (
   performed_by TEXT,
   employee_id  INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   note         TEXT,
-  event_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+  event_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Sessions
+CREATE TABLE IF NOT EXISTS sessions (
+  token            TEXT PRIMARY KEY,
+  admin_identifier TEXT NOT NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  expires_at       TIMESTAMPTZ NOT NULL
 );
 
 -- Google OAuth Configuration (single-row table)
 CREATE TABLE IF NOT EXISTS google_config (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  id         SERIAL PRIMARY KEY,
   client_id  TEXT,
   domain     TEXT,
-  updated_at TEXT    DEFAULT (datetime('now'))
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
@@ -644,6 +652,15 @@ CREATE TABLE IF NOT EXISTS google_config (
 │ domain                       │
 │ updated_at                   │
 └──────────────────────────────┘
+
+┌──────────────────────────────┐
+│          sessions            │
+├──────────────────────────────┤
+│ token (PK)                   │
+│ admin_identifier             │
+│ created_at                   │
+│ expires_at                   │
+└──────────────────────────────┘
 ```
 
 ### 5.4 Indexes
@@ -665,10 +682,11 @@ CREATE INDEX IF NOT EXISTS idx_employees_email     ON employees(email);
 
 ### 5.5 Migration Strategy
 
-Since this is v1 with a single developer/team:
-- Schema is created on server startup via `db.js` using `CREATE TABLE IF NOT EXISTS`.
-- For future schema changes, a simple `migrations/` folder with numbered SQL files will be applied on startup in order.
-- No ORM is used — raw SQL via `better-sqlite3` for maximum control and performance.
+- Supabase CLI manages migrations natively.
+- `supabase migration new <name>` creates timestamped SQL files in `supabase/migrations/`.
+- `supabase db push` applies them to the remote project.
+- `supabase db reset` re-applies them locally.
+- No ORM is used — raw SQL via `pg` driver for maximum control and performance.
 
 ---
 
@@ -928,13 +946,13 @@ server: {
 │  └──────────┬───────────┘                       │
 │             │                                   │
 │  ┌──────────▼───────────┐                       │
-│  │  assets.db (SQLite)  │                       │
-│  │  /data/assets.db     │                       │
-│  └──────────────────────┘                       │
-└─────────────────────────────────────────────────┘
+│  │  Supabase Postgres │                       │
+│  │  (Managed)         │                       │
+│  └────────────────────┘                       │
+└───────────────────────────────────────────────┘
 ```
 
-### 9.3 Docker Compose (Optional)
+### 9.3 Docker Compose (Frontend & Backend, DB is Managed)
 
 ```yaml
 # docker-compose.yml
@@ -944,11 +962,9 @@ services:
     build: .
     ports:
       - "3001:3001"
-    volumes:
-      - ./data:/app/data        # persist SQLite file
     environment:
       - NODE_ENV=production
-      - DATABASE_PATH=/app/data/assets.db
+      - DATABASE_URL=${DATABASE_URL}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - CLIENT_ORIGIN=https://assettrack.company.com
@@ -968,13 +984,7 @@ services:
 
 ### 9.4 Database Backup
 
-```bash
-# Daily cron (runs at 2am)
-0 2 * * * cp /data/assets.db /backups/assets_$(date +%Y%m%d).db
-
-# Keep last 30 days
-find /backups -name "assets_*.db" -mtime +30 -delete
-```
+- Handled automatically by Supabase managed service. Point-in-time recovery available based on plan.
 
 ---
 
@@ -987,8 +997,10 @@ find /backups -name "assets_*.db" -mtime +30 -delete
 PORT=3001
 NODE_ENV=development
 
-# Database
-DATABASE_PATH=./assets.db
+# Database (Supabase Session Pooler URL - Port 5432)
+# Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+# Requires SSL enabled in pg client (ssl: { rejectUnauthorized: false })
+DATABASE_URL=postgresql://postgres.xxx:pass@aws-0-xx.pooler.supabase.com:5432/postgres
 
 # Google OAuth
 GOOGLE_CLIENT_ID=1234567890-abcde.apps.googleusercontent.com
@@ -1034,10 +1046,11 @@ assettrack/
 │   ├── index.js
 │   └── package.json
 │
-├── data/                     # SQLite DB file (gitignored)
-│   └── assets.db
+├── supabase/                 # Supabase CLI config & migrations
+│   ├── migrations/
+│   └── config.toml
 │
-├── backups/                  # DB backup storage (gitignored)
+├── package.json              # Monorepo root scripts
 │
 ├── docker-compose.yml
 ├── Dockerfile

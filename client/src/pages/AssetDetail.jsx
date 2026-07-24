@@ -26,14 +26,14 @@ export default function AssetDetail() {
   if (loading) {
     return (
       <div className="space-y-6 max-w-7xl mx-auto animate-pulse">
-        <div className="h-4 w-32 bg-slate-800 rounded" />
+        <div className="h-4 w-32 bg-surface rounded" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="h-72 bg-slate-800 rounded-xl border border-slate-700/60" />
-            <div className="h-40 bg-slate-800 rounded-xl border border-slate-700/60" />
+            <div className="h-72 bg-surface rounded-xl border border-border/60" />
+            <div className="h-40 bg-surface rounded-xl border border-border/60" />
           </div>
           <div className="lg:col-span-1">
-            <div className="h-96 bg-slate-800 rounded-xl border border-slate-700/60" />
+            <div className="h-96 bg-surface rounded-xl border border-border/60" />
           </div>
         </div>
       </div>
@@ -60,7 +60,7 @@ export default function AssetDetail() {
       <div className="flex items-center justify-between gap-4">
         <Link
           to="/inventory"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-secondary hover:text-accent transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Hardware Inventory</span>
@@ -69,10 +69,10 @@ export default function AssetDetail() {
         <button
           type="button"
           onClick={refresh}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors cursor-pointer shadow-sm"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer shadow-sm"
           title="Refresh asset state"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-indigo-400' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-accent' : ''}`} />
           <span>Refresh</span>
         </button>
       </div>

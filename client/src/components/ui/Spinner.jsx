@@ -10,7 +10,7 @@ export default function Spinner({ size = 'md', className = '' }) {
   return (
     <div className={`inline-flex items-center justify-center ${className}`}>
       <div
-        className={`${sizeClasses[size] || sizeClasses.md} animate-spin rounded-full border-slate-700 border-t-indigo-500`}
+        className={`${sizeClasses[size] || sizeClasses.md} animate-spin rounded-full border-border border-t-indigo-500`}
         role="status"
         aria-label="Loading..."
       />

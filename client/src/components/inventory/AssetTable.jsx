@@ -8,6 +8,8 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
   const [sortField, setSortField] = useState('updatedAt');
   const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
 
+  const safeAssets = Array.isArray(assets) ? assets : [];
+
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -18,8 +20,8 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
   };
 
   const sortedAssets = useMemo(() => {
-    if (!assets || assets.length === 0) return [];
-    return [...assets].sort((a, b) => {
+    if (safeAssets.length === 0) return [];
+    return [...safeAssets].sort((a, b) => {
       let valA = a[sortField];
       let valB = b[sortField];
 
@@ -35,16 +37,16 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [assets, sortField, sortDirection]);
+  }, [safeAssets, sortField, sortDirection]);
 
   const renderSortIcon = (field) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="w-3 h-3 text-slate-500 opacity-0 group-hover/th:opacity-100 transition-opacity" />;
+      return <ArrowUpDown className="w-3 h-3 text-secondary opacity-0 group-hover/th:opacity-100 transition-opacity" />;
     }
     return sortDirection === 'asc' ? (
-      <ChevronUp className="w-3.5 h-3.5 text-indigo-400" />
+      <ChevronUp className="w-3.5 h-3.5 text-accent" />
     ) : (
-      <ChevronDown className="w-3.5 h-3.5 text-indigo-400" />
+      <ChevronDown className="w-3.5 h-3.5 text-accent" />
     );
   };
 
@@ -52,7 +54,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
     return <SkeletonTable rows={8} />;
   }
 
-  if (assets.length === 0) {
+  if (safeAssets.length === 0) {
     return (
       <EmptyState
         title="No assets matching criteria"
@@ -64,16 +66,18 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
   }
 
   return (
-    <div className="w-full bg-slate-800 rounded-xl border border-slate-700/80 overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+    <div className="w-full bg-surface rounded-xl border border-border/80 overflow-hidden shadow-sm relative">
+      {/* Scroll affordance shadow on mobile */}
+      <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none md:hidden z-10" />
+      <div className="overflow-x-auto pb-1">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
-            <tr className="bg-slate-800/90 border-b border-slate-700/80 text-xs font-semibold uppercase tracking-wider text-slate-400 select-none">
+            <tr className="bg-surface/90 border-b border-border/80 text-xs font-semibold uppercase tracking-wider text-secondary select-none">
               <th className="px-6 py-3.5 w-12 text-center">Cat</th>
 
               <th
                 onClick={() => handleSort('name')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-slate-200 transition-colors"
+                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Asset Name / Model</span>
@@ -83,7 +87,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
 
               <th
                 onClick={() => handleSort('serialNumber')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-slate-200 transition-colors"
+                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Serial Number</span>
@@ -93,7 +97,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
 
               <th
                 onClick={() => handleSort('status')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-slate-200 transition-colors"
+                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Status</span>
@@ -103,7 +107,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
 
               <th
                 onClick={() => handleSort('location')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-slate-200 transition-colors"
+                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Location</span>
@@ -113,7 +117,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
 
               <th
                 onClick={() => handleSort('assigneeName')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-slate-200 transition-colors"
+                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Assigned To</span>
@@ -123,7 +127,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
 
               <th
                 onClick={() => handleSort('assignedDate')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-slate-200 transition-colors"
+                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
               >
                 <div className="flex items-center gap-1.5">
                   <span>Assigned Date</span>
@@ -134,7 +138,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
               <th className="px-6 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/60 bg-slate-800/40">
+          <tbody className="divide-y divide-border/60 bg-surface/40">
             {sortedAssets.map((asset) => (
               <AssetTableRow key={asset.id} asset={asset} />
             ))}
@@ -142,8 +146,8 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
         </table>
       </div>
 
-      <div className="px-6 py-3.5 bg-slate-800/90 border-t border-slate-700/80 flex items-center justify-between text-xs text-slate-400">
-        <span>Showing {assets.length} items</span>
+      <div className="px-6 py-3.5 bg-surface/90 border-t border-border/80 flex items-center justify-between text-xs text-secondary">
+        <span>Showing {safeAssets.length} items</span>
         <span>Sorted by {sortField} ({sortDirection.toUpperCase()})</span>
       </div>
     </div>

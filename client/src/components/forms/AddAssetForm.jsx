@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useCategories from '../../hooks/useCategories';
 import useEmployees from '../../hooks/useEmployees';
 import { createAsset, assignAssetApi } from '../../api/assetsApi';
 import { generateUniqueSerial } from '../../utils/serialGenerator';
 import Button from '../ui/Button';
-import { Wand2, Plus, ArrowLeft, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search } from 'lucide-react';
+import Modal from '../ui/Modal';
+import useScanner from '../../hooks/useScanner';
+import WebcamFeed from '../scanner/WebcamFeed';
+import LaserViewfinder from '../scanner/LaserViewfinder';
+import SerialSimulator from '../scanner/SerialSimulator';
+import { scanSerial } from '../../api/assetsApi';
+import { Wand2, Plus, ArrowLeft, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const OFFICE_LOCATIONS = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
@@ -40,6 +46,60 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [generatingSerial, setGeneratingSerial] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Scanner states
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [scanChecking, setScanChecking] = useState(false);
+  const [existingAssetMatch, setExistingAssetMatch] = useState(null);
+
+  const handleScanDecode = useCallback(async (serialText) => {
+    setScanChecking(true);
+    setExistingAssetMatch(null);
+    try {
+      const res = await scanSerial(serialText.trim());
+      const assetData = res?.data?.data || res?.data;
+      if (assetData && assetData.id) {
+        setExistingAssetMatch(assetData);
+        setIsScannerModalOpen(false);
+      }
+    } catch (err) {
+      if (err?.status === 404 || err?.response?.status === 404 || err?.message?.toLowerCase().includes('not found')) {
+        setSerialNumber(serialText.trim());
+        setErrors((prev) => ({ ...prev, serialNumber: null }));
+        setIsScannerModalOpen(false);
+        toast.success(`Scanned new serial: ${serialText}`);
+      } else {
+        toast.error('Error verifying scanned serial');
+      }
+    } finally {
+      setScanChecking(false);
+    }
+  }, []);
+
+  const {
+    videoRef,
+    cameraAvailable,
+    isScanning,
+    startScanner,
+    stopScanner
+  } = useScanner({ onDecode: handleScanDecode, autoStart: false });
+
+  // Ensure scanner stops when modal closes
+  React.useEffect(() => {
+    if (!isScannerModalOpen) {
+      stopScanner();
+    }
+  }, [isScannerModalOpen, stopScanner]);
+
+  const openScanner = () => {
+    setExistingAssetMatch(null);
+    setIsScannerModalOpen(true);
+    startScanner();
+  };
+
+  const closeScanner = () => {
+    setIsScannerModalOpen(false);
+  };
 
   const handleAutoGenSerial = async () => {
     setGeneratingSerial(true);
@@ -126,7 +186,10 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
     }
   };
 
-  const filteredEmployees = employees.filter((emp) => {
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeEmployees = Array.isArray(employees) ? employees : [];
+
+  const filteredEmployees = safeEmployees.filter((emp) => {
     if (!employeeSearch.trim()) return true;
     const q = employeeSearch.toLowerCase();
     return (
@@ -137,15 +200,15 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   });
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 bg-slate-800 rounded-2xl border border-slate-700/80 p-6 sm:p-8 shadow-sm max-w-4xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-8 bg-surface rounded-2xl border border-border/80 p-6 sm:p-8 shadow-sm max-w-4xl mx-auto">
       {/* Form Section 1: Core Specifications */}
       <div className="space-y-6">
-        <div className="border-b border-slate-700/60 pb-3">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Tag className="w-5 h-5 text-indigo-400" />
+        <div className="border-b border-border/60 pb-3">
+          <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+            <Tag className="w-5 h-5 text-accent" />
             <span>Hardware Specifications & Identity</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-secondary mt-1">
             Fill in details to register this device in the global internal inventory.
           </p>
         </div>
@@ -153,8 +216,8 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Asset Name */}
           <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-              Asset Name / Title <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+              Asset Name / Title <span className="text-danger">*</span>
             </label>
             <input
               type="text"
@@ -164,14 +227,14 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 if (errors.name) setErrors((prev) => ({ ...prev, name: null }));
               }}
               placeholder="E.g., MacBook Pro 16-inch (M3 Max)"
-              className={`w-full rounded-xl bg-slate-900 border px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${
+              className={`w-full rounded-xl bg-base border px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 transition-all ${
                 errors.name
-                  ? 'border-rose-500 focus:ring-rose-500'
-                  : 'border-slate-700 focus:ring-indigo-500 focus:border-indigo-500'
+                  ? 'border-danger focus:ring-danger'
+                  : 'border-border focus:ring-accent focus:border-accent'
               }`}
             />
             {errors.name && (
-              <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
                 <span>{errors.name}</span>
               </p>
@@ -180,8 +243,8 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Category Dropdown */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-              Category <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+              Category <span className="text-danger">*</span>
             </label>
             <select
               value={categoryId}
@@ -190,14 +253,14 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 if (errors.categoryId) setErrors((prev) => ({ ...prev, categoryId: null }));
               }}
               disabled={categoriesLoading}
-              className={`w-full rounded-xl bg-slate-900 border px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 transition-all cursor-pointer ${
+              className={`w-full rounded-xl bg-base border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 transition-all cursor-pointer ${
                 errors.categoryId
-                  ? 'border-rose-500 focus:ring-rose-500'
-                  : 'border-slate-700 focus:ring-indigo-500 focus:border-indigo-500'
+                  ? 'border-danger focus:ring-danger'
+                  : 'border-border focus:ring-accent focus:border-accent'
               }`}
             >
               <option value="">Select hardware category...</option>
-              {categories.map((cat) => (
+              {safeCategories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.badgeChar ? `[${cat.badgeChar}] ` : ''}
                   {cat.name}
@@ -205,7 +268,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               ))}
             </select>
             {errors.categoryId && (
-              <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
                 <span>{errors.categoryId}</span>
               </p>
@@ -214,9 +277,9 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Office Location */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Office Location <span className="text-rose-400">*</span></span>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-accent" />
+              <span>Office Location <span className="text-danger">*</span></span>
             </label>
             <select
               value={location}
@@ -224,7 +287,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 setLocation(e.target.value);
                 if (errors.location) setErrors((prev) => ({ ...prev, location: null }));
               }}
-              className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
             >
               <option value="">Select location...</option>
               {OFFICE_LOCATIONS.map((loc) => (
@@ -234,7 +297,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               ))}
             </select>
             {errors.location && (
-              <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
                 <span>{errors.location}</span>
               </p>
@@ -243,7 +306,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Model / Specs */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Model / Descriptor Specs
             </label>
             <input
@@ -251,14 +314,14 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="E.g., 36GB Unified RAM, 1TB SSD, Space Black"
-              className="w-full rounded-xl bg-slate-900 border border-slate-700 px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-xl bg-base border border-border px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
           {/* Serial Number with Auto-Gen Wand per PRD 6.7.2 */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-              Serial Number <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+              Serial Number <span className="text-danger">*</span>
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -268,41 +331,73 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                   setSerialNumber(e.target.value);
                   if (errors.serialNumber) setErrors((prev) => ({ ...prev, serialNumber: null }));
                 }}
-                placeholder="E.g., SN-ABX472 or OEM Barcode"
-                className={`w-full rounded-xl bg-slate-900 font-mono border px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                placeholder="E.g., SN-ABX472 or Barcode"
+                className={`flex-1 min-w-0 rounded-xl bg-base font-mono border px-3 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 transition-all ${
                   errors.serialNumber
-                    ? 'border-rose-500 focus:ring-rose-500'
-                    : 'border-slate-700 focus:ring-indigo-500 focus:border-indigo-500'
+                    ? 'border-danger focus:ring-danger'
+                    : 'border-border focus:ring-accent focus:border-accent'
                 }`}
               />
               <Button
                 type="button"
                 variant="secondary"
                 size="md"
+                onClick={openScanner}
+                className="shrink-0 !px-2.5 bg-surface hover:bg-raised text-secondary border-border"
+                title="Scan Barcode / QR"
+              >
+                <QrCode className="w-4 h-4 text-accent" />
+                <span className="sr-only sm:not-sr-only sm:ml-1.5">Scan</span>
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
                 onClick={handleAutoGenSerial}
                 loading={generatingSerial}
-                className="shrink-0 !px-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
+                className="shrink-0 !px-2.5 bg-accent/10 hover:bg-accent/20 text-accent border-accent/30"
                 title="Auto-generate a verified unique serial number"
               >
-                <Wand2 className="w-4 h-4 text-indigo-400" />
-                <span>Auto-gen</span>
+                <Wand2 className="w-4 h-4 text-accent" />
+                <span className="sr-only sm:not-sr-only sm:ml-1.5">Auto</span>
               </Button>
             </div>
             {errors.serialNumber && (
-              <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
                 <span>{errors.serialNumber}</span>
               </p>
+            )}
+
+            {/* Already Registered Warning */}
+            {existingAssetMatch && (
+              <div className="mt-3 bg-warning/10 border border-warning/30 rounded-xl p-3 flex flex-col items-start gap-2 animate-fadeIn">
+                <div className="flex items-start gap-2 text-warning">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p className="text-xs font-medium leading-relaxed">
+                    This asset is already registered ({existingAssetMatch.serialNumber}).
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => navigate(`/inventory/${existingAssetMatch.id}`)}
+                  className="w-full bg-warning/20 hover:bg-warning/30 text-warning border-transparent text-xs py-1.5"
+                >
+                  View Existing Asset
+                </Button>
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* Form Section 2: Financial & Operational Details */}
-      <div className="space-y-6 pt-4 border-t border-slate-700/60">
-        <div className="border-b border-slate-700/60 pb-3">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-indigo-400" />
+      <div className="space-y-6 pt-4 border-t border-border/60">
+        <div className="border-b border-border/60 pb-3">
+          <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-accent" />
             <span>Financial & Operational Details</span>
           </h2>
         </div>
@@ -310,11 +405,11 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Purchase Cost (in Dollars) */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Purchase Cost (USD $)
             </label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary font-medium">$</span>
               <input
                 type="number"
                 step="0.01"
@@ -322,30 +417,30 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 value={costString}
                 onChange={(e) => setCostString(e.target.value)}
                 placeholder="2499.00"
-                className="w-full rounded-xl bg-slate-900 border border-slate-700 pl-8 pr-4 py-2.5 text-sm font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl bg-base border border-border pl-8 pr-4 py-2.5 text-sm font-mono text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">Stored precisely as cents in database</span>
+            <span className="text-[11px] text-secondary mt-1 block">Stored precisely as cents in database</span>
           </div>
 
           {/* Purchase Date */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-accent" />
               <span>Purchase Date</span>
             </label>
             <input
               type="date"
               value={purchaseDate}
               onChange={(e) => setPurchaseDate(e.target.value)}
-              className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
             />
           </div>
 
           {/* Notes Textarea */}
           <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-indigo-400" />
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-accent" />
               <span>Admin Freeform Notes</span>
             </label>
             <textarea
@@ -353,7 +448,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Enter warranty notes, serial verification, vendor receipt IDs, or repair history..."
               rows={3}
-              className="w-full rounded-xl bg-slate-900 border border-slate-700 p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
         </div>
@@ -361,14 +456,14 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
       {/* Form Section 3: Optional Immediate Allocation per PRD 6.7.3 */}
       {!isEdit && (
-        <div className="space-y-6 pt-4 border-t border-slate-700/60">
-          <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
+        <div className="space-y-6 pt-4 border-t border-border/60">
+          <div className="flex items-center justify-between border-b border-border/60 pb-3">
             <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-accent" />
                 <span>Immediate Employee Allocation (Optional)</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-secondary mt-1">
                 If enabled, the asset will immediately transition to "In Use" upon registration and log an assignment event.
               </p>
             </div>
@@ -379,33 +474,33 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 onChange={(e) => setAssignImmediately(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600" />
+              <div className="w-11 h-6 bg-raised peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent" />
             </label>
           </div>
 
           {assignImmediately && (
-            <div className="bg-slate-900/60 p-5 rounded-2xl border border-indigo-500/30 space-y-5 animate-fadeIn">
+            <div className="bg-base/60 p-5 rounded-2xl border border-accent/30 space-y-5 animate-fadeIn">
               {/* Employee Selector with Search */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  Select Employee Assignee <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">
+                  Select Employee Assignee <span className="text-danger">*</span>
                 </label>
                 <div className="relative mb-2">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
                   <input
                     type="text"
                     value={employeeSearch}
                     onChange={(e) => setEmployeeSearch(e.target.value)}
                     placeholder="Search employee directory by name, email, or department..."
-                    className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-9 pr-4 py-2 bg-base border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
 
-                <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 divide-y divide-slate-700/60 scrollbar-thin">
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-base divide-y divide-border/60 scrollbar-thin">
                   {employeesLoading ? (
-                    <div className="p-4 text-center text-xs text-slate-400 animate-pulse">Loading employee directory...</div>
+                    <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading employee directory...</div>
                   ) : filteredEmployees.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400">No matching employees found.</div>
+                    <div className="p-4 text-center text-xs text-secondary">No matching employees found.</div>
                   ) : (
                     filteredEmployees.map((emp) => {
                       const isSelected = Number(selectedEmployeeId) === Number(emp.id);
@@ -418,19 +513,19 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                             if (errors.selectedEmployeeId) setErrors((prev) => ({ ...prev, selectedEmployeeId: null }));
                           }}
                           className={`w-full text-left p-3 flex items-center justify-between transition-colors cursor-pointer ${
-                            isSelected ? 'bg-indigo-600/20 border-l-4 border-indigo-500' : 'hover:bg-slate-800'
+                            isSelected ? 'bg-accent/20 border-l-4 border-accent' : 'hover:bg-surface'
                           }`}
                         >
                           <div>
-                            <span className={`text-sm font-semibold block ${isSelected ? 'text-indigo-300' : 'text-slate-200'}`}>
+                            <span className={`text-sm font-semibold block ${isSelected ? 'text-accent' : 'text-primary'}`}>
                               {emp.name}
                             </span>
-                            <span className="text-xs text-slate-400 block mt-0.5">
+                            <span className="text-xs text-secondary block mt-0.5">
                               {emp.email} {emp.department ? `· ${emp.department}` : ''}
                             </span>
                           </div>
                           <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                            isSelected ? 'border-indigo-500 bg-indigo-600' : 'border-slate-600'
+                            isSelected ? 'border-accent bg-accent' : 'border-border'
                           }`}>
                             {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                           </div>
@@ -440,7 +535,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                   )}
                 </div>
                 {errors.selectedEmployeeId && (
-                  <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
+                  <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5" />
                     <span>{errors.selectedEmployeeId}</span>
                   </p>
@@ -450,20 +545,20 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               {/* Assignment Date & Note */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-accent" />
                     <span>Assignment Effective Date</span>
                   </label>
                   <input
                     type="date"
                     value={assignedDate}
                     onChange={(e) => setAssignedDate(e.target.value)}
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
                     Assignment Note (Optional)
                   </label>
                   <input
@@ -471,7 +566,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                     value={assignNote}
                     onChange={(e) => setAssignNote(e.target.value)}
                     placeholder="E.g., Issued with laptop sleeve and power adapter."
-                    className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
               </div>
@@ -481,7 +576,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
       )}
 
       {/* Footer Submission Actions */}
-      <div className="pt-6 border-t border-slate-700 flex items-center justify-end gap-4">
+      <div className="pt-6 border-t border-border flex items-center justify-end gap-4">
         <Button
           type="button"
           variant="secondary"
@@ -500,6 +595,55 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
           <span>{isEdit ? 'Save Changes' : 'Register Asset'}</span>
         </Button>
       </div>
+
+      <Modal
+        isOpen={isScannerModalOpen}
+        onClose={closeScanner}
+        title="Scan Asset Barcode / QR"
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-secondary">
+            Hold the barcode or QR code steady within the viewfinder. The scanner will automatically detect and verify it.
+          </p>
+
+          <div className="relative">
+            {cameraAvailable && isScanning ? (
+              <WebcamFeed
+                videoRef={videoRef}
+                isScanning={isScanning}
+                onStop={stopScanner}
+              />
+            ) : (
+              <LaserViewfinder
+                onRetryCamera={startScanner}
+              />
+            )}
+
+            {scanChecking && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-base/60 backdrop-blur-sm rounded-2xl">
+                <div className="bg-surface border border-border p-4 rounded-xl flex items-center gap-3 shadow-xl">
+                  <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                  <span className="text-sm font-medium text-primary">Verifying serial...</span>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="pt-4 border-t border-border/60">
+            <SerialSimulator 
+              onSimulateScan={(serial) => handleScanDecode(serial)}
+              disabled={scanChecking}
+            />
+          </div>
+          
+          <div className="flex justify-end pt-2">
+            <Button type="button" variant="secondary" onClick={closeScanner}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </form>
   );
 }

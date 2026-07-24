@@ -57,18 +57,18 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700/80 p-6 shadow-sm space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
-        <h3 className="text-base font-semibold text-slate-100">Lifecycle & Operational Controls</h3>
-        <span className="text-xs text-slate-400 font-mono">Status: {asset.status?.toUpperCase()}</span>
+    <div className="bg-surface rounded-xl border border-border/80 p-6 shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-border/60">
+        <h3 className="text-base font-semibold text-primary">Lifecycle & Operational Controls</h3>
+        <span className="text-xs text-secondary font-mono">Status: {asset.status?.toUpperCase()}</span>
       </div>
 
       {isRetired && (
-        <div className="bg-slate-900/80 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3 text-sm text-amber-300">
-          <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <div className="bg-base/80 border border-warning/30 rounded-xl p-4 flex items-start gap-3 text-sm text-warning">
+          <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
           <div>
             <span className="font-semibold block mb-0.5">Asset is Retired & Decommissioned</span>
-            <span className="text-xs text-amber-200/80">
+            <span className="text-xs text-warning/80">
               Per engineering rules, retired hardware cannot be assigned, returned, or modified. Only view history or permanent deletion is permitted.
             </span>
           </div>
@@ -139,12 +139,12 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
         title="Confirm Return to Stock"
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-secondary">
             Are you sure you want to unassign <span className="font-semibold text-white">{asset.name}</span> ({asset.serialNumber}) from <span className="font-semibold text-white">{asset.assigneeName}</span> and mark it as available in inventory?
           </p>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
               Return Inspection Note (Optional)
             </label>
             <textarea
@@ -152,11 +152,11 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
               onChange={(e) => setReturnNote(e.target.value)}
               placeholder="E.g., Returned in excellent condition. Charger included."
               rows={2}
-              className="w-full rounded-xl bg-slate-900 border border-slate-700 p-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-700 flex justify-end gap-3">
+          <div className="pt-3 border-t border-border flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setIsReturnModalOpen(false)} disabled={submittingAction}>
               Cancel
             </Button>
@@ -175,22 +175,22 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
         title="Confirm Decommission & Retirement"
       >
         <div className="space-y-4">
-          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3.5 flex items-start gap-3 text-sm text-rose-300">
-            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+          <div className="bg-danger/10 border border-danger/30 rounded-xl p-3.5 flex items-start gap-3 text-sm text-danger">
+            <AlertTriangle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
             <div>
               <span className="font-semibold block">Warning: Irreversible Status Change</span>
-              <span className="text-xs text-rose-200/80">
+              <span className="text-xs text-danger/80">
                 Once retired, this asset cannot be re-assigned or returned to service. It will be marked end-of-life.
               </span>
             </div>
           </div>
 
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-secondary">
             Retiring asset: <span className="font-semibold text-white">{asset.name}</span> ({asset.serialNumber}).
           </p>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
               Reason for Retirement / Disposal Note
             </label>
             <textarea
@@ -199,11 +199,11 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
               placeholder="E.g., Hardware motherboard failure. E-waste recycling scheduled."
               rows={2}
               required
-              className="w-full rounded-xl bg-slate-900 border border-slate-700 p-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-danger"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-700 flex justify-end gap-3">
+          <div className="pt-3 border-t border-border flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setIsRetireModalOpen(false)} disabled={submittingAction}>
               Cancel
             </Button>
@@ -222,18 +222,18 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
         title="Confirm Permanent Deletion"
       >
         <form onSubmit={handleDeleteConfirm} className="space-y-4">
-          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3.5 flex items-start gap-3 text-sm text-rose-300">
-            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+          <div className="bg-danger/10 border border-danger/30 rounded-xl p-3.5 flex items-start gap-3 text-sm text-danger">
+            <AlertTriangle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
             <div>
               <span className="font-semibold block">Destructive Action</span>
-              <span className="text-xs text-rose-200/80">
+              <span className="text-xs text-danger/80">
                 This will permanently delete the asset record and all associated history logs from the database.
               </span>
             </div>
           </div>
 
-          <p className="text-sm text-slate-300">
-            To confirm deletion, please type <span className="font-mono font-bold text-white bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">{asset.name}</span> exactly below:
+          <p className="text-sm text-secondary">
+            To confirm deletion, please type <span className="font-mono font-bold text-white bg-base px-1.5 py-0.5 rounded border border-border">{asset.name}</span> exactly below:
           </p>
 
           <input
@@ -242,10 +242,10 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             placeholder={asset.name}
             required
-            className="w-full rounded-xl bg-slate-900 border border-slate-700 p-3 text-sm text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary font-mono focus:outline-none focus:ring-2 focus:ring-danger"
           />
 
-          <div className="pt-3 border-t border-slate-700 flex justify-end gap-3">
+          <div className="pt-3 border-t border-border flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={submittingAction}>
               Cancel
             </Button>
