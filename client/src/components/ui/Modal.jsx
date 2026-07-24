@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 export default function Modal({
   isOpen,
@@ -9,6 +10,9 @@ export default function Modal({
   children,
   maxWidth = 'max-w-lg', // 'max-w-md' | 'max-w-lg' | 'max-w-xl' | 'max-w-2xl'
 }) {
+  const modalRef = useRef(null);
+  useFocusTrap(modalRef, isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -40,6 +44,7 @@ export default function Modal({
 
       {/* Modal Dialog Content */}
       <div
+        ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

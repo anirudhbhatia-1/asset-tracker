@@ -65,6 +65,7 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
             type="button"
             onClick={onClose}
             className="p-2 rounded-xl text-secondary hover:text-white hover:bg-surface transition-colors"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -90,8 +91,9 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-secondary mb-2">Category Name *</label>
+            <label htmlFor="catName" className="block text-sm font-semibold text-secondary mb-2">Category Name *</label>
             <input
+              id="catName"
               required
               type="text"
               maxLength={100}
@@ -103,8 +105,9 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-secondary mb-2">Description</label>
+            <label htmlFor="catDesc" className="block text-sm font-semibold text-secondary mb-2">Description</label>
             <textarea
+              id="catDesc"
               rows={3}
               maxLength={500}
               value={formData.description}
@@ -115,8 +118,9 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-secondary mb-2">Badge Character</label>
+            <label htmlFor="catBadge" className="block text-sm font-semibold text-secondary mb-2">Badge Character</label>
             <input
+              id="catBadge"
               type="text"
               maxLength={1}
               value={formData.badgeChar}
@@ -140,6 +144,7 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
                   }`}
                   style={{ backgroundColor: c.value }}
                   title={c.label}
+                  aria-label={`Select color ${c.label}`}
                 >
                   {formData.color === c.value && <Check className="w-4 h-4 text-white drop-shadow-md" />}
                 </button>

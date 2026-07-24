@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { User, Mail, Building2, MapPin, ShieldCheck, Laptop, Trash2 } from 'lucide-react';
 
-export default function EmployeeCard({ employee, onClick, onDelete }) {
+const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete }) {
   if (!employee) return null;
 
   const initials = employee.name
@@ -104,4 +104,6 @@ export default function EmployeeCard({ employee, onClick, onDelete }) {
       </div>
     </div>
   );
-}
+});
+
+export default EmployeeCard;

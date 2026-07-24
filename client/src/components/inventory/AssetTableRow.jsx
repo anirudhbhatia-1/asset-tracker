@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import { ChevronRight, MapPin, User } from 'lucide-react';
 
-export default function AssetTableRow({ asset }) {
+const AssetTableRow = memo(function AssetTableRow({ asset }) {
   return (
     <tr className="hover:bg-raised/40 transition-colors group">
       {/* Category Icon & Badge */}
@@ -87,4 +87,6 @@ export default function AssetTableRow({ asset }) {
       </td>
     </tr>
   );
-}
+});
+
+export default AssetTableRow;

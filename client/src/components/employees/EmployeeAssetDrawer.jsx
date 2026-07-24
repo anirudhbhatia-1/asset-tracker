@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from '../ui/Modal';
 import Badge from '../ui/Badge';
@@ -9,7 +9,7 @@ import { Laptop, Calendar, MapPin, Mail, Building2, ShieldCheck, PackageX, Exter
 
 export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
   const [assets, setAssets] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {

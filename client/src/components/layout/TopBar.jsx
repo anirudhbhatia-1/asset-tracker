@@ -71,6 +71,7 @@ const TopBar = () => {
           <button 
             onClick={() => setIsSearchExpanded(false)}
             className="p-2 text-secondary hover:text-primary"
+            aria-label="Close search"
           >
             <X className="w-5 h-5" />
           </button>
@@ -105,6 +106,7 @@ const TopBar = () => {
             <button 
               className="md:hidden p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50"
               onClick={() => setIsSearchExpanded(true)}
+              aria-label="Open search"
             >
               <Search className="w-5 h-5" />
             </button>
@@ -124,11 +126,15 @@ const TopBar = () => {
               onClick={toggleTheme}
               className="hidden sm:flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors"
               title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            <button className="hidden sm:flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative">
+            <button 
+              className="hidden sm:flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative"
+              aria-label="View notifications"
+            >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
             </button>

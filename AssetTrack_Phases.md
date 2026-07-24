@@ -554,35 +554,35 @@
 ### Week 12 — Accessibility, Performance & Final QA
 
 #### Accessibility Audit
-- [ ] Run Lighthouse accessibility audit on all 8 pages; fix all failures.
-- [ ] Verify all form inputs have associated `<label>` elements.
-- [ ] Verify all icon-only buttons have `aria-label`.
-- [ ] Verify all modals trap focus and restore focus on close.
-- [ ] Verify Escape key closes all modals and drawers.
-- [ ] Verify Tab/Shift-Tab navigation works throughout without focus traps.
-- [ ] Verify color is not the sole differentiator on status pills (add icon).
-- [ ] Verify minimum tap target size (44×44px) on all interactive elements.
+- [x] Run Lighthouse accessibility audit on all 8 pages; fix all failures.
+- [x] Verify all form inputs have associated `<label>` elements.
+- [x] Verify all icon-only buttons have `aria-label`.
+- [x] Verify all modals trap focus and restore focus on close.
+- [x] Verify Escape key closes all modals and drawers.
+- [x] Verify Tab/Shift-Tab navigation works throughout without focus traps.
+- [x] Verify color is not the sole differentiator on status pills (add icon).
+- [x] Verify minimum tap target size (44×44px) on all interactive elements.
 
 #### Performance Review
-- [ ] Run Lighthouse performance audit; target FCP < 2 seconds.
-- [ ] Add `React.memo` to `AssetTableRow` and `EmployeeCard` to prevent unnecessary re-renders.
-- [ ] Verify inventory table renders 200 assets in < 500ms (use large seed dataset for test).
-- [ ] Check bundle size (`npm run build` + `vite preview`); split code if bundle > 500KB.
-- [ ] Verify Axios instance has a 10-second timeout and handles it gracefully.
+- [x] Run Lighthouse performance audit; target FCP < 2 seconds.
+- [x] Add `React.memo` to `AssetTableRow` and `EmployeeCard` to prevent unnecessary re-renders.
+- [x] Verify inventory table renders 200 assets in < 500ms (use large seed dataset for test).
+- [x] Check bundle size (`npm run build` + `vite preview`); split code if bundle > 500KB.
+- [x] Verify Axios instance has a 10-second timeout and handles it gracefully.
 
 #### End-to-End Tests (Critical Flows)
-- [ ] Install Playwright: `npm init playwright@latest`.
-- [ ] E2E test: Register new asset → verify appears in inventory.
-- [ ] E2E test: Assign asset to employee → verify status changes to "In Use".
-- [ ] E2E test: Return asset → verify status changes to "Available".
-- [ ] E2E test: Search by serial number → verify correct asset appears.
-- [ ] E2E test: Filter by category → verify only that category's assets appear.
+- [x] Install Playwright: `npm init playwright@latest`.
+- [x] E2E test: Register new asset → verify appears in inventory.
+- [x] E2E test: Assign asset to employee → verify status changes to "In Use".
+- [x] E2E test: Return asset → verify status changes to "Available".
+- [x] E2E test: Search by serial number → verify correct asset appears.
+- [x] E2E test: Filter by category → verify only that category's assets appear.
 
 #### Final QA Pass
-- [ ] Test all pages on Chrome 90+, Firefox 88+, Safari 14+.
-- [ ] Test all pages on a real mobile device (Android Chrome + iOS Safari).
-- [ ] Verify no `console.error` or `console.warn` on any page in the happy path.
-- [ ] Verify all toast notifications appear and auto-dismiss correctly.
+- [x] Test all pages on Chrome 90+, Firefox 88+, Safari 14+.
+- [x] Test all pages on a real mobile device (Android Chrome + iOS Safari).
+- [x] Verify no `console.error` or `console.warn` on any page in the happy path.
+- [x] Verify all toast notifications appear and auto-dismiss correctly.
 - [ ] Verify all empty states appear on pages with no data.
 
 **Week 12 Exit Criteria (v1.0 Release Candidate):**

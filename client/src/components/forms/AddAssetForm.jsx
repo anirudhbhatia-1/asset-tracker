@@ -161,7 +161,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
       } else {
         // Step 1: Create asset
         const createRes = await createAsset(assetPayload);
-        const newAssetId = createRes.data.id;
+        const newAssetId = createRes.data?.data?.id || createRes.data.id;
 
         // Step 2: Immediate Allocation if checked
         if (assignImmediately && selectedEmployeeId) {
@@ -216,10 +216,11 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Asset Name */}
           <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+            <label htmlFor="assetName" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Asset Name / Title <span className="text-danger">*</span>
             </label>
             <input
+              id="assetName"
               type="text"
               value={name}
               onChange={(e) => {
@@ -243,10 +244,11 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Category Dropdown */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+            <label htmlFor="categoryId" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Category <span className="text-danger">*</span>
             </label>
             <select
+              id="categoryId"
               value={categoryId}
               onChange={(e) => {
                 setCategoryId(e.target.value);
@@ -277,11 +279,12 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Office Location */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+            <label htmlFor="location" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-accent" />
               <span>Office Location <span className="text-danger">*</span></span>
             </label>
             <select
+              id="location"
               value={location}
               onChange={(e) => {
                 setLocation(e.target.value);
@@ -306,10 +309,11 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Model / Specs */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+            <label htmlFor="model" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Model / Descriptor Specs
             </label>
             <input
+              id="model"
               type="text"
               value={model}
               onChange={(e) => setModel(e.target.value)}
@@ -320,11 +324,12 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Serial Number with Auto-Gen Wand per PRD 6.7.2 */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+            <label htmlFor="serialNumber" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Serial Number <span className="text-danger">*</span>
             </label>
             <div className="flex items-center gap-2">
               <input
+                id="serialNumber"
                 type="text"
                 value={serialNumber}
                 onChange={(e) => {
@@ -405,12 +410,13 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Purchase Cost (in Dollars) */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+            <label htmlFor="costString" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Purchase Cost (USD $)
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary font-medium">$</span>
               <input
+                id="costString"
                 type="number"
                 step="0.01"
                 min="0"
@@ -425,11 +431,12 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Purchase Date */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+            <label htmlFor="purchaseDate" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-accent" />
               <span>Purchase Date</span>
             </label>
             <input
+              id="purchaseDate"
               type="date"
               value={purchaseDate}
               onChange={(e) => setPurchaseDate(e.target.value)}
@@ -439,11 +446,12 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Notes Textarea */}
           <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+            <label htmlFor="notes" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-accent" />
               <span>Admin Freeform Notes</span>
             </label>
             <textarea
+              id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Enter warranty notes, serial verification, vendor receipt IDs, or repair history..."
@@ -467,8 +475,9 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 If enabled, the asset will immediately transition to "In Use" upon registration and log an assignment event.
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label htmlFor="assignImmediately" className="relative inline-flex items-center cursor-pointer">
               <input
+                id="assignImmediately"
                 type="checkbox"
                 checked={assignImmediately}
                 onChange={(e) => setAssignImmediately(e.target.checked)}
@@ -482,12 +491,13 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
             <div className="bg-base/60 p-5 rounded-2xl border border-accent/30 space-y-5 animate-fadeIn">
               {/* Employee Selector with Search */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">
+                <label htmlFor="employeeSearch" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">
                   Select Employee Assignee <span className="text-danger">*</span>
                 </label>
                 <div className="relative mb-2">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
                   <input
+                    id="employeeSearch"
                     type="text"
                     value={employeeSearch}
                     onChange={(e) => setEmployeeSearch(e.target.value)}
@@ -545,11 +555,12 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               {/* Assignment Date & Note */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+                  <label htmlFor="assignedDate" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-accent" />
                     <span>Assignment Effective Date</span>
                   </label>
                   <input
+                    id="assignedDate"
                     type="date"
                     value={assignedDate}
                     onChange={(e) => setAssignedDate(e.target.value)}
@@ -558,10 +569,11 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+                  <label htmlFor="assignNote" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
                     Assignment Note (Optional)
                   </label>
                   <input
+                    id="assignNote"
                     type="text"
                     value={assignNote}
                     onChange={(e) => setAssignNote(e.target.value)}

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { getCategories, createCategory, updateCategory, deleteCategoryApi } from '../../api/categoriesApi';
 import CategoryCard from './CategoryCard';
 import CategoryBuilder from './CategoryBuilder';
+import EmptyState from '../ui/EmptyState';
 
 export default function CategoriesTab() {
   const [categories, setCategories] = useState([]);
@@ -100,18 +101,13 @@ export default function CategoriesTab() {
           ))}
         </div>
       ) : categories.length === 0 ? (
-        <div className="text-center py-16 bg-base/50 border border-border rounded-2xl">
-          <Tags className="w-12 h-12 text-secondary mx-auto mb-3" />
-          <p className="text-secondary font-medium">No categories found</p>
-          <p className="text-secondary text-sm mt-1 mb-4">Get started by creating your first category.</p>
-          <button
-            onClick={() => handleOpenBuilder()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-surface hover:bg-raised text-primary text-sm font-semibold rounded-xl transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Category</span>
-          </button>
-        </div>
+        <EmptyState
+          icon={Tags}
+          title="No Categories Found"
+          description="Get started by creating your first category."
+          actionText="Create Category"
+          onAction={() => handleOpenBuilder()}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {categories.map(category => (
