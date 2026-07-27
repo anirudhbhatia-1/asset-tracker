@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { User, Mail, Building2, MapPin, ShieldCheck, Laptop, Trash2 } from 'lucide-react';
+import { User, Mail, Building2, MapPin, ShieldCheck, Laptop, Trash2, Key, Edit3 } from 'lucide-react';
 
 const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete }) {
   if (!employee) return null;
@@ -18,6 +18,19 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
   const handleDelete = (e) => {
     e.stopPropagation();
     if (onDelete) onDelete(employee);
+  };
+
+  const handleEditRole = (e) => {
+    e.stopPropagation();
+    if (onClick && employee.hasLogin !== undefined) {
+      onClick(employee, 'role');
+    }
+  };
+
+  const roleColors = {
+    admin: 'bg-danger/10 text-danger border-danger/30',
+    hr: 'bg-warning/10 text-warning border-warning/30',
+    employee: 'bg-info-blue/10 text-info-blue border-info-blue/30',
   };
 
   return (
@@ -46,16 +59,42 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
             </span>
           )}
 
-          {onDelete && (
+          {employee.hasLogin ? (
+            <span
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize ${roleColors[employee.role] || 'bg-base text-secondary border-border'}`}
+            >
+              <Key className="w-3 h-3" />
+              <span>{employee.role}</span>
+            </span>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-base/60 text-secondary/70 border border-border/50"
+            >
+              <User className="w-3 h-3" />
+              <span>No Login</span>
+            </span>
+          )}
+
+          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
             <button
               type="button"
-              onClick={handleDelete}
-              className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised/60 opacity-0 group-hover:opacity-100 transition-all"
-              title="Delete employee profile"
+              onClick={handleEditRole}
+              className="p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-raised/60 transition-all"
+              title="Manage Login & Role"
             >
-              <Trash2 className="w-4 h-4" />
+              <Edit3 className="w-4 h-4" />
             </button>
-          )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised/60 transition-all"
+                title="Delete employee profile"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

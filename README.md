@@ -1,6 +1,6 @@
-# AssetTrack — Hardware Inventory & Lifecycle Management System
+# AssetTrack — IT Asset Management & Service Portal
 
-AssetTrack is an enterprise-grade internal web application engineered for IT Administrators to track, assign, and audit physical hardware devices (laptops, monitors, peripherals, workstations) across multiple regional offices (Bangalore, Mumbai, Delhi, Hyderabad).
+AssetTrack is an enterprise-grade internal web application engineered for IT Administrators, HR Professionals, and Employees. It provides end-to-end hardware inventory management, self-service IT ticketing, and streamlined HR onboarding workflows across multiple regional offices (Bangalore, Mumbai, Delhi, Hyderabad).
 
 ---
 
@@ -8,8 +8,8 @@ AssetTrack is an enterprise-grade internal web application engineered for IT Adm
 
 ### Core Technologies
 - **Frontend (`/client`)**: React 18 (Vite), Tailwind CSS v4, Lucide Icons, Axios, React Router v6, React Hot Toast
-- **Backend (`/server`)**: Node.js v20+, Express v5, `better-sqlite3` (synchronous SQLite), `express-validator`
-- **Database**: Synchronous local SQLite (`/data/assets.db`) with WAL (Write-Ahead Logging) mode and enforced foreign keys (`PRAGMA foreign_keys = ON;`)
+- **Backend (`/server`)**: Node.js v20+, Express v5, `pg` (Postgres driver), `express-validator`
+- **Database**: Supabase Postgres (via connection pooler)
 - **Testing**: Vitest (`vitest`) & Supertest (`supertest`) across frontend unit tests and backend API integration tests
 
 ### Architectural Pattern: Pattern 2 (Axios -> Hooks -> Components)
@@ -41,7 +41,13 @@ cp client/.env.example client/.env
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser. The SQLite database schema (`assets.db`) and realistic seed data (4 regional offices, 5 categories, 15+ employees, and 20+ tracked hardware assets) are automatically initialized on backend startup.
+Open `http://localhost:5173` in your browser. The application is secured via JWT authentication. The database is automatically seeded with users across all three roles.
+
+### Test Accounts
+You can log in with any of the following accounts (the password for all test accounts is `password`):
+- **Admin**: `admin@company.com` (Full access to Inventory, Scanning, and Settings)
+- **Employee**: `employee@company.com` (Access to personal Dashboard and IT Ticketing)
+- **HR**: `hr@company.com` (Access to new hire Onboarding workflows)
 
 ### Running Automated Suite (Unit & Integration Tests)
 Run the 100% passing test suite across both server and client:
@@ -73,6 +79,16 @@ npm test --prefix client
 | `GET` | `/api/employees/:id` | Fetch employee details along with all currently assigned assets |
 | `POST` | `/api/employees` | Create a new employee directory entry |
 | `DELETE` | `/api/employees/:id` | Soft-delete employee (`deleted_at = CURRENT_TIMESTAMP`) |
+| `PATCH` | `/api/employees/:id/role` | Update an employee's role (admin/hr/employee) |
+| `POST` | `/api/employees/:id/grant-access` | Grant login access (creates a user account for the employee) |
+| `POST` | `/api/auth/login` | Authenticate and retrieve a session token |
+| `POST` | `/api/auth/logout` | Invalidate current session token |
+| `GET` | `/api/tickets` | List IT tickets (supports RBAC isolation) |
+| `POST` | `/api/tickets` | Create a new IT ticket |
+| `PATCH` | `/api/tickets/:id/resolve` | Resolve an IT ticket (Admin only) |
+| `GET` | `/api/onboarding` | List onboarding requests (HR/Admin only) |
+| `POST` | `/api/onboarding` | Create a new onboarding request |
+| `PATCH` | `/api/onboarding/:id/arrange` | Arrange IT assets for a new hire |
 | `GET` | `/api/categories` | List hardware classification categories with counts |
 | `POST` | `/api/categories` | Create new classification category (`name`, `badgeChar`, `color`) |
 | `DELETE` | `/api/categories/:id` | Delete category (blocked if active assets reference it) |
@@ -85,7 +101,7 @@ npm test --prefix client
 
 Every technical implementation strictly conforms to the foundational engineering memory records:
 1. **Decision 1 (Soft Deletes vs Hard Deletes)**: Employees are **soft-deleted** (`deleted_at` timestamp) to preserve historical integrity for audit trails and past asset assignments. Assets are **hard-deleted** when explicitly removed (`deleteAsset`), but their audit trails are logged right before deletion.
-2. **Decision 2 (Synchronous SQLite via `better-sqlite3`)**: All database operations execute synchronously using `db.prepare().run()` and atomic `db.transaction()` blocks, preventing race conditions or partial state updates during multi-table lifecycle mutations.
+2. **Decision 2 (Supabase Postgres via `pg`)**: All database operations execute asynchronously using `pg` connection pools and atomic `db.withTransaction()` blocks, preventing race conditions or partial state updates during multi-table lifecycle mutations.
 3. **Decision 3 (Audit Logging Philosophy)**: Every asset lifecycle event (`created`, `assigned`, `returned`, `retired`, `updated`, `deleted`) is logged atomically within the same database transaction as the asset status update, guaranteeing zero drift between `assets.status` and `history`.
 4. **Decision 4 (Assigned Asset Constraints)**: If an asset is `assigned` during creation (`status: 'in-use'`), both a `created` and `assigned` event are written atomically. Retired assets (`status: 'retired'`) are locked and cannot be re-assigned or returned (`Rule 1`).
 5. **Decision 5 (Flat Dark UI & Skeletons)**: UIs avoid heavy drop shadows (`Rule 10`), using crisp 1px borders (`border-slate-700/60`), muted slate backgrounds (`bg-slate-800`), and smooth pulse skeletons (`SkeletonCard`) instead of spinning loaders during data queries.
@@ -108,10 +124,9 @@ comppro/ (Monorepo Root)
 ├── server/               # Node.js Express Backend
 │   ├── middleware/       # Error handler & request validators
 │   ├── routes/           # REST endpoints (assets, dashboard, employees, categories, history, serial)
-│   ├── services/         # Business logic & SQLite transactions (assetService, historyService, etc.)
+│   ├── services/         # Business logic & Postgres transactions (assetService, historyService, etc.)
 │   ├── tests/            # Vitest unit & Supertest integration tests
-│   └── db.js             # SQLite initialization, schema migration & seed runner
-├── data/                 # Local database storage (`assets.db`)
-├── backups/              # Automatic daily/manual SQLite backups directory
+│   └── db.js             # Postgres pool initialization & connection helper
+├── backups/              # Automatic daily/manual database backups directory
 └── README.md
 ```

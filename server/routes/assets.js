@@ -4,7 +4,11 @@ const validateRequest = require('../middleware/validateRequest');
 const assetService = require('../services/assetService');
 const historyService = require('../services/historyService');
 
+const { validateSession, requireRole } = require('../middleware/validateSession');
+
 const router = express.Router();
+
+router.use(validateSession, requireRole('admin'));
 
 // GET /api/assets — list assets with optional filters
 router.get('/', async (req, res, next) => {

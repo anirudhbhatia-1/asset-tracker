@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getEmployees, createEmployee, deleteEmployeeApi } from '../api/employeesApi';
+import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, grantEmployeeAccess } from '../api/employeesApi';
 import toast from 'react-hot-toast';
 
 export default function useEmployees() {
@@ -49,6 +49,32 @@ export default function useEmployees() {
     }
   };
 
+  const changeRole = async (id, role) => {
+    try {
+      const res = await updateEmployeeRole(id, role);
+      const updatedEmp = res.data?.data || res.data;
+      setEmployees((prev) => prev.map((e) => (e.id === id ? updatedEmp : e)));
+      toast.success('Employee role updated');
+      return updatedEmp;
+    } catch (err) {
+      toast.error(err.message || 'Failed to update role');
+      throw err;
+    }
+  };
+
+  const grantAccess = async (id, role) => {
+    try {
+      const res = await grantEmployeeAccess(id, role);
+      const updatedEmp = res.data?.data || res.data;
+      setEmployees((prev) => prev.map((e) => (e.id === id ? updatedEmp : e)));
+      toast.success('Login access granted');
+      return res.data; // Return the full response to access temporaryPassword
+    } catch (err) {
+      toast.error(err.message || 'Failed to grant access');
+      throw err;
+    }
+  };
+
   return {
     employees: Array.isArray(employees) ? employees : [],
     loading,
@@ -56,5 +82,7 @@ export default function useEmployees() {
     refresh: fetchEmployeesData,
     addEmployee,
     deleteEmployee,
+    changeRole,
+    grantAccess,
   };
 }

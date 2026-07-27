@@ -372,6 +372,8 @@ router.post('/:id/assign', [
 3. Handler body is always wrapped in `try/catch`.
 4. Errors are always passed to `next(err)`.
 5. Success responses always use an explicit HTTP status code.
+6. Every route must explicitly declare its required role(s) using the `requireRole` middleware.
+7. Never trust client-supplied identity (e.g., `req.body.employeeId` for permissions) — always rely on `req.user` attached by the session validator.
 
 ### 4.2 Service Layer Rules
 
@@ -526,11 +528,13 @@ Any operation that requires more than one write (INSERT + UPDATE, etc.) **must**
 4. **Never expose `GOOGLE_CLIENT_SECRET` to the frontend.** It lives only in `server/.env`.
 5. **Never hardcode fallback secret values** in source code (e.g., `process.env.SECRET || 'mysecret'`).
 
-### 6.2 Authentication Rules
-- Every `/api/*` route (except public health check) must validate the session token.
+### 6.2 Authentication & RBAC Rules
+- Every `/api/*` route (except public health check and login) must validate the session token.
+- Every route must explicitly declare its required role(s) (e.g. `admin`, `employee`, `hr`) via `requireRole`.
+- **Never cache roles in a JWT or session token.** Roles must be fetched live from the `users` table on every request by the session validator middleware. This guarantees that role changes (like promoting an employee to admin or granting access) take effect immediately on the user's next network request.
 - Session tokens expire after 8 hours of inactivity.
-- Only users whose email `@domain` matches the configured Google Workspace domain are admitted.
 - If the session is invalid or expired, return `401 Unauthorized` — never silently proceed.
+- If the session is valid but the role is insufficient, return `403 Forbidden`.
 
 ### 6.3 Data Exposure Rules
 - Never return password hashes, raw tokens, or Google refresh tokens in API responses.

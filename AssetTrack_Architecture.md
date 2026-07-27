@@ -458,6 +458,8 @@ GET    /api/employees/:id/assets   → assets assigned to employee
 POST   /api/employees              → add employee manually
 PUT    /api/employees/:id          → update employee
 DELETE /api/employees/:id          → remove employee
+PATCH  /api/employees/:id/role     → update employee role
+POST   /api/employees/:id/grant-access → grant login access
 ```
 
 #### `/api/categories`
@@ -593,6 +595,69 @@ CREATE TABLE IF NOT EXISTS google_config (
   domain     TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Users (RBAC)
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT CHECK(role IN ('admin','employee','hr')) NOT NULL,
+  employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Sessions (updated)
+CREATE TABLE sessions (
+  token TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
+-- Tickets
+CREATE TABLE tickets (
+  id SERIAL PRIMARY KEY,
+  type TEXT CHECK(type IN ('issue','request')) NOT NULL,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  asset_id INTEGER REFERENCES assets(id) ON DELETE SET NULL,
+  category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT CHECK(status IN ('open','in_progress','resolved','rejected')) DEFAULT 'open',
+  resolution_notes TEXT,
+  resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  resolved_asset_id INTEGER REFERENCES assets(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Onboarding Requests
+CREATE TABLE onboarding_requests (
+  id SERIAL PRIMARY KEY,
+  requested_by INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  new_hire_name TEXT NOT NULL,
+  new_hire_email TEXT,
+  department TEXT,
+  location TEXT,
+  joining_date DATE NOT NULL,
+  notes TEXT,
+  status TEXT CHECK(status IN ('pending','in_progress','arranged','completed','cancelled')) DEFAULT 'pending',
+  linked_employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  arranged_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  arranged_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Onboarding Request Items
+CREATE TABLE onboarding_request_items (
+  id SERIAL PRIMARY KEY,
+  onboarding_request_id INTEGER NOT NULL REFERENCES onboarding_requests(id) ON DELETE CASCADE,
+  category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+  quantity INTEGER DEFAULT 1,
+  notes TEXT,
+  fulfilled_asset_id INTEGER REFERENCES assets(id) ON DELETE SET NULL
+);
 ```
 
 ### 5.3 Entity-Relationship Diagram
@@ -657,9 +722,68 @@ CREATE TABLE IF NOT EXISTS google_config (
 │          sessions            │
 ├──────────────────────────────┤
 │ token (PK)                   │
-│ admin_identifier             │
+│ user_id (FK→users)           │
 │ created_at                   │
 │ expires_at                   │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
+│           users              │
+├──────────────────────────────┤
+│ id (PK)                      │
+│ email (UNIQUE)               │
+│ password_hash                │
+│ role                         │
+│ employee_id (FK→employees)   │
+│ created_at                   │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
+│          tickets             │
+├──────────────────────────────┤
+│ id (PK)                      │
+│ type                         │
+│ employee_id (FK→employees)   │
+│ asset_id (FK→assets)         │
+│ category_id (FK→categories)  │
+│ title                        │
+│ description                  │
+│ status                       │
+│ resolution_notes             │
+│ resolved_by (FK→users)       │
+│ resolved_asset_id (FK→assets)│
+│ created_at                   │
+│ updated_at                   │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
+│     onboarding_requests      │
+├──────────────────────────────┤
+│ id (PK)                      │
+│ requested_by (FK→users)      │
+│ new_hire_name                │
+│ new_hire_email               │
+│ department                   │
+│ location                     │
+│ joining_date                 │
+│ notes                        │
+│ status                       │
+│ linked_employee_id (FK→emp)  │
+│ arranged_by (FK→users)       │
+│ arranged_at                  │
+│ created_at                   │
+│ updated_at                   │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
+│   onboarding_request_items   │
+├──────────────────────────────┤
+│ id (PK)                      │
+│ onboarding_request_id (FK)   │
+│ category_id (FK→categories)  │
+│ quantity                     │
+│ notes                        │
+│ fulfilled_asset_id (FK→assets)│
 └──────────────────────────────┘
 ```
 
@@ -857,15 +981,16 @@ with asset details      "No asset found"
 
 ## 8. Security Architecture
 
-### 8.1 Authentication Model (v1)
+### 8.1 Authentication Model & RBAC
 
-> **v1 uses a simplified single-admin model.** Multi-user RBAC is planned for v2.
+> **Updated:** The system now supports explicit Roles-Based Access Control (RBAC) with `admin`, `employee`, and `hr` roles. Google OAuth and directory sync features remain functionally untouched and operate in a parallel legacy flow (currently out of scope for the new RBAC flow).
 
-- Google OAuth is used to verify the admin's identity.
-- Only users whose email domain matches the configured `domain` (e.g., `company.com`) are permitted.
-- The backend issues a session UUID stored in-memory (Map), returned to the frontend.
-- Frontend stores this UUID in `sessionStorage` (cleared on tab close).
-- All `/api/*` routes check for a valid session token via middleware.
+- Authentication relies on a simple email + password credential check against bcrypt hashes in the `users` table.
+- A successful login issues a secure, random `token` that is persisted to the `sessions` table in the database and linked to the `user_id`.
+- The frontend stores this token and includes it as a Bearer token in the `Authorization` header on all API calls.
+- The `validateSession` middleware checks the token against the database, validates expiration (8 hours), and attaches `req.user = { id, role, employeeId }`.
+- The `requireRole('role1', 'role2')` middleware enforces access control at the route level.
+- All existing API endpoints (`assets`, `employees`, `categories`, `history`, `serial`) have been strictly guarded with `requireRole('admin')`.
 
 ### 8.2 Input Validation & Sanitization
 

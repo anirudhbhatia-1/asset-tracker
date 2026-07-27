@@ -32,6 +32,7 @@
 | **Phase 2** | Scanner & Google Sync | 4 weeks | Week 10 | Barcode scanner + Google Workspace integration live |
 | **Phase 3** | Polish & Settings | 2 weeks | Week 12 | Production-ready: responsive, accessible, tested |
 | **Phase 4** | Post-Launch v1.1 | Ongoing | Week 13+ | Feature enhancements based on user feedback |
+| **Phase 5** | RBAC, Ticketing, Onboarding | 2 weeks | Week 15 | Multi-role access, employee requests, HR onboarding workflows |
 
 **Total to production-ready v1.0:** ~12 weeks  
 **Stack:** React (Vite) + Node.js/Express + Supabase Postgres  
@@ -583,16 +584,16 @@
 - [x] Test all pages on a real mobile device (Android Chrome + iOS Safari).
 - [x] Verify no `console.error` or `console.warn` on any page in the happy path.
 - [x] Verify all toast notifications appear and auto-dismiss correctly.
-- [ ] Verify all empty states appear on pages with no data.
+- [x] Verify all empty states appear on pages with no data.
 
 **Week 12 Exit Criteria (v1.0 Release Candidate):**
-- [ ] Lighthouse accessibility score ≥ 90 on all pages.
-- [ ] Lighthouse performance score ≥ 80 on all pages.
-- [ ] All E2E tests pass in CI.
-- [ ] All unit and integration tests pass.
-- [ ] Sign-off from IT Admin persona on the complete user journey.
-- [ ] Production deployment checklist complete (HTTPS, env vars, DB backup cron).
-- [ ] v1.0 tagged in Git.
+- [x] Lighthouse accessibility score ≥ 90 on all pages.
+- [x] Lighthouse performance score ≥ 80 on all pages.
+- [x] All E2E tests pass in CI.
+- [x] All unit and integration tests pass.
+- [x] Sign-off from IT Admin persona on the complete user journey.
+- [x] Production deployment checklist complete (HTTPS, env vars, DB backup cron).
+- [x] v1.0 tagged in Git.
 
 ---
 
@@ -631,7 +632,29 @@
 
 ---
 
-## 7. Master Gantt Summary
+## 7. Phase 5 — RBAC, Ticketing, and Onboarding
+
+**Duration:** 2 weeks (Weeks 14-15)  
+**Goal:** Expand AssetTrack from a single-actor tool (Admin only) to a multi-actor platform by introducing Role-Based Access Control (RBAC), an Employee Ticketing portal, and an HR Onboarding portal.
+
+### Phase 5 Objectives & Status
+- [x] Implemented global JWT-based authentication system with a login wall (`/login`).
+- [x] Designed and integrated Role-Based Access Control (Roles: `admin`, `employee`, `hr`).
+- [x] Built the Employee Ticketing Module:
+  - Employees can raise hardware "request" or "issue" tickets.
+  - Admins can review, reject, or resolve tickets by assigning physical inventory assets.
+- [x] Built the HR Onboarding Module:
+  - HR can submit hardware requests for incoming new hires.
+  - Admins can pre-allocate ("arrange") physical assets against those requests prior to the employee joining.
+- [x] Enforced cross-module synchronization (e.g., ticket resolution automatically fires `assignAsset` in the core inventory).
+- [x] Updated automated E2E tests for the new authenticated environment.
+- [x] Full UI/UX regression pass completed.
+
+**Phase 5 Complete.**
+
+---
+
+## 8. Master Gantt Summary
 
 ```
 Week │ 1  │ 2  │ 3  │ 4  │ 5  │ 6  │ 7  │ 8  │ 9  │ 10 │ 11 │ 12 │ 13+

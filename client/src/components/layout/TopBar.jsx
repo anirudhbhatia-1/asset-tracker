@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 const TopBar = () => {
   const location = useLocation();
@@ -10,6 +11,7 @@ const TopBar = () => {
   const [query, setQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     if (location.pathname === '/inventory') {
@@ -140,22 +142,25 @@ const TopBar = () => {
             </button>
 
             <div className="flex items-center gap-3 sm:pl-2">
-              {/* Mobile Profile Icon (Visible instead of Settings) */}
-              <div className="md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-raised border border-border text-secondary font-semibold text-[10px]">
-                RS
-              </div>
-              
-              <div className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-raised border border-border text-secondary font-semibold text-xs">
-                RS
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-xs uppercase">
+                {user?.email?.[0] || 'U'}
               </div>
               <div className="hidden sm:block text-left">
-                <span className="block text-xs font-semibold text-primary leading-none">
-                  Rajan Sharma
+                <span className="block text-xs font-semibold text-primary leading-none truncate max-w-[120px]">
+                  {user?.email || 'User'}
                 </span>
-                <span className="block text-[11px] text-secondary mt-0.5">
-                  IT Administrator
+                <span className="block text-[11px] text-secondary mt-0.5 capitalize">
+                  {user?.role || 'Guest'}
                 </span>
               </div>
+              <button 
+                onClick={logout}
+                className="ml-2 p-1.5 rounded-lg text-secondary hover:text-error hover:bg-error/10 transition-colors"
+                title="Logout"
+                aria-label="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </>

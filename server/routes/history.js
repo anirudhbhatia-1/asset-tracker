@@ -3,7 +3,11 @@ const { query } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const historyService = require('../services/historyService');
 
+const { validateSession, requireRole } = require('../middleware/validateSession');
+
 const router = express.Router();
+
+router.use(validateSession, requireRole('admin'));
 
 // GET /api/history — recent activity feed (default last 20 events)
 router.get('/', [

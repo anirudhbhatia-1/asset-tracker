@@ -28,6 +28,9 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/history', require('./routes/history'));
 app.use('/api/serial', require('./routes/serial'));
 app.use('/api/google', require('./routes/google'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/tickets', require('./routes/tickets'));
+app.use('/api/onboarding', require('./routes/onboarding'));
 
 // 404 Handler for unmatched routes
 app.use((req, res, next) => {

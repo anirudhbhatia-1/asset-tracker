@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Assignment flow', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/login');
+    await page.fill('input[type="email"]', 'admin@company.com');
+    await page.fill('input[type="password"]', 'password');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL('/');
+  });
+
   test('should allocate an asset to an employee and return it', async ({ page }) => {
     // We assume there's at least one available asset to assign
     await page.goto('/inventory');

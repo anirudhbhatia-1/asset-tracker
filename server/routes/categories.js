@@ -3,7 +3,11 @@ const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const categoryService = require('../services/categoryService');
 
+const { validateSession, requireRole } = require('../middleware/validateSession');
+
 const router = express.Router();
+
+router.use(validateSession, requireRole('admin'));
 
 // GET /api/categories — list all categories
 router.get('/', async (req, res, next) => {

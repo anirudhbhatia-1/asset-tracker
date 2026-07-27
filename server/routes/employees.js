@@ -3,7 +3,11 @@ const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const employeeService = require('../services/employeeService');
 
+const { validateSession, requireRole } = require('../middleware/validateSession');
+
 const router = express.Router();
+
+router.use(validateSession, requireRole('admin'));
 
 // GET /api/employees — list all employees
 router.get('/', async (req, res, next) => {
@@ -103,6 +107,49 @@ router.delete('/:id', [
     res.status(200).json({
       data: result,
       message: 'Employee soft-deleted successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/employees/:id/role — change user role
+router.patch('/:id/role', [
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  body('role').isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const updated = await employeeService.updateEmployeeRole(Number(req.params.id), req.body.role);
+    res.status(200).json({
+      data: updated,
+      message: 'Employee role updated successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/employees/:id/grant-access — create login account for employee
+router.post('/:id/grant-access', [
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  body('role').isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const bcrypt = require('bcrypt');
+    const crypto = require('crypto');
+    
+    // Generate a secure temporary password
+    const temporaryPassword = crypto.randomBytes(6).toString('hex'); // 12 chars
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    
+    const updated = await employeeService.grantEmployeeAccess(Number(req.params.id), req.body.role, passwordHash);
+    
+    res.status(200).json({
+      data: updated,
+      temporaryPassword,
+      message: 'Login access granted successfully',
     });
   } catch (err) {
     next(err);

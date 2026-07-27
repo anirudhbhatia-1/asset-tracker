@@ -1,0 +1,34 @@
+const express = require('express');
+const { body } = require('express-validator');
+const validateRequest = require('../middleware/validateRequest');
+const authService = require('../services/authService');
+
+const router = express.Router();
+
+router.post('/login', [
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').notEmpty().withMessage('Password is required'),
+  validateRequest
+], async (req, res, next) => {
+  try {
+    const result = await authService.login(req.body.email, req.body.password);
+    res.status(200).json({ data: result, message: 'Logged in successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/logout', async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      await authService.logout(token);
+    }
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;

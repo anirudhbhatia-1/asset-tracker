@@ -14,6 +14,8 @@ const mapEmployee = (row) => {
     deletedAt: row.deleted_at || null,
     createdAt: row.created_at,
     assignedAssetsCount: row.assigned_assets_count !== undefined ? Number(row.assigned_assets_count) : undefined,
+    role: row.role || null,
+    hasLogin: row.role ? true : false,
   };
 };
 
@@ -70,11 +72,13 @@ const getEmployees = async (filters = {}) => {
   const sql = `
     SELECT e.id, e.name, e.email, e.department, e.location, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
+           u.role,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
     FROM employees e
     LEFT JOIN assets a ON e.id = a.assigned_to
+    LEFT JOIN users u ON e.id = u.employee_id
     ${whereClause}
-    GROUP BY e.id
+    GROUP BY e.id, u.role
     ORDER BY e.name ASC
   `;
 
@@ -86,11 +90,13 @@ const getEmployeeById = async (id) => {
   const result = await pool.query(`
     SELECT e.id, e.name, e.email, e.department, e.location, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
+           u.role,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
     FROM employees e
     LEFT JOIN assets a ON e.id = a.assigned_to
+    LEFT JOIN users u ON e.id = u.employee_id
     WHERE e.id = $1
-    GROUP BY e.id
+    GROUP BY e.id, u.role
   `, [id]);
 
   if (result.rows.length === 0) {
@@ -179,6 +185,43 @@ const deleteEmployee = async (id) => {
   return { id: Number(id), deleted: true };
 };
 
+const updateEmployeeRole = async (id, newRole) => {
+  const current = await getEmployeeById(id);
+  if (!current.hasLogin) {
+    const err = new Error('Cannot change role: Employee does not have a login account');
+    err.statusCode = 400;
+    throw err;
+  }
+  await pool.query('UPDATE users SET role = $1 WHERE employee_id = $2', [newRole, id]);
+  return getEmployeeById(id);
+};
+
+const grantEmployeeAccess = async (id, role, passwordHash) => {
+  const current = await getEmployeeById(id);
+  if (current.hasLogin) {
+    const err = new Error('Employee already has a login account');
+    err.statusCode = 400;
+    throw err;
+  }
+  
+  // Use employee's email for the user account
+  const email = current.email;
+  
+  const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (existingUser.rows.length > 0) {
+    const err = new Error('A user account with this email already exists');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  await pool.query(
+    'INSERT INTO users (email, password_hash, role, employee_id, created_at) VALUES ($1, $2, $3, $4, NOW())',
+    [email, passwordHash, role, id]
+  );
+  
+  return getEmployeeById(id);
+};
+
 module.exports = {
   getEmployees,
   getEmployeeById,
@@ -186,4 +229,6 @@ module.exports = {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  updateEmployeeRole,
+  grantEmployeeAccess,
 };

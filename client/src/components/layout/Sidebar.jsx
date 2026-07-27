@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { 
   LayoutDashboard, 
   Package, 
@@ -7,26 +8,27 @@ import {
   Users, 
   Settings, 
   ShieldCheck,
-  Tags
+  Ticket,
+  UserPlus
 } from 'lucide-react';
 
-const mobileNavItems = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Inventory', path: '/inventory', icon: Package },
-  { name: 'Scanner', path: '/scanner', icon: QrCode },
-  { name: 'Employees', path: '/employees', icon: Users },
-  { name: 'Settings', path: '/settings', icon: Settings },
-];
-
-const desktopNavItems = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Inventory', path: '/inventory', icon: Package },
-  { name: 'Barcode Scanner', path: '/scanner', icon: QrCode },
-  { name: 'Employees', path: '/employees', icon: Users },
-  { name: 'Settings', path: '/settings', icon: Settings },
+const allNavItems = [
+  { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['admin', 'employee', 'hr'] },
+  { name: 'Inventory', path: '/inventory', icon: Package, roles: ['admin'] },
+  { name: 'Tickets', path: '/tickets', icon: Ticket, roles: ['admin', 'employee'] },
+  { name: 'Onboarding', path: '/onboarding', icon: UserPlus, roles: ['admin', 'hr'] },
+  { name: 'Scanner', path: '/scanner', icon: QrCode, roles: ['admin'] },
+  { name: 'Employees', path: '/employees', icon: Users, roles: ['admin', 'hr'] },
+  { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin', 'employee', 'hr'] },
 ];
 
 const Sidebar = () => {
+  const { user } = useAuth();
+  const role = user?.role || 'employee';
+
+  const visibleNavItems = allNavItems.filter(item => item.roles.includes(role));
+  const mobileNavItems = visibleNavItems.slice(0, 5);
+
   return (
     <>
       {/* Container is bottom tab bar on mobile, left sidebar on md+ */}
@@ -69,8 +71,8 @@ const Sidebar = () => {
             <span className="inline lg:hidden text-center block">Menu</span>
           </div>
           
-          {/* We map mobile items differently than desktop items to respect the 5-item limit on mobile */}
-          {desktopNavItems.map((item) => {
+          {/* We map visible items */}
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isMobileHidden = !mobileNavItems.some(m => m.name === item.name);
             

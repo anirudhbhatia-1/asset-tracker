@@ -5,7 +5,11 @@ const assetService = require('../services/assetService');
 
 const rateLimit = require('express-rate-limit');
 
+const { validateSession, requireRole } = require('../middleware/validateSession');
+
 const router = express.Router();
+
+router.use(validateSession, requireRole('admin'));
 
 const scanLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute

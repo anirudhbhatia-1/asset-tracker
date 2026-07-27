@@ -43,7 +43,7 @@
 | **Offices Supported** | Bangalore, Mumbai, Delhi, Hyderabad |
 | **Asset Types Tracked** | Laptops, Monitors, Mice, Keyboards, Headsets, Corporate Swag (T-shirts, bags) |
 | **Auth Method** | Google Workspace OAuth 2.0 (company.com domain only) |
-| **Database** | SQLite (`assets.db`) |
+| **Database** | Supabase Postgres (pg) |
 | **Monorepo Root** | `/assettrack/` |
 | **Frontend Root** | `/assettrack/client/` |
 | **Backend Root** | `/assettrack/server/` |
@@ -92,7 +92,7 @@ AssetTrack is a web dashboard for IT admins to:
 |---|---|---|
 | `node` | 20.x LTS | Runtime |
 | `express` | 4.x | HTTP framework |
-| `better-sqlite3` | 9.x | SQLite driver (synchronous API) |
+| `pg` | 8.x | PostgreSQL driver |
 | `googleapis` | 140.x | Google Admin SDK + OAuth |
 | `express-validator` | 7.x | Request input validation |
 | `cors` | 2.x | Cross-origin resource sharing |
@@ -238,6 +238,15 @@ server: {
 
 ---
 
+### Decision 12: Basic RBAC & Authentication
+**Chosen:** Users table with bcrypt-hashed passwords and sessions.
+**Rationale:**
+- We need distinct roles (admin, employee, hr) for ticketing and onboarding requests.
+- Google OAuth is currently out of scope, so we use a simple placeholder auth model with bcrypt passwords.
+- The `sessions` table is keyed to `users.id` instead of a generic identifier to properly support the new roles.
+
+---
+
 ## 5. Project File Structure
 
 ```
@@ -315,13 +324,10 @@ assettrack/                        ← Monorepo root
 │   │   └── errorHandler.js        ← Global error handler
 │   ├── migrations/                ← Numbered SQL migration files
 │   │   └── 001_initial_schema.sql
-│   ├── db.js                      ← SQLite connection + schema init
+│   ├── db.js                      ← Postgres connection pool
 │   ├── index.js                   ← Express app + server start
 │   └── package.json
 │
-├── data/
-│   └── assets.db                  ← SQLite database (gitignored)
-├── backups/                       ← Daily DB backups (gitignored)
 ├── .env.example
 ├── .gitignore
 └── README.md
@@ -560,28 +566,27 @@ router.post('/:id/assign', [
 // server/services/assetService.js
 const db = require('../db');
 
-const assignAsset = (assetId, employeeId, assignedDate, note) => {
-  const asset = db.prepare('SELECT id FROM assets WHERE id = ?').get(assetId);
-  if (!asset) {
+const assignAsset = async (assetId, employeeId, assignedDate, note) => {
+  const assetRes = await db.query('SELECT id FROM assets WHERE id = $1', [assetId]);
+  if (assetRes.rows.length === 0) {
     const err = new Error('Asset not found');
     err.statusCode = 404;
     throw err;
   }
 
-  const doAssign = db.transaction(() => {
-    db.prepare(`
+  await db.withTransaction(async (client) => {
+    await client.query(`
       UPDATE assets
-      SET status = 'in-use', assigned_to = ?, assigned_date = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(employeeId, assignedDate, assetId);
+      SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW()
+      WHERE id = $3
+    `, [employeeId, assignedDate, assetId]);
 
-    db.prepare(`
+    await client.query(`
       INSERT INTO asset_history (asset_id, event_type, employee_id, note, event_at)
-      VALUES (?, 'assigned', ?, ?, datetime('now'))
-    `).run(assetId, employeeId, note);
+      VALUES ($1, 'assigned', $2, $3, NOW())
+    `, [assetId, employeeId, note]);
   });
 
-  doAssign();
   return getAssetWithHistory(assetId);
 };
 ```
@@ -913,6 +918,9 @@ These decisions must be made before the relevant phase begins. Track the answer 
 2026-07-22 | Antigravity AI | Phase 1, Week 5 — Add Asset Form (`AddAssetForm`, `serialGenerator` with wand check) & Employee Directory (`EmployeesPage`, `EmployeeCard`, `EmployeeAssetDrawer`, `AddEmployeeModal`, `useEmployees`) | ✅ Completed Week 5 pages, forms, and utilities; verified clean production build (`vite build` in 140ms) and 100% E2E verification of unique serial auto-gen, collision retry, immediate allocation, and staff drawer
 2026-07-24 | Antigravity AI | Phase 2, Theming — Implement Light/Dark mode toggle | ✅ Abstracted Tailwind color literals into theme tokens, updated rules to enforce semantic tokens, and added `ThemeContext` along with UI toggle.
 2026-07-24 | Antigravity AI | Phase 3, Mobile Responsiveness — Full audit and implementation | ✅ Completed UI refactoring: bottom tab bar navigation, fixed touch target sizes, horizontal scrolling inventory, responsive modal/drawer layouts, and stacked card grids. Verified clean production build.
+2026-07-27 | Antigravity AI | RBAC & Ticketing Step 1 — Schema & Migrations | ✅ Created and applied DB migration for users, updated sessions, tickets, onboarding_requests, and onboarding_request_items. Seeded 3 users. Verified baseline app intact.
+2026-07-27 | Antigravity AI | RBAC & Ticketing Steps 2-8 — API, Auth, Tickets, Onboarding | ✅ Built secure API routes for onboarding and tickets. Implemented AuthContext and protected routes. Created full UI pages and modals for Tickets (Employees/Admins) and Onboarding (HR/Admins).
+2026-07-27 | Antigravity AI | RBAC & Ticketing Steps 9-11 — Verification & Documentation | ✅ Completed full cross-feature synchronization audit and E2E regression pass. App is stable with new auth structure. Updated all documentation to reflect the finalized Postgres architecture and new RBAC rules.
 ```
 
 ---

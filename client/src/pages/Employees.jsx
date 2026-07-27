@@ -3,6 +3,7 @@ import useEmployees from '../hooks/useEmployees';
 import EmployeeCard from '../components/employees/EmployeeCard';
 import EmployeeAssetDrawer from '../components/employees/EmployeeAssetDrawer';
 import AddEmployeeModal from '../components/forms/AddEmployeeModal';
+import RoleManagementModal from '../components/forms/RoleManagementModal';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonCard } from '../components/ui/Skeleton';
@@ -11,12 +12,13 @@ import { Users, Search, UserPlus, RefreshCw, Building2, Filter } from 'lucide-re
 const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing'];
 
 export default function Employees() {
-  const { employees, loading, error, refresh, addEmployee, deleteEmployee } = useEmployees();
+  const { employees, loading, error, refresh, addEmployee, deleteEmployee, changeRole, grantAccess } = useEmployees();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
   const safeEmployees = Array.isArray(employees) ? employees : [];
 
@@ -38,9 +40,13 @@ export default function Employees() {
     });
   }, [safeEmployees, searchTerm, selectedDepartment]);
 
-  const handleCardClick = (emp) => {
+  const handleCardClick = (emp, action = 'drawer') => {
     setSelectedEmployee(emp);
-    setIsDrawerOpen(true);
+    if (action === 'role') {
+      setIsRoleModalOpen(true);
+    } else {
+      setIsDrawerOpen(true);
+    }
   };
 
   return (
@@ -171,8 +177,22 @@ export default function Employees() {
       {/* Employee Assigned Assets Drawer / Modal */}
       <EmployeeAssetDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedEmployee(null);
+        }}
         employee={selectedEmployee}
+      />
+
+      <RoleManagementModal
+        isOpen={isRoleModalOpen}
+        onClose={() => {
+          setIsRoleModalOpen(false);
+          setSelectedEmployee(null);
+        }}
+        employee={selectedEmployee}
+        onChangeRole={changeRole}
+        onGrantAccess={grantAccess}
       />
 
       {/* Add Employee Modal */}
