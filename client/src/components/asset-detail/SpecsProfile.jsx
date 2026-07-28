@@ -4,12 +4,16 @@ import StatusPill from '../ui/StatusPill';
 import Button from '../ui/Button';
 import { Copy, Check, Edit2, X, MapPin, DollarSign, Calendar, Tag, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getWarrantyStatus } from '../../utils/formatters';
 
-export default function SpecsProfile({ asset, onUpdateNotes }) {
+export default function SpecsProfile({ asset, onUpdateAssetData }) {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(asset?.notes || '');
+  const [warrantyValue, setWarrantyValue] = useState(asset?.warrantyExpiryDate || '');
   const [savingNotes, setSavingNotes] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const formattedCost = useMemoFormatCost(asset?.costCents);
 
   if (!asset) return null;
 
@@ -24,7 +28,10 @@ export default function SpecsProfile({ asset, onUpdateNotes }) {
   const handleSaveNotes = async () => {
     setSavingNotes(true);
     try {
-      await onUpdateNotes(notesValue.trim());
+      await onUpdateAssetData({ 
+        notes: notesValue.trim() || null,
+        warrantyExpiryDate: warrantyValue || null
+      });
       setIsEditingNotes(false);
     } catch (err) {
       // Error toast already handled inside hook
@@ -32,8 +39,6 @@ export default function SpecsProfile({ asset, onUpdateNotes }) {
       setSavingNotes(false);
     }
   };
-
-  const formattedCost = useMemoFormatCost(asset.costCents);
 
   return (
     <div className="bg-surface rounded-xl border border-border/80 p-6 shadow-sm space-y-6">
@@ -115,6 +120,20 @@ export default function SpecsProfile({ asset, onUpdateNotes }) {
             <span className="text-primary font-mono font-medium">{asset.purchaseDate || 'Unknown date'}</span>
           </div>
         </div>
+        
+        {/* Warranty Status */}
+        <div className="bg-base/60 p-3.5 rounded-xl border border-border/60 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-secondary shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-secondary uppercase tracking-wider block">Warranty Expiry</span>
+              <span className="text-primary font-mono font-medium">{asset.warrantyExpiryDate || 'Not specified'}</span>
+            </div>
+          </div>
+          <StatusPill status={getWarrantyStatus(asset.warrantyExpiryDate)} />
+        </div>
       </div>
 
       {/* Inline Notes Editor per PRD 6.3.1 & 6.3.3 */}
@@ -145,9 +164,21 @@ export default function SpecsProfile({ asset, onUpdateNotes }) {
               onChange={(e) => setNotesValue(e.target.value)}
               placeholder="Add tracking notes, repair history, or special considerations..."
               rows={3}
-              className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+              className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent mb-3"
             />
-            <div className="flex items-center justify-end gap-2">
+            
+            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-accent" />
+              <span>Warranty Expiry Date</span>
+            </label>
+            <input
+              type="date"
+              value={warrantyValue}
+              onChange={(e) => setWarrantyValue(e.target.value)}
+              className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent cursor-pointer"
+            />
+
+            <div className="flex items-center justify-end gap-2 mt-4">
               <Button
                 variant="ghost"
                 size="sm"

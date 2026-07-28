@@ -562,6 +562,7 @@ CREATE TABLE IF NOT EXISTS assets (
   cost_cents      INTEGER DEFAULT 0,
   purchase_date   TEXT,
   notes           TEXT,
+  warranty_expiry_date TEXT,
   assigned_to     INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   assigned_date   TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW(),

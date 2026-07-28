@@ -17,6 +17,7 @@ const mapAsset = (row) => {
     costCents: row.cost_cents !== undefined ? Number(row.cost_cents) : 0,
     purchaseDate: row.purchase_date || null,
     notes: row.notes || null,
+    warrantyExpiryDate: row.warranty_expiry_date || null,
     assignedTo: row.assigned_to || null,
     assignedDate: row.assigned_date || null,
     assigneeName: row.assignee_name || null,
@@ -60,6 +61,20 @@ const getAssets = async (filters = {}) => {
     params.push(likeQuery);
     const pos = params.length;
     conditions.push(`(a.name ILIKE $${pos} OR a.model ILIKE $${pos} OR a.serial_number ILIKE $${pos})`);
+  }
+
+  if (filters.warranty && filters.warranty !== 'all') {
+    if (filters.warranty === 'no-warranty') {
+      conditions.push(`a.warranty_expiry_date IS NULL`);
+    } else if (filters.warranty === 'expired') {
+      conditions.push(`a.warranty_expiry_date < CURRENT_DATE`);
+    } else if (filters.warranty === 'expiring-soon') {
+      // Within 60 days
+      conditions.push(`a.warranty_expiry_date >= CURRENT_DATE AND a.warranty_expiry_date <= CURRENT_DATE + 60`);
+    } else if (filters.warranty === 'in-warranty') {
+      // More than 60 days
+      conditions.push(`a.warranty_expiry_date > CURRENT_DATE + 60`);
+    }
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -126,7 +141,7 @@ const getAssetBySerial = async (serialNumber) => {
 const createAsset = async (data, performedBy = 'Rajan Sharma') => {
   const {
     name, categoryId, model, serialNumber, status = 'available',
-    location, costCents = 0, purchaseDate, notes, assignedTo, assignedDate
+    location, costCents = 0, purchaseDate, notes, warrantyExpiryDate, assignedTo, assignedDate
   } = data;
 
   const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1', [serialNumber]);
@@ -163,13 +178,13 @@ const createAsset = async (data, performedBy = 'Rajan Sharma') => {
 
   const newAssetId = await withTransaction(async (client) => {
     const result = await client.query(`
-      INSERT INTO assets (name, category_id, model, serial_number, status, location, cost_cents, purchase_date, notes, assigned_to, assigned_date, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+      INSERT INTO assets (name, category_id, model, serial_number, status, location, cost_cents, purchase_date, notes, warranty_expiry_date, assigned_to, assigned_date, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
       RETURNING id
     `, [
       name, categoryId || null, model || null, serialNumber, status,
       location || null, Number(costCents), purchaseDate || null, notes || null,
-      finalAssignedTo, finalAssignedDate
+      warrantyExpiryDate || null, finalAssignedTo, finalAssignedDate
     ]);
 
     const id = result.rows[0].id;
@@ -195,7 +210,7 @@ const updateAsset = async (id, data, performedBy = 'Rajan Sharma') => {
   }
 
   const {
-    name, categoryId, model, serialNumber, location, costCents, purchaseDate, notes
+    name, categoryId, model, serialNumber, location, costCents, purchaseDate, notes, warrantyExpiryDate
   } = data;
 
   if (serialNumber && serialNumber !== current.serialNumber) {
@@ -218,8 +233,9 @@ const updateAsset = async (id, data, performedBy = 'Rajan Sharma') => {
           cost_cents = $6,
           purchase_date = $7,
           notes = $8,
+          warranty_expiry_date = $9,
           updated_at = NOW()
-      WHERE id = $9
+      WHERE id = $10
     `, [
       name !== undefined ? name : current.name,
       categoryId !== undefined ? (categoryId ? Number(categoryId) : null) : current.categoryId,
@@ -229,6 +245,7 @@ const updateAsset = async (id, data, performedBy = 'Rajan Sharma') => {
       costCents !== undefined ? Number(costCents) : current.costCents,
       purchaseDate !== undefined ? purchaseDate : current.purchaseDate,
       notes !== undefined ? notes : current.notes,
+      warrantyExpiryDate !== undefined ? warrantyExpiryDate : current.warrantyExpiryDate,
       id
     ]);
 

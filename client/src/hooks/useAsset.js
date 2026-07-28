@@ -32,12 +32,12 @@ export default function useAsset(id) {
     fetchAssetData();
   }, [fetchAssetData]);
 
-  const updateNotes = async (notes) => {
+  const updateAssetData = async (data) => {
     try {
-      const res = await updateAssetApi(id, { notes });
+      const res = await updateAssetApi(id, data);
       const updated = res.data?.data || res.data;
       setAsset(updated);
-      toast.success('Asset notes updated');
+      toast.success('Asset details updated');
       return updated;
     } catch (err) {
       toast.error(err.message || 'Failed to update notes');
@@ -100,7 +100,7 @@ export default function useAsset(id) {
     loading,
     error,
     refresh: fetchAssetData,
-    updateNotes,
+    updateAssetData,
     assignToEmployee,
     returnToStock,
     retireAsset,

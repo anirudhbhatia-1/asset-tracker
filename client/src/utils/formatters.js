@@ -50,3 +50,30 @@ export function formatDate(dateInput, patternStr = 'MMM dd, yyyy') {
 export function formatDateTime(dateInput) {
   return formatDate(dateInput, 'MMM dd, yyyy HH:mm');
 }
+
+/**
+ * Computes warranty status based on the expiry date string.
+ * Returns: 'in warranty', 'expiring soon', 'expired', or 'no warranty data'
+ */
+export function getWarrantyStatus(warrantyExpiryDate) {
+  if (!warrantyExpiryDate) return 'no warranty data';
+  
+  const expiry = new Date(warrantyExpiryDate);
+  if (!isValid(expiry)) return 'no warranty data';
+  
+  // Set times to midnight for clean day-diff
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+  
+  const diffTime = expiry - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    return 'expired';
+  } else if (diffDays <= 60) {
+    return 'expiring soon';
+  } else {
+    return 'in warranty';
+  }
+}

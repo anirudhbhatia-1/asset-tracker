@@ -29,9 +29,8 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [costString, setCostString] = useState(
     initialData?.costCents ? (initialData.costCents / 100).toFixed(2) : ''
   );
-  const [purchaseDate, setPurchaseDate] = useState(
-    initialData?.purchaseDate || new Date().toISOString().substring(0, 10)
-  );
+  const [purchaseDate, setPurchaseDate] = useState(initialData?.purchaseDate || '');
+  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState(initialData?.warrantyExpiryDate || '');
   const [serialNumber, setSerialNumber] = useState(initialData?.serialNumber || '');
   const [notes, setNotes] = useState(initialData?.notes || '');
 
@@ -148,9 +147,10 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         name: name.trim(),
         categoryId: Number(categoryId),
         model: model.trim() || null,
-        location,
-        costCents,
-        purchaseDate: purchaseDate || null,
+        location: location.trim() || undefined,
+        purchaseDate: purchaseDate || undefined,
+        warrantyExpiryDate: warrantyExpiryDate || undefined,
+        costCents: costCents || undefined,
         serialNumber: serialNumber.trim(),
         notes: notes.trim() || null,
       };
@@ -440,6 +440,21 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               type="date"
               value={purchaseDate}
               onChange={(e) => setPurchaseDate(e.target.value)}
+              className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+            />
+          </div>
+
+          {/* Warranty Expiry */}
+          <div>
+            <label htmlFor="warrantyExpiryDate" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-accent" />
+              <span>Warranty Expiry</span>
+            </label>
+            <input
+              id="warrantyExpiryDate"
+              type="date"
+              value={warrantyExpiryDate}
+              onChange={(e) => setWarrantyExpiryDate(e.target.value)}
               className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
             />
           </div>

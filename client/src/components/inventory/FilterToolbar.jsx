@@ -10,10 +10,12 @@ export default function FilterToolbar({
   onSelectStatus,
   selectedLocation = 'all',
   onSelectLocation,
+  selectedWarranty = 'all',
+  onSelectWarranty,
   onClearFilters,
 }) {
   const locations = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
-  const hasActiveFilters = selectedCategoryId !== 'all' || selectedStatus !== 'all' || selectedLocation !== 'all';
+  const hasActiveFilters = selectedCategoryId !== 'all' || selectedStatus !== 'all' || selectedLocation !== 'all' || selectedWarranty !== 'all';
   const safeCategories = Array.isArray(categories) ? categories : [];
 
   return (
@@ -95,6 +97,25 @@ export default function FilterToolbar({
                   {loc}
                 </option>
               ))}
+            </select>
+          </div>
+
+          {/* Warranty Dropdown */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="warranty-filter" className="text-secondary font-medium">
+              Warranty:
+            </label>
+            <select
+              id="warranty-filter"
+              value={selectedWarranty}
+              onChange={(e) => onSelectWarranty(e.target.value)}
+              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
+            >
+              <option value="all">All Warranty</option>
+              <option value="in-warranty">🛡️ In Warranty</option>
+              <option value="expiring-soon">⚠️ Expiring Soon</option>
+              <option value="expired">❌ Expired</option>
+              <option value="no-warranty">⚪ No Warranty Data</option>
             </select>
           </div>
         </div>

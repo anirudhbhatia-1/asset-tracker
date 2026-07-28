@@ -5,7 +5,8 @@ import useCategories from '../hooks/useCategories';
 import SearchBar from '../components/inventory/SearchBar';
 import FilterToolbar from '../components/inventory/FilterToolbar';
 import AssetTable from '../components/inventory/AssetTable';
-import { Plus, RefreshCw } from 'lucide-react';
+import AssetGrid from '../components/inventory/AssetGrid';
+import { Plus, RefreshCw, List, LayoutGrid } from 'lucide-react';
 
 export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +16,11 @@ export default function Inventory() {
   const [selectedCategoryId, setSelectedCategoryId] = useState(searchParams.get('categoryId') || 'all');
   const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || 'all');
   const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || 'all');
+  const [selectedWarranty, setSelectedWarranty] = useState(searchParams.get('warranty') || 'all');
+
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('inventoryViewMode') || 'list';
+  });
 
   // Sync state when URL search params change (e.g. navigation from Dashboard or back button)
   useEffect(() => {
@@ -22,7 +28,12 @@ export default function Inventory() {
     setSelectedCategoryId(searchParams.get('categoryId') || 'all');
     setSelectedStatus(searchParams.get('status') || 'all');
     setSelectedLocation(searchParams.get('location') || 'all');
+    setSelectedWarranty(searchParams.get('warranty') || 'all');
   }, [searchParams]);
+
+  useEffect(() => {
+    localStorage.setItem('inventoryViewMode', viewMode);
+  }, [viewMode]);
 
   const updateFilterParams = useCallback((newParams) => {
     const updated = new URLSearchParams(searchParams);
@@ -56,6 +67,11 @@ export default function Inventory() {
     updateFilterParams({ location: loc });
   };
 
+  const handleSelectWarranty = (warranty) => {
+    setSelectedWarranty(warranty);
+    updateFilterParams({ warranty });
+  };
+
   // Construct query filters object for API
   const filters = useMemo(() => {
     const obj = {};
@@ -63,8 +79,9 @@ export default function Inventory() {
     if (selectedCategoryId !== 'all') obj.categoryId = selectedCategoryId;
     if (selectedStatus !== 'all') obj.status = selectedStatus;
     if (selectedLocation !== 'all') obj.location = selectedLocation;
+    if (selectedWarranty !== 'all') obj.warranty = selectedWarranty;
     return obj;
-  }, [searchQuery, selectedCategoryId, selectedStatus, selectedLocation]);
+  }, [searchQuery, selectedCategoryId, selectedStatus, selectedLocation, selectedWarranty]);
 
   const { assets, loading: assetsLoading, error, refresh } = useAssets(filters);
 
@@ -73,6 +90,7 @@ export default function Inventory() {
     setSelectedCategoryId('all');
     setSelectedStatus('all');
     setSelectedLocation('all');
+    setSelectedWarranty('all');
     setSearchParams({}, { replace: true });
   };
 
@@ -86,7 +104,31 @@ export default function Inventory() {
             Browse, filter, search, and manage the lifecycle of all registered hardware devices.
           </p>
         </div>
+        
         <div className="flex items-center gap-3">
+          <div className="flex items-center bg-surface border border-border rounded-xl p-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'list' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
+              }`}
+              title="List View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'grid' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
+              }`}
+              title="Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+          
           <button
             type="button"
             onClick={refresh}
@@ -127,16 +169,26 @@ export default function Inventory() {
           onSelectStatus={handleSelectStatus}
           selectedLocation={selectedLocation}
           onSelectLocation={handleSelectLocation}
+          selectedWarranty={selectedWarranty}
+          onSelectWarranty={handleSelectWarranty}
           onClearFilters={handleClearFilters}
         />
       </div>
 
       {/* Asset Data Table */}
-      <AssetTable
-        assets={assets}
-        loading={assetsLoading || categoriesLoading}
-        onClearFilters={handleClearFilters}
-      />
+      {viewMode === 'list' ? (
+        <AssetTable
+          assets={assets}
+          loading={assetsLoading || categoriesLoading}
+          onClearFilters={handleClearFilters}
+        />
+      ) : (
+        <AssetGrid
+          assets={assets}
+          loading={assetsLoading || categoriesLoading}
+          onClearFilters={handleClearFilters}
+        />
+      )}
     </div>
   );
 }

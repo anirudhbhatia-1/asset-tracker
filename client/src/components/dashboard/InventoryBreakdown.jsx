@@ -1,77 +1,133 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import Badge from '../ui/Badge';
-import { Layers, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { SkeletonCard } from '../ui/Skeleton';
+import { PieChart, List as ListIcon, MapPin, Tag } from 'lucide-react';
 
-export default function InventoryBreakdown({ breakdown = [], loading = false }) {
+export default function InventoryBreakdown({ breakdown, breakdownByLocation, loading }) {
+  const [activeTab, setActiveTab] = useState('category'); // 'category' | 'location'
+
   if (loading) {
-    return (
-      <div className="bg-surface rounded-xl p-6 border border-border/60 shadow-sm animate-pulse h-80">
-        <div className="h-6 w-48 bg-raised rounded mb-6" />
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="space-y-2">
-              <div className="flex justify-between">
-                <div className="h-4 w-28 bg-raised rounded" />
-                <div className="h-4 w-12 bg-raised rounded" />
-              </div>
-              <div className="h-2 w-full bg-raised rounded-full" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <SkeletonCard />;
   }
 
-  const safeBreakdown = Array.isArray(breakdown) ? breakdown : [];
+  const data = activeTab === 'category' ? breakdown : breakdownByLocation;
+  const totalItems = data.reduce((sum, item) => sum + item.count, 0);
+
+  // SVG Donut Chart properties
+  const size = 200;
+  const cx = size / 2;
+  const cy = size / 2;
+  const strokeWidth = 24;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  let currentOffset = 0;
+
+  // Simple color palette for locations
+  const locationColors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6'];
+
+  const chartSegments = data.map((item, index) => {
+    const percentage = item.count / totalItems;
+    const strokeDasharray = `${percentage * circumference} ${circumference}`;
+    const strokeDashoffset = -currentOffset;
+    currentOffset += percentage * circumference;
+
+    return {
+      ...item,
+      color: activeTab === 'category' ? item.color : locationColors[index % locationColors.length],
+      strokeDasharray,
+      strokeDashoffset,
+    };
+  });
 
   return (
-    <div className="bg-surface rounded-xl p-6 border border-border/60 shadow-sm flex flex-col justify-between h-full">
-      <div>
-        <div className="flex items-center gap-2 mb-5">
-          <Layers className="w-5 h-5 text-accent" />
-          <h3 className="text-base font-semibold text-primary">Inventory Breakdown by Category</h3>
+    <div className="bg-surface rounded-2xl border border-border/80 shadow-sm overflow-hidden h-full flex flex-col">
+      {/* Header */}
+      <div className="p-5 border-b border-border/60 flex items-center justify-between">
+        <h2 className="text-base font-bold text-primary flex items-center gap-2">
+          <PieChart className="w-4.5 h-4.5 text-accent" />
+          <span>Inventory Overview</span>
+        </h2>
+        
+        {/* Toggle Category/Location */}
+        <div className="flex bg-base border border-border rounded-lg p-0.5">
+          <button
+            onClick={() => setActiveTab('category')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+              activeTab === 'category' ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'
+            }`}
+          >
+            <Tag className="w-3 h-3" />
+            <span>Category</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('location')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+              activeTab === 'location' ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'
+            }`}
+          >
+            <MapPin className="w-3 h-3" />
+            <span>Location</span>
+          </button>
         </div>
-
-        {safeBreakdown.length === 0 ? (
-          <div className="text-center py-12 text-secondary text-sm">No categorical asset data available.</div>
-        ) : (
-          <div className="space-y-4.5">
-            {safeBreakdown.map((item) => (
-              <div key={item.id} className="space-y-1.5 group">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2.5">
-                    <Badge badgeChar={item.badgeChar} color={item.color} className="!w-6 !h-6 !text-[11px]" />
-                    <span className="font-medium text-primary">{item.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3 font-mono text-xs">
-                    <Link
-                      to={`/inventory?categoryId=${item.id}`}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 transition-all opacity-90 group-hover:opacity-100 text-[11px]"
-                      title={`View all ${item.name} assets`}
-                    >
-                      <span>View items</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                    <span className="text-secondary">{item.count} items</span>
-                    <span className="font-semibold text-secondary w-10 text-right">{item.percentage}%</span>
-                  </div>
-                </div>
-                <div className="w-full bg-raised/40 h-2 rounded-full overflow-hidden">
-                  <div
-                    style={{ backgroundColor: item.color || '#6366F1', width: `${Math.max(item.percentage, 4)}%` }}
-                    className="h-full rounded-full transition-all duration-500 ease-out"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-border/50 flex justify-between items-center text-xs text-secondary">
-        <span>Total Categories: {safeBreakdown.length}</span>
-        <span className="text-accent font-medium">100% Accounted</span>
+      <div className="p-5 flex-1 flex flex-col">
+        {totalItems === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-secondary py-10">
+            <PieChart className="w-10 h-10 mb-3 opacity-20" />
+            <span className="text-sm">No inventory data available</span>
+          </div>
+        ) : (
+          <>
+            {/* SVG Donut Chart */}
+            <div className="relative flex justify-center mb-6">
+              <svg width={size} height={size} className="transform -rotate-90">
+                {chartSegments.map((segment, i) => (
+                  <circle
+                    key={i}
+                    cx={cx}
+                    cy={cy}
+                    r={radius}
+                    fill="transparent"
+                    stroke={segment.color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={segment.strokeDasharray}
+                    strokeDashoffset={segment.strokeDashoffset}
+                    strokeLinecap={chartSegments.length === 1 ? 'round' : 'butt'}
+                    className="transition-all duration-1000 ease-out hover:opacity-80 cursor-pointer"
+                  >
+                    <title>{segment.name}: {segment.count} ({segment.percentage}%)</title>
+                  </circle>
+                ))}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-3xl font-bold text-primary">{totalItems}</span>
+                <span className="text-xs font-medium text-secondary uppercase tracking-wider">Total</span>
+              </div>
+            </div>
+
+            {/* Custom Legend */}
+            <div className="space-y-3 mt-auto">
+              {chartSegments.map((segment, i) => (
+                <div key={i} className="flex items-center justify-between group">
+                  <div className="flex items-center gap-2.5">
+                    <div 
+                      className="w-3 h-3 rounded-full shadow-sm" 
+                      style={{ backgroundColor: segment.color }}
+                    />
+                    <span className="text-sm font-medium text-primary group-hover:text-accent transition-colors">
+                      {segment.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-secondary font-mono">{segment.count}</span>
+                    <span className="text-secondary/60 w-9 text-right">{segment.percentage}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

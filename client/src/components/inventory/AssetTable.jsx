@@ -106,6 +106,16 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
               </th>
 
               <th
+                onClick={() => handleSort('warrantyExpiryDate')}
+                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Warranty</span>
+                  {renderSortIcon('warrantyExpiryDate')}
+                </div>
+              </th>
+
+              <th
                 onClick={() => handleSort('location')}
                 className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
               >

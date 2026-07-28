@@ -349,6 +349,7 @@ location        TEXT                          -- one of OFFICE_LOCATIONS
 cost_cents      INTEGER DEFAULT 0             -- dollars × 100
 purchase_date   TEXT                          -- ISO 8601 'YYYY-MM-DD'
 notes           TEXT
+warranty_expiry_date TEXT (NULLABLE)          -- ISO 8601 'YYYY-MM-DD'
 assigned_to     INTEGER FK→employees (NULLABLE, ON DELETE SET NULL)
 assigned_date   TEXT (NULLABLE)
 created_at      TEXT DEFAULT datetime('now')

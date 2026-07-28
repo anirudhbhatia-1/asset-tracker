@@ -100,9 +100,53 @@ export default function useMetrics() {
       .sort((a, b) => b.count - a.count);
   }, [data.assets, data.categories]);
 
+  const breakdownByLocation = useMemo(() => {
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    const total = assets.length || 1;
+    const map = new Map();
+
+    assets.forEach((asset) => {
+      const loc = asset.location || 'Unassigned Location';
+      if (!map.has(loc)) {
+        map.set(loc, { name: loc, count: 0 });
+      }
+      map.get(loc).count += 1;
+    });
+
+    return Array.from(map.values())
+      .map((item) => ({
+        ...item,
+        percentage: Math.round((item.count / total) * 100),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [data.assets]);
+
+  const breakdownByStatus = useMemo(() => {
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    const total = assets.length || 1;
+    const map = new Map();
+
+    assets.forEach((asset) => {
+      const status = asset.status || 'unknown';
+      if (!map.has(status)) {
+        map.set(status, { name: status.charAt(0).toUpperCase() + status.slice(1), count: 0, raw: status });
+      }
+      map.get(status).count += 1;
+    });
+
+    return Array.from(map.values())
+      .map((item) => ({
+        ...item,
+        percentage: Math.round((item.count / total) * 100),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [data.assets]);
+
   return {
     metrics,
     breakdown: Array.isArray(breakdown) ? breakdown : [],
+    breakdownByLocation,
+    breakdownByStatus,
     categories: Array.isArray(data.categories) ? data.categories : [],
     employees: Array.isArray(data.employees) ? data.employees : [],
     loading,

@@ -16,7 +16,7 @@ export default function AssetDetail() {
     loading,
     error,
     refresh,
-    updateNotes,
+    updateAssetData,
     assignToEmployee,
     returnToStock,
     retireAsset,
@@ -81,7 +81,7 @@ export default function AssetDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 space-y-6">
           {/* 1. Technical & Financial Specs Profile */}
-          <SpecsProfile asset={asset} onUpdateNotes={updateNotes} />
+          <SpecsProfile asset={asset} onUpdateAssetData={updateAssetData} />
 
           {/* 2. Assignee Profile Card (Only shown when in-use) */}
           <AssigneeCard asset={asset} />

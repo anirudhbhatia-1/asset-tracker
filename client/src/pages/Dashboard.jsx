@@ -9,7 +9,7 @@ import { SkeletonCard } from '../components/ui/Skeleton';
 import { Package, Clock, CheckCircle2, Archive, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
-  const { metrics, breakdown, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
+  const { metrics, breakdown, breakdownByLocation, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
   const { history, loading: historyLoading, error: historyError, refresh: refreshHistory } = useHistory(20);
 
   const handleRefresh = () => {
@@ -97,13 +97,17 @@ export default function Dashboard() {
       {/* 2. Google Workspace Sync Banner */}
       <GoogleBanner />
 
-      {/* 3. Two-Column Layout: Inventory Breakdown (Left) & Activity Feed (Right) */}
+      {/* 3. Two-Column Layout: Activity Feed (Left) & Inventory Breakdown (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <InventoryBreakdown breakdown={breakdown} loading={metricsLoading} />
-        </div>
         <div className="lg:col-span-2">
           <ActivityFeed history={history} loading={historyLoading} />
+        </div>
+        <div className="lg:col-span-1">
+          <InventoryBreakdown 
+            breakdown={breakdown} 
+            breakdownByLocation={breakdownByLocation}
+            loading={metricsLoading} 
+          />
         </div>
       </div>
     </div>

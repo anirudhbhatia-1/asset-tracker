@@ -70,6 +70,7 @@ router.post('/', [
   body('costCents').optional({ nullable: true, checkFalsy: true }).isInt({ min: 0 }).withMessage('Cost must be positive integer cents'),
   body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Must be valid ISO date (YYYY-MM-DD)'),
   body('notes').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 1000 }),
+  body('warrantyExpiryDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Must be valid ISO date (YYYY-MM-DD)'),
   body('assignedTo').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   body('assignedDate').optional({ nullable: true, checkFalsy: true }).isISO8601(),
   validateRequest,
@@ -96,6 +97,7 @@ router.put('/:id', [
   body('costCents').optional({ nullable: true, checkFalsy: true }).isInt({ min: 0 }),
   body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601(),
   body('notes').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 1000 }),
+  body('warrantyExpiryDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Must be valid ISO date (YYYY-MM-DD)'),
   validateRequest,
 ], async (req, res, next) => {
   try {
