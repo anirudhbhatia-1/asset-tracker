@@ -68,11 +68,6 @@ const Sidebar = ({ isOpen = true }) => {
 
         {/* Navigation Links */}
         <nav className="flex flex-1 md:flex-col md:py-6 md:px-3 md:space-y-1 md:overflow-y-auto w-full h-full md:h-auto items-center justify-around md:justify-start">
-          {isOpen && (
-            <div className="hidden md:block px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-secondary text-left">
-              Navigation
-            </div>
-          )}
           
           {/* We map visible items */}
           {visibleNavItems.map((item) => {

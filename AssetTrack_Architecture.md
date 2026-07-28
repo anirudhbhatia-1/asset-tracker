@@ -439,6 +439,11 @@ Incoming HTTP Request
 
 ### 4.4 Route Modules
 
+#### `/api/auth`
+- `POST /login`: Authenticates user, generates session token, returns user details + role.
+- `PATCH /change-password`: Verifies current password, hashes new password, invalidates all existing sessions (requires auth).
+- `POST /logout`: Invalidates the current session token (requires auth).
+
 #### `/api/assets`
 ```
 GET    /api/assets                 → list all (query: ?status=, ?category=, ?location=, ?q=)

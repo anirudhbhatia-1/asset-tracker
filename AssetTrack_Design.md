@@ -110,7 +110,7 @@ Structure follows Architecture §3.4 (Component Tree) and PRD §9.2.
 
 ```
 ┌───────────────┬──────────────────────────────────────────────┐
-│               │  TopBar: [Search............] [🔔] [Admin▾]  │
+│               │  TopBar: [≡] [Search......] [🔔] [Admin▾]    │
 │   Sidebar     ├──────────────────────────────────────────────┤
 │               │                                                │
 │  ◆ Dashboard  │              <Outlet /> page content          │
@@ -130,7 +130,7 @@ Structure follows Architecture §3.4 (Component Tree) and PRD §9.2.
   - **Admin**: Dashboard, Inventory, Tickets, Onboarding, Scanner, Employees, Categories, Settings
   - **Employee**: Dashboard, Tickets
   - **HR**: Dashboard, Onboarding, Employees
-- **TopBar:** persistent universal search (Inventory §6.2.1 lives here globally, not just on the Inventory page, so admins can search from anywhere), offline-status indicator (Rules §10.3), and the admin session badge.
+- **TopBar:** persistent universal search (Inventory §6.2.1 lives here globally, not just on the Inventory page, so admins can search from anywhere), offline-status indicator (Rules §10.3), and the **User Menu** dropdown (avatar, email, role, Change Password, and Log Out). Redundant page-title text is excluded here in favor of in-page headings. A hamburger menu allows toggling the sidebar on/off on narrower viewports.
 - **"Add Asset"** is visually separated from the other nav items (its own accent-filled button treatment) since it's the single most frequent write action for the primary persona.
 
 ---

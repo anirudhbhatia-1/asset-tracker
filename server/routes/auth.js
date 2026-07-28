@@ -1,6 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
+const { validateSession } = require('../middleware/validateSession');
 const authService = require('../services/authService');
 
 const router = express.Router();
@@ -26,6 +27,20 @@ router.post('/logout', async (req, res, next) => {
       await authService.logout(token);
     }
     res.status(200).json({ message: 'Logged out successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/change-password', [
+  validateSession,
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters long'),
+  validateRequest
+], async (req, res, next) => {
+  try {
+    await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
+    res.status(200).json({ message: 'Password changed successfully' });
   } catch (err) {
     next(err);
   }

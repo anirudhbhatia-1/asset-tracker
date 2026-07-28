@@ -34,4 +34,43 @@ const logout = async (token) => {
   }
 };
 
-module.exports = { login, logout };
+const changePassword = async (userId, currentPassword, newPassword) => {
+  const { rows } = await db.pool.query('SELECT * FROM employees WHERE id = $1 AND password_hash IS NOT NULL', [userId]);
+  if (rows.length === 0) {
+    const err = new Error('User not found or no password set');
+    err.statusCode = 401;
+    throw err;
+  }
+  
+  const user = rows[0];
+  const match = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!match) {
+    const err = new Error('Incorrect current password');
+    err.statusCode = 401;
+    throw err;
+  }
+
+  // Hash new password and update
+  const saltRounds = 10;
+  const newHash = await bcrypt.hash(newPassword, saltRounds);
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Update password
+    await client.query('UPDATE employees SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+    
+    // Invalidate all sessions for this user to force re-login
+    await client.query('DELETE FROM sessions WHERE employee_id = $1', [userId]);
+    
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { login, logout, changePassword };

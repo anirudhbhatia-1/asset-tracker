@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut, Menu } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut, Menu, ChevronDown, Key } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const location = useLocation();
@@ -10,8 +11,21 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (isUserMenuOpen && !e.target.closest('#user-menu-container')) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isUserMenuOpen]);
 
   useEffect(() => {
     if (location.pathname === '/inventory') {
@@ -40,17 +54,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
     }
   };
 
-  const getPageTitle = (pathname) => {
-    if (pathname === '/') return 'Dashboard';
-    if (pathname === '/inventory') return 'Inventory';
-    if (pathname.startsWith('/inventory/new')) return 'Register Asset';
-    if (pathname.startsWith('/inventory/')) return 'Asset Details';
-    if (pathname === '/scanner') return 'Scanner';
-    if (pathname === '/employees') return 'Directory';
-    if (pathname === '/categories') return 'Categories';
-    if (pathname === '/settings') return 'Settings';
-    return 'AssetTrack';
-  };
+
 
   return (
     <header className="h-16 bg-surface/80 backdrop-blur-md border-b border-border sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
@@ -92,9 +96,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
             <div className="md:hidden w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
-            <h1 className="text-lg font-semibold text-primary truncate">
-              {getPageTitle(location.pathname)}
-            </h1>
+
             
             <div className="relative w-full max-w-sm hidden md:block">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
@@ -148,30 +150,71 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
             </button>
 
-            <div className="flex items-center gap-3 sm:pl-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-xs uppercase">
-                {user?.email?.[0] || 'U'}
-              </div>
-              <div className="hidden sm:block text-left">
-                <span className="block text-xs font-semibold text-primary leading-none truncate max-w-[120px]">
-                  {user?.email || 'User'}
-                </span>
-                <span className="block text-[11px] text-secondary mt-0.5 capitalize">
-                  {user?.role || 'Guest'}
-                </span>
-              </div>
+            {/* User Profile Dropdown */}
+            <div id="user-menu-container" className="relative ml-1 sm:ml-2">
               <button 
-                onClick={logout}
-                className="ml-2 p-1.5 rounded-lg text-secondary hover:text-error hover:bg-error/10 transition-colors"
-                title="Logout"
-                aria-label="Logout"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 sm:gap-3 p-1.5 rounded-xl hover:bg-raised/50 transition-colors border border-transparent hover:border-border/60"
               >
-                <LogOut className="w-4 h-4" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-xs uppercase shrink-0">
+                  {user?.email?.[0] || 'U'}
+                </div>
+                <div className="hidden sm:block text-left min-w-[80px]">
+                  <span className="block text-xs font-semibold text-primary leading-none truncate max-w-[120px]">
+                    {user?.email || 'User'}
+                  </span>
+                  <span className="block text-[11px] text-secondary mt-0.5 capitalize">
+                    {user?.role || 'Guest'}
+                  </span>
+                </div>
+                <ChevronDown className="hidden sm:block w-4 h-4 text-secondary shrink-0" />
               </button>
+
+              {/* Dropdown Menu */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-surface border border-border/80 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                  {/* Dropdown Header (Full Email & Role) */}
+                  <div className="px-4 py-4 border-b border-border/60 bg-base/50">
+                    <p className="text-sm font-bold text-primary truncate" title={user?.email}>
+                      {user?.email || 'User'}
+                    </p>
+                    <p className="text-xs text-secondary mt-1 capitalize font-medium">
+                      Role: {user?.role || 'Guest'}
+                    </p>
+                  </div>
+
+                  <div className="p-2 space-y-1">
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setIsChangePasswordModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 transition-colors text-left"
+                    >
+                      <Key className="w-4 h-4" />
+                      Change Password
+                    </button>
+                    
+                    <button
+                      onClick={logout}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-error hover:text-error hover:bg-error/10 transition-colors text-left"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Log Out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>
       )}
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal 
+        isOpen={isChangePasswordModalOpen} 
+        onClose={() => setIsChangePasswordModalOpen(false)} 
+      />
     </header>
   );
 };

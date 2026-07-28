@@ -521,6 +521,9 @@ Any operation that requires more than one write (INSERT + UPDATE, etc.) **must**
 
 ## 6. Security Rules
 
+### 6.0 Session Invalidation on Security Events
+- **Rule**: Changing a password MUST instantly invalidate all existing sessions (by clearing them from the database) for that user, and force a re-login. The client MUST clear local token storage and redirect to `/login`.
+
 ### 6.1 Secrets — Absolute Rules
 1. **Never commit secrets to Git.** Client IDs, secrets, session keys — all in `.env` files.
 2. **`.env` files are in `.gitignore`.** Always. Verify before every commit.
