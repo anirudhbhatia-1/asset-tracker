@@ -125,7 +125,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
             <div className="space-y-6">
               
               {/* Top Info Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-base p-4 rounded-lg border border-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-base p-4 rounded-lg border border-border">
                 <div>
                   <div className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">New Hire</div>
                   <div className="text-sm font-semibold text-primary">{fullData.new_hire_name}</div>

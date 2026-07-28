@@ -65,7 +65,7 @@ export default function ScanResultCard({ asset, error, onClear }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-base/60 border border-border/60 text-xs mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-base/60 border border-border/60 text-xs mb-5">
         <div className="space-y-1">
           <span className="text-secondary block flex items-center gap-1">
             <Tag className="w-3.5 h-3.5 text-secondary" />

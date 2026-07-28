@@ -255,8 +255,10 @@ Per PRD §9.3:
 | Tablet | 768–1024px | Sidebar collapses to icon-only rail; 2-column grids |
 | Desktop | > 1024px | Full sidebar with labels; up to 4-column grids |
 
-*Implementation Note (July 2026)*: The bottom tab bar strictly includes the 5 primary views (Dashboard, Inventory, Scanner, Employees, Categories). To prevent crowding, the `Settings` route is moved to the TopBar admin menu on mobile, and `+ Add Asset` is placed prominently in the TopBar as a primary action. For the Inventory table, rather than a full card-based rewrite on mobile, it utilizes horizontal scrollability with an inset edge shadow to preserve column sorting and dense data scanning.
-
+*Implementation Note (July 2026)*: 
+- The bottom tab bar strictly includes the 5 primary views (Dashboard, Inventory, Scanner, Employees, Categories). To prevent crowding, the `Settings` route is moved to the TopBar admin menu on mobile, and `+ Add Asset` is placed prominently in the TopBar as a primary action. 
+- For the Inventory table, rather than a full card-based rewrite on mobile, it utilizes horizontal scrollability with an inset edge shadow to preserve column sorting and dense data scanning.
+- **Fluid Layout Rules**: Grids must use responsive breakpoints (e.g. `grid-cols-1 sm:grid-cols-2`) rather than hardcoded column counts. SVGs must use a `viewBox` with `w-full h-auto` to scale seamlessly with containers. Text content inside flex containers must specify `min-w-0` and wrapping logic to prevent modal or card blowout.
 Minimum tap target on mobile: 44×44px (Rules §8.7).
 
 ---

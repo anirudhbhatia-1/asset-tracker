@@ -81,7 +81,7 @@ export default function InventoryBreakdown({ breakdown, breakdownByLocation, loa
           <>
             {/* SVG Donut Chart */}
             <div className="relative flex justify-center mb-6">
-              <svg width={size} height={size} className="transform -rotate-90">
+              <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[200px] h-auto transform -rotate-90">
                 {chartSegments.map((segment, i) => (
                   <circle
                     key={i}

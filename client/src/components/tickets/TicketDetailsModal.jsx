@@ -150,7 +150,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
               <p className="text-base text-primary font-medium">{ticket.title}</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Type</h3>
                 <p className="text-sm text-primary capitalize">{ticket.type}</p>
@@ -164,8 +164,8 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
             {ticket.description && (
               <div>
                 <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Description</h3>
-                <div className="bg-base rounded-lg p-3 border border-border">
-                  <p className="text-sm text-primary whitespace-pre-wrap">{ticket.description}</p>
+                <div className="bg-base rounded-lg p-3 border border-border overflow-hidden">
+                  <p className="text-sm text-primary whitespace-pre-wrap break-words">{ticket.description}</p>
                 </div>
               </div>
             )}
@@ -199,10 +199,10 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                     <span className="absolute -left-[31px] top-0 w-6 h-6 rounded-full flex items-center justify-center border-2 border-border shadow bg-secondary">
                       {getEventIcon(event.event_type)}
                     </span>
-                    <div className="bg-base/60 p-3 rounded-lg border border-border/60 group-hover:border-border transition-colors text-sm">
-                      <div className="flex justify-between gap-2 mb-1">
+                    <div className="bg-base/60 p-3 rounded-lg border border-border/60 group-hover:border-border transition-colors text-sm min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 mb-1">
                         <span className="font-semibold text-primary capitalize">{event.event_type.replace('_', ' ')}</span>
-                        <span className="text-xs text-secondary" title={event.created_at}>
+                        <span className="text-xs text-secondary shrink-0" title={event.created_at}>
                           {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
                         </span>
                       </div>

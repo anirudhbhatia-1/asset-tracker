@@ -8,7 +8,7 @@ export default function LaserViewfinder({ onRetryCamera }) {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
       {/* Simulated Reticle Box */}
-      <div className="relative w-64 h-48 sm:w-80 sm:h-56 border-2 border-border/60 rounded-2xl flex flex-col items-center justify-center p-4 bg-base/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-xs aspect-[4/3] border-2 border-border/60 rounded-2xl flex flex-col items-center justify-center p-4 bg-base/50 backdrop-blur-sm">
         {/* Corner brackets */}
         <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-border rounded-tl-lg" />
         <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-border rounded-tr-lg" />
