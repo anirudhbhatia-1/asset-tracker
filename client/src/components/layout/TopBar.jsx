@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut, Menu } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
-const TopBar = () => {
+const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -82,6 +82,13 @@ const TopBar = () => {
         <>
           {/* Page Title & Desktop Search */}
           <div className="flex items-center gap-3 sm:gap-6 flex-1 max-w-xl overflow-hidden">
+            <button 
+              onClick={toggleSidebar} 
+              className="p-2 -ml-2 rounded-lg text-secondary hover:bg-raised/50 hover:text-primary transition-colors hidden md:block"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div className="md:hidden w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
