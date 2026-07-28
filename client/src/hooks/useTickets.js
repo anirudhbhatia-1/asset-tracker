@@ -7,11 +7,11 @@ export const useTickets = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchTickets = useCallback(async () => {
+  const fetchTickets = useCallback(async (filters = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await ticketsApi.getAll();
+      const data = await ticketsApi.getAll(filters);
       setTickets(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch tickets');
@@ -47,12 +47,51 @@ export const useTickets = () => {
     }
   };
 
+  const transferTicket = async (id, targetAdminType, note) => {
+    try {
+      const updatedTicket = await ticketsApi.transfer(id, { targetAdminType, note });
+      setTickets(prev => prev.filter(t => t.id !== id)); // Remove from current queue assuming it's transferred out
+      toast.success('Ticket transferred successfully');
+      return updatedTicket;
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to transfer ticket';
+      toast.error(message);
+      throw err;
+    }
+  };
+
+  const fetchTicketHistory = async (id) => {
+    try {
+      const history = await ticketsApi.getHistory(id);
+      return history;
+    } catch (err) {
+      toast.error('Failed to load ticket history');
+      return [];
+    }
+  };
+
+  const confirmTicket = async (id, action) => {
+    try {
+      const updatedTicket = await ticketsApi.confirm(id, action);
+      setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updatedTicket } : t));
+      toast.success(action === 'confirm' ? 'Ticket resolution confirmed' : 'Ticket reopened');
+      return updatedTicket;
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to update ticket';
+      toast.error(message);
+      throw err;
+    }
+  };
+
   return {
     tickets,
     loading,
     error,
     fetchTickets,
     createTicket,
-    updateTicket
+    updateTicket,
+    transferTicket,
+    fetchTicketHistory,
+    confirmTicket
   };
 };

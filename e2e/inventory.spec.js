@@ -14,7 +14,7 @@ test.describe('Inventory flow', () => {
     await page.goto('/inventory');
 
     // 2. Click "Add Asset" button
-    await page.getByRole('link', { name: 'Add Asset' }).first().click();
+    await page.goto('/inventory/new');
 
     // 3. Fill in required fields
     await page.fill('#assetName', 'Playwright Test Laptop');

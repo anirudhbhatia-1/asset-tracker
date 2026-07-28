@@ -11,6 +11,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
   const [description, setDescription] = useState('');
   const [assetId, setAssetId] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [targetAdminType, setTargetAdminType] = useState('it');
   
   const [myAssets, setMyAssets] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -43,6 +44,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
       setDescription('');
       setAssetId('');
       setCategoryId('');
+      setTargetAdminType('it');
     }
   }, [isOpen, user]);
 
@@ -58,6 +60,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
       description: description || undefined,
       assetId: type === 'issue' && assetId ? parseInt(assetId, 10) : undefined,
       categoryId: type === 'request' && categoryId ? parseInt(categoryId, 10) : undefined,
+      targetAdminType,
     };
 
     try {
@@ -148,6 +151,19 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
                   </select>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-primary">Department</label>
+                <select
+                  value={targetAdminType}
+                  onChange={(e) => setTargetAdminType(e.target.value)}
+                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                >
+                  <option value="it">IT Admin</option>
+                  <option value="hardware">Hardware Admin</option>
+                  <option value="hr">HR Admin</option>
+                </select>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-primary">Title</label>

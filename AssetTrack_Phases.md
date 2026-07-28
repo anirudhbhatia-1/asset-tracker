@@ -641,8 +641,9 @@
 - [x] Implemented global JWT-based authentication system with a login wall (`/login`).
 - [x] Designed and integrated Role-Based Access Control (Roles: `admin`, `employee`, `hr`).
 - [x] Built the Employee Ticketing Module:
-  - Employees can raise hardware "request" or "issue" tickets.
-  - Admins can review, reject, or resolve tickets by assigning physical inventory assets.
+  - Employees can raise hardware "request" or "issue" tickets and dynamically route them to specific admin queues (IT, Hardware, HR).
+  - Admins can review, reject, transfer, or resolve tickets by assigning physical inventory assets.
+  - Employees must explicitly confirm ticket resolution (setting the status to `closed`) or can choose to reopen it.
 - [x] Built the HR Onboarding Module:
   - HR can submit hardware requests for incoming new hires.
   - Admins can pre-allocate ("arrange") physical assets against those requests prior to the employee joining.

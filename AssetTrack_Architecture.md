@@ -546,6 +546,9 @@ CREATE TABLE IF NOT EXISTS employees (
   google_id        TEXT,
   avatar_url       TEXT,
   is_google_synced INTEGER DEFAULT 0,
+  password_hash    TEXT,
+  role             TEXT    CHECK(role IN ('admin','employee','hr')),
+  admin_type       TEXT    CHECK(admin_type IN ('it','hardware','hr')),
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -625,12 +628,25 @@ CREATE TABLE tickets (
   category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   description TEXT,
-  status TEXT CHECK(status IN ('open','in_progress','resolved','rejected')) DEFAULT 'open',
+  status TEXT CHECK(status IN ('open','in_progress','resolved','rejected','closed')) DEFAULT 'open',
   resolution_notes TEXT,
   resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   resolved_asset_id INTEGER REFERENCES assets(id) ON DELETE SET NULL,
+  current_admin_type TEXT CHECK (current_admin_type IN ('it','hardware','hr')) DEFAULT 'it',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Ticket History
+CREATE TABLE ticket_history (
+  id SERIAL PRIMARY KEY,
+  ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  event_type TEXT CHECK (event_type IN ('created','transferred','status_changed','resolved','rejected','closed','reopened')) NOT NULL,
+  performed_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  from_admin_type TEXT,
+  to_admin_type TEXT,
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Onboarding Requests

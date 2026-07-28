@@ -239,11 +239,12 @@ server: {
 ---
 
 ### Decision 12: Basic RBAC & Authentication
-**Chosen:** Users table with bcrypt-hashed passwords and sessions.
-**Rationale:**
-- We need distinct roles (admin, employee, hr) for ticketing and onboarding requests.
-- Google OAuth is currently out of scope, so we use a simple placeholder auth model with bcrypt passwords.
-- The `sessions` table is keyed to `users.id` instead of a generic identifier to properly support the new roles.
+**Context:** Need distinct access control for staff vs. admins vs. hr.
+**Decision:** Store `role` (`admin`, `employee`, `hr`) on the `employees` table. The `validateSession` middleware attaches `req.user.role` to all secure routes, driving access logic.
+
+### Decision 13: IT vs Hardware Admin Queues via `admin_type`
+**Context:** We need to split the ticketing queue into IT issues and Hardware issues, managed by different admin teams, without breaking existing global admin capabilities.
+**Decision:** Instead of creating new roles (e.g., `role: 'it_admin'`), we keep `role: 'admin'` and add an `admin_type` column (`'it'` or `'hardware'`) on the `employees` table. This keeps all existing RBAC logic perfectly intact while allowing ticket assignment filtering based on queue type. We also introduced an immutable `ticket_history` table to track all ticket events, mirroring the `asset_history` pattern.
 
 ---
 
@@ -923,6 +924,7 @@ These decisions must be made before the relevant phase begins. Track the answer 
 2026-07-27 | Antigravity AI | RBAC & Ticketing Steps 2-8 — API, Auth, Tickets, Onboarding | ✅ Built secure API routes for onboarding and tickets. Implemented AuthContext and protected routes. Created full UI pages and modals for Tickets (Employees/Admins) and Onboarding (HR/Admins).
 2026-07-27 | Antigravity AI | RBAC & Ticketing Steps 9-11 — Verification & Documentation | ✅ Completed full cross-feature synchronization audit and E2E regression pass. App is stable with new auth structure. Updated all documentation to reflect the finalized Postgres architecture and new RBAC rules.
 2026-07-27 | Antigravity AI | Dashboard Routing Fix & Integration | ✅ Investigated 403s: root cause was `App.jsx` routing all authenticated users to the shared `Dashboard` component, triggering admin-only API calls. Fixed by creating isolated `EmployeeDashboard` and `HrDashboard` components and conditionally branching the root route via `<RoleBasedDashboard />`. Also fixed missing Auth headers in API integration tests.
+2026-07-28 | Antigravity AI | Sub-Admin Queues & Employee Ticket Confirmation | ✅ Expanded Admin roles to include IT, Hardware, and HR queues using an `admin_type` constraint. Updated the ticket submission flow to dynamically route based on user selection, and allowed employees to confirm ticket resolution. Updated DB constraints, frontend API, and modals accordingly.
 ```
 
 ---

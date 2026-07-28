@@ -15,7 +15,7 @@ import {
 const allNavItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['admin', 'employee', 'hr'] },
   { name: 'Inventory', path: '/inventory', icon: Package, roles: ['admin'] },
-  { name: 'Tickets', path: '/tickets', icon: Ticket, roles: ['admin', 'employee'] },
+  { name: 'Tickets', path: '/tickets', icon: Ticket, roles: ['admin', 'employee', 'hr'] },
   { name: 'Onboarding', path: '/onboarding', icon: UserPlus, roles: ['admin', 'hr'] },
   { name: 'Scanner', path: '/scanner', icon: QrCode, roles: ['admin'] },
   { name: 'Employees', path: '/employees', icon: Users, roles: ['admin', 'hr'] },

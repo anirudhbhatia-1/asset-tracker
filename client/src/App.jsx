@@ -71,8 +71,8 @@ const App = () => {
                     <Route path="scanner" element={<Scanner />} />
                   </Route>
 
-                  {/* Admin + Employee Routes */}
-                  <Route element={<ProtectedRoute allowedRoles={['admin', 'employee']} />}>
+                  {/* Admin + Employee + HR Routes */}
+                  <Route element={<ProtectedRoute allowedRoles={['admin', 'employee', 'hr']} />}>
                     <Route path="tickets" element={<Tickets />} />
                   </Route>
 
