@@ -25,7 +25,7 @@ const Settings = () => {
 
       {/* Tabs Navigation */}
       <div className="border-b border-border/60">
-        <nav className="flex space-x-6 overflow-x-auto" aria-label="Tabs">
+        <nav className="flex space-x-2 sm:space-x-6 overflow-x-auto" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = location.pathname.startsWith(tab.path);

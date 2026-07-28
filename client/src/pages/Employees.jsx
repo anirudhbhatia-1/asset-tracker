@@ -102,28 +102,31 @@ export default function Employees() {
         </div>
 
         {/* Horizontal Department Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mr-1 flex items-center gap-1 shrink-0">
-            <Building2 className="w-3 h-3 text-accent" />
-            <span>Department:</span>
-          </span>
-          {DEPARTMENT_FILTERS.map((dep) => {
-            const isSelected = selectedDepartment === dep;
-            return (
-              <button
-                key={dep}
-                type="button"
-                onClick={() => setSelectedDepartment(dep)}
-                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
-                  isSelected
-                    ? 'bg-accent text-white border-accent shadow-sm shadow-accent/20'
-                    : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
-                }`}
-              >
-                {dep}
-              </button>
-            );
-          })}
+        <div className="relative">
+          <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none z-10" />
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pr-6">
+            <span className="text-xs font-semibold text-secondary uppercase tracking-wider mr-1 flex items-center gap-1 shrink-0">
+              <Building2 className="w-3 h-3 text-accent" />
+              <span>Department:</span>
+            </span>
+            {DEPARTMENT_FILTERS.map((dep) => {
+              const isSelected = selectedDepartment === dep;
+              return (
+                <button
+                  key={dep}
+                  type="button"
+                  onClick={() => setSelectedDepartment(dep)}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
+                    isSelected
+                      ? 'bg-accent text-white border-accent shadow-sm shadow-accent/20'
+                      : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
+                  }`}
+                >
+                  {dep}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

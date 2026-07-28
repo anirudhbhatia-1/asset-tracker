@@ -66,7 +66,7 @@ export default function Modal({
         </div>
 
         {/* Body */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-9rem)]">{children}</div>
       </div>
     </div>,
     document.body

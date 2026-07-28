@@ -110,12 +110,12 @@ export default function InventoryBreakdown({ breakdown, breakdownByLocation, loa
             <div className="space-y-3 mt-auto">
               {chartSegments.map((segment, i) => (
                 <div key={i} className="flex items-center justify-between group">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <div 
-                      className="w-3 h-3 rounded-full shadow-sm" 
+                      className="w-3 h-3 rounded-full shadow-sm shrink-0" 
                       style={{ backgroundColor: segment.color }}
                     />
-                    <span className="text-sm font-medium text-primary group-hover:text-accent transition-colors">
+                    <span className="text-sm font-medium text-primary group-hover:text-accent transition-colors truncate">
                       {segment.name}
                     </span>
                   </div>

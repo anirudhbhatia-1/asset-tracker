@@ -66,18 +66,20 @@ const Onboarding = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border w-max">
-        {['active', 'completed', 'all'].map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-              filter === f ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
-            }`}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
+          {['active', 'completed', 'all'].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
+                filter === f ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Error State */}
@@ -90,18 +92,21 @@ const Onboarding = () => {
 
       {/* Requests Table */}
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-base border-b border-border text-secondary">
-              <tr>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">New Hire</th>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Role / Dept</th>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Joining Date</th>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
-                {user?.role === 'admin' && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Requested By</th>}
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Submitted</th>
-              </tr>
-            </thead>
+        {/* Scroll affordance */}
+        <div className="relative">
+          <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none z-10 md:hidden" />
+          <div className="overflow-x-auto pb-1">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-base border-b border-border text-secondary">
+                <tr>
+                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">New Hire</th>
+                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Role / Dept</th>
+                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Joining Date</th>
+                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
+                  {user?.role === 'admin' && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Requested By</th>}
+                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Submitted</th>
+                </tr>
+              </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
                 // Skeleton loading rows
@@ -159,6 +164,7 @@ const Onboarding = () => {
               )}
             </tbody>
           </table>
+        </div>
         </div>
       </div>
 

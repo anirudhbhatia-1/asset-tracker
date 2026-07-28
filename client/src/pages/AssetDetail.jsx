@@ -78,8 +78,8 @@ export default function AssetDetail() {
       </div>
 
       {/* Main Grid Layout: Specs/Lifecycle on Left (2 cols), Timeline on Right (1 col) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] lg:grid-cols-3 gap-6 items-start">
+        <div className="md:col-span-1 lg:col-span-2 space-y-6">
           {/* 1. Technical & Financial Specs Profile */}
           <SpecsProfile asset={asset} onUpdateAssetData={updateAssetData} />
 
@@ -97,7 +97,7 @@ export default function AssetDetail() {
         </div>
 
         {/* 4. Chronological Audit Timeline */}
-        <div className="lg:col-span-1 lg:sticky lg:top-24">
+        <div className="md:col-span-1 lg:col-span-1 md:sticky md:top-24">
           <HistoryTimeline history={asset.history || []} loading={loading} />
         </div>
       </div>

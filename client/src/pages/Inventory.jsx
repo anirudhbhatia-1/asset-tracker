@@ -105,7 +105,7 @@ export default function Inventory() {
           </p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center flex-wrap gap-3 gap-y-3">
           <div className="flex items-center bg-surface border border-border rounded-xl p-1 shrink-0">
             <button
               type="button"

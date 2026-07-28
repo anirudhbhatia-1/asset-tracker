@@ -71,7 +71,7 @@ export default function FilterToolbar({
               id="status-filter"
               value={selectedStatus}
               onChange={(e) => onSelectStatus(e.target.value)}
-              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
+              className="min-w-[120px] bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="available">🟢 Available</option>
@@ -89,7 +89,7 @@ export default function FilterToolbar({
               id="location-filter"
               value={selectedLocation}
               onChange={(e) => onSelectLocation(e.target.value)}
-              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
+              className="min-w-[120px] bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
             >
               <option value="all">All Locations</option>
               {locations.map((loc) => (
@@ -109,7 +109,7 @@ export default function FilterToolbar({
               id="warranty-filter"
               value={selectedWarranty}
               onChange={(e) => onSelectWarranty(e.target.value)}
-              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
+              className="min-w-[120px] bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
             >
               <option value="all">All Warranty</option>
               <option value="in-warranty">🛡️ In Warranty</option>

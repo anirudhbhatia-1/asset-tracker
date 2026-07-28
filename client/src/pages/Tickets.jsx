@@ -67,36 +67,38 @@ const Tickets = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border w-max">
-        {['all', 'active', 'resolved'].map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-              filter === f ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      {isAdmin && (
-        <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border w-max">
-          <span className="px-2 text-xs font-medium uppercase tracking-wider text-secondary">Queue:</span>
-          {['my_queue', 'all'].map(scope => (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
+          {['all', 'active', 'resolved'].map(f => (
             <button
-              key={scope}
-              onClick={() => setQueueScope(scope)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                queueScope === scope ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
+                filter === f ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
               }`}
             >
-              {scope === 'my_queue' ? `My Queue (${user.adminType === 'it' ? 'IT' : user.adminType === 'hardware' ? 'Hardware' : 'HR'})` : 'All Tickets'}
+              {f}
             </button>
           ))}
         </div>
-      )}
+
+        {isAdmin && (
+          <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
+            <span className="px-2 text-xs font-medium uppercase tracking-wider text-secondary">Queue:</span>
+            {['my_queue', 'all'].map(scope => (
+              <button
+                key={scope}
+                onClick={() => setQueueScope(scope)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  queueScope === scope ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
+                }`}
+              >
+                {scope === 'my_queue' ? `My Queue (${user.adminType === 'it' ? 'IT' : user.adminType === 'hardware' ? 'Hardware' : 'HR'})` : 'All Tickets'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Error State */}
       {error && (
@@ -108,7 +110,10 @@ const Tickets = () => {
 
       {/* Tickets Table */}
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Scroll affordance */}
+        <div className="relative">
+          <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none z-10 md:hidden" />
+        <div className="overflow-x-auto pb-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-base border-b border-border text-secondary">
               <tr>
@@ -166,6 +171,7 @@ const Tickets = () => {
               )}
             </tbody>
           </table>
+        </div>
         </div>
       </div>
 
