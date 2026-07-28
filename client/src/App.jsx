@@ -17,6 +17,16 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const Tickets = lazy(() => import('./pages/Tickets'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
+const HrDashboard = lazy(() => import('./pages/HrDashboard'));
+const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
+import { useAuth } from './context/AuthContext';
+
+const RoleBasedDashboard = () => {
+  const { user } = useAuth();
+  if (user?.role === 'admin') return <Dashboard />;
+  if (user?.role === 'hr') return <HrDashboard />;
+  return <EmployeeDashboard />;
+};
 
 const App = () => {
   return (
@@ -47,8 +57,10 @@ const App = () => {
               <Route path="/" element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   {/* Common Routes */}
-                  <Route index element={<Dashboard />} />
-                  <Route path="settings/*" element={<Settings />} />
+                  <Route index element={<RoleBasedDashboard />} />
+                  <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                    <Route path="settings/*" element={<Settings />} />
+                  </Route>
 
                   {/* Admin Only Routes */}
                   <Route element={<ProtectedRoute allowedRoles={['admin']} />}>

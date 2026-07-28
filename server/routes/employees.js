@@ -7,10 +7,10 @@ const { validateSession, requireRole } = require('../middleware/validateSession'
 
 const router = express.Router();
 
-router.use(validateSession, requireRole('admin'));
+router.use(validateSession);
 
 // GET /api/employees — list all employees
-router.get('/', async (req, res, next) => {
+router.get('/', requireRole('admin'), async (req, res, next) => {
   try {
     const employees = await employeeService.getEmployees(req.query);
     res.status(200).json({
@@ -25,6 +25,7 @@ router.get('/', async (req, res, next) => {
 
 // GET /api/employees/:id — get single employee
 router.get('/:id', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -45,7 +46,11 @@ router.get('/:id/assets', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const assets = await employeeService.getEmployeeAssets(Number(req.params.id));
+    const requestedId = Number(req.params.id);
+    if (req.user.role !== 'admin' && req.user.id !== requestedId) {
+      return res.status(403).json({ error: true, message: 'Forbidden - Can only view own assets', code: 403 });
+    }
+    const assets = await employeeService.getEmployeeAssets(requestedId);
     res.status(200).json({
       data: assets,
       total: assets.length,
@@ -58,6 +63,7 @@ router.get('/:id/assets', [
 
 // POST /api/employees — create employee
 router.post('/', [
+  requireRole('admin'),
   body('name').notEmpty().withMessage('Employee name is required').trim().isLength({ max: 150 }),
   body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Must be a valid email').normalizeEmail(),
   body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
@@ -78,6 +84,7 @@ router.post('/', [
 
 // PUT /api/employees/:id — update employee
 router.put('/:id', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 150 }),
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Must be a valid email').normalizeEmail(),
@@ -99,6 +106,7 @@ router.put('/:id', [
 
 // DELETE /api/employees/:id — soft delete employee
 router.delete('/:id', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -115,6 +123,7 @@ router.delete('/:id', [
 
 // PATCH /api/employees/:id/role — change user role
 router.patch('/:id/role', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('role').isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
   validateRequest,
@@ -132,6 +141,7 @@ router.patch('/:id/role', [
 
 // POST /api/employees/:id/grant-access — create login account for employee
 router.post('/:id/grant-access', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('role').isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
   validateRequest,

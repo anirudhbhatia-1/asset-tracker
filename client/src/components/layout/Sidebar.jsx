@@ -19,7 +19,7 @@ const allNavItems = [
   { name: 'Onboarding', path: '/onboarding', icon: UserPlus, roles: ['admin', 'hr'] },
   { name: 'Scanner', path: '/scanner', icon: QrCode, roles: ['admin'] },
   { name: 'Employees', path: '/employees', icon: Users, roles: ['admin', 'hr'] },
-  { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin', 'employee', 'hr'] },
+  { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
 ];
 
 const Sidebar = () => {

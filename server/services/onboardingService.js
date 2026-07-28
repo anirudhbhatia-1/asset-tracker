@@ -5,7 +5,7 @@ const getRequests = async () => {
   const query = `
     SELECT o.*, u.email as requested_by_email, emp.name as linked_employee_name 
     FROM onboarding_requests o 
-    LEFT JOIN users u ON o.requested_by = u.id 
+    LEFT JOIN employees u ON o.requested_by = u.id 
     LEFT JOIN employees emp ON o.linked_employee_id = emp.id 
     ORDER BY o.created_at DESC
   `;
@@ -17,7 +17,7 @@ const getRequestById = async (id) => {
   const reqQuery = `
     SELECT o.*, u.email as requested_by_email, emp.name as linked_employee_name 
     FROM onboarding_requests o 
-    LEFT JOIN users u ON o.requested_by = u.id 
+    LEFT JOIN employees u ON o.requested_by = u.id 
     LEFT JOIN employees emp ON o.linked_employee_id = emp.id 
     WHERE o.id = $1
   `;

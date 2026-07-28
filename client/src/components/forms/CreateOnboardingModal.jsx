@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { getCategories } from '../../api/categoriesApi';
+import { getEmployees } from '../../api/employeesApi';
+
+const OFFICE_LOCATIONS = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
 
 const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   const [newHireName, setNewHireName] = useState('');
@@ -13,6 +16,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   const [items, setItems] = useState([]);
   
   const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loadingContext, setLoadingContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,8 +25,12 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
       const fetchData = async () => {
         setLoadingContext(true);
         try {
-          const catRes = await getCategories();
+          const [catRes, empRes] = await Promise.all([getCategories(), getEmployees()]);
           setCategories(catRes.data?.data || catRes.data || []);
+          
+          const emps = empRes.data?.data || empRes.data || [];
+          const deps = new Set(emps.map(e => e.department).filter(Boolean));
+          setDepartments(Array.from(deps).sort());
         } catch (err) {
           console.error('Failed to load categories', err);
         } finally {
@@ -137,21 +145,29 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-primary">Department</label>
-                  <input
-                    type="text"
+                  <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  />
+                  >
+                    <option value="">Select Department...</option>
+                    {departments.map(dep => (
+                      <option key={dep} value={dep}>{dep}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-primary">Location</label>
-                  <input
-                    type="text"
+                  <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  />
+                  >
+                    <option value="">Select Location...</option>
+                    {OFFICE_LOCATIONS.map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-primary">Joining Date <span className="text-error">*</span></label>

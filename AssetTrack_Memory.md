@@ -921,6 +921,7 @@ These decisions must be made before the relevant phase begins. Track the answer 
 2026-07-27 | Antigravity AI | RBAC & Ticketing Step 1 — Schema & Migrations | ✅ Created and applied DB migration for users, updated sessions, tickets, onboarding_requests, and onboarding_request_items. Seeded 3 users. Verified baseline app intact.
 2026-07-27 | Antigravity AI | RBAC & Ticketing Steps 2-8 — API, Auth, Tickets, Onboarding | ✅ Built secure API routes for onboarding and tickets. Implemented AuthContext and protected routes. Created full UI pages and modals for Tickets (Employees/Admins) and Onboarding (HR/Admins).
 2026-07-27 | Antigravity AI | RBAC & Ticketing Steps 9-11 — Verification & Documentation | ✅ Completed full cross-feature synchronization audit and E2E regression pass. App is stable with new auth structure. Updated all documentation to reflect the finalized Postgres architecture and new RBAC rules.
+2026-07-27 | Antigravity AI | Dashboard Routing Fix & Integration | ✅ Investigated 403s: root cause was `App.jsx` routing all authenticated users to the shared `Dashboard` component, triggering admin-only API calls. Fixed by creating isolated `EmployeeDashboard` and `HrDashboard` components and conditionally branching the root route via `<RoleBasedDashboard />`. Also fixed missing Auth headers in API integration tests.
 ```
 
 ---

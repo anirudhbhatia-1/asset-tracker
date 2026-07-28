@@ -126,7 +126,10 @@ Structure follows Architecture §3.4 (Component Tree) and PRD §9.2.
 └───────────────┴──────────────────────────────────────────────┘
 ```
 
-- **Sidebar:** fixed 240px on desktop, collapses to a 64px icon rail on tablet, becomes a bottom tab bar of 5 primary items on mobile (PRD §9.3). Active route gets a filled indigo pill behind the icon + label and a 3px indigo left-border accent.
+- **Sidebar:** fixed 240px on desktop, collapses to a 64px icon rail on tablet, becomes a bottom tab bar of 5 primary items on mobile (PRD §9.3). Active route gets a filled indigo pill behind the icon + label and a 3px indigo left-border accent. Role-based visibility applies:
+  - **Admin**: Dashboard, Inventory, Tickets, Onboarding, Scanner, Employees, Categories, Settings
+  - **Employee**: Dashboard, Tickets
+  - **HR**: Dashboard, Onboarding, Employees
 - **TopBar:** persistent universal search (Inventory §6.2.1 lives here globally, not just on the Inventory page, so admins can search from anywhere), offline-status indicator (Rules §10.3), and the admin session badge.
 - **"Add Asset"** is visually separated from the other nav items (its own accent-filled button treatment) since it's the single most frequent write action for the primary persona.
 
@@ -152,7 +155,7 @@ Maps 1:1 to `client/src/components/ui/` in Architecture §3.2, so component name
 
 ## 5. Screen-by-Screen Specs
 
-### 5.1 Dashboard (`/`)
+### 5.1 Admin Dashboard (`/`)
 
 Per PRD §6.1. Top to bottom:
 
@@ -162,7 +165,23 @@ Per PRD §6.1. Top to bottom:
    - **Right — Google Workspace Banner:** card with Google "G" mark, connection status pill (Connected/Not Configured), domain, synced-employee count, and a "Configure →" link into Settings.
 3. **Activity Feed** — reverse-chronological list, 20 items, each row: colored action-type tag (assignment=blue, google=green, status=amber, category=purple, retire=rose per PRD §6.1.4), description sentence, relative timestamp right-aligned. New items slide in from the bottom. "Load more" at the foot.
 
-### 5.2 Inventory (`/inventory`)
+### 5.2 Employee Dashboard (`/`)
+
+The landing page exclusively for Employee roles. Genuinely separate component from Admin Dashboard.
+
+- **My Assets**: Read-only list of assets currently assigned to this employee. Displays category badge, asset name, serial number, and assignment date. Reuses existing card styling. No edit/assign/retire actions.
+- **My Tickets**: List of this employee's raised tickets with live status badges. Includes a button to open the "Raise Ticket" modal flow. Reuses existing ticket list formatting.
+- Excludes all admin stat cards, inventory breakdown, and global activity feeds.
+
+### 5.3 HR Dashboard (`/`)
+
+The landing page exclusively for HR Partner roles. Genuinely separate component from Admin Dashboard.
+
+- **My Onboarding Requests**: List of this HR user's submitted onboarding requests with live status badges. Includes a button to open the "New Hire Request" modal flow.
+- **My Assets**: Reuses the same concept from the Employee dashboard to display any assets assigned directly to the HR user.
+- Excludes all admin stat cards, inventory breakdown, and global activity feeds.
+
+### 5.4 Inventory (`/inventory`)
 
 Per PRD §6.2.
 

@@ -142,6 +142,21 @@ client/
 │   │   ├── historyApi.js
 │   │   └── googleApi.js
 │   │
+│   ├── pages/                    # Route pages
+│   │   ├── Dashboard.jsx        # Admin Dashboard
+│   │   ├── EmployeeDashboard.jsx # Employee landing page
+│   │   ├── HrDashboard.jsx      # HR landing page
+│   │   ├── Inventory.jsx
+│   │   ├── AssetDetail.jsx
+│   │   ├── AddEditAsset.jsx
+│   │   ├── Scanner.jsx
+│   │   ├── Employees.jsx
+│   │   ├── Categories.jsx
+│   │   ├── Settings.jsx
+│   │   ├── Tickets.jsx
+│   │   ├── Onboarding.jsx
+│   │   └── Login.jsx
+│   │
 │   ├── context/                  # Global state
 │   │   ├── AppContext.jsx        # Root context provider
 │   │   ├── AssetsContext.jsx     # Asset list + mutations
@@ -154,16 +169,6 @@ client/
 │   │   ├── useScanner.js         # Webcam + ZXing logic
 │   │   ├── useSearch.js          # Debounced search
 │   │   └── useGoogleAuth.js
-│   │
-│   ├── pages/                    # Top-level route views
-│   │   ├── DashboardPage.jsx
-│   │   ├── InventoryPage.jsx
-│   │   ├── AssetDetailPage.jsx
-│   │   ├── ScannerPage.jsx
-│   │   ├── EmployeesPage.jsx
-│   │   ├── CategoriesPage.jsx
-│   │   ├── AddAssetPage.jsx
-│   │   └── SettingsPage.jsx
 │   │
 │   ├── components/               # Reusable UI components
 │   │   ├── layout/
@@ -228,7 +233,7 @@ client/
 All routes are defined in `App.jsx` using React Router v6:
 
 ```
-/                          → DashboardPage
+/                          → RoleBasedDashboard
 /inventory                 → InventoryPage
 /inventory/:id             → AssetDetailPage
 /scanner                   → ScannerPage
@@ -253,11 +258,7 @@ App
                 ├── Sidebar
                 ├── TopBar
                 └── <Outlet> (route content)
-                    ├── DashboardPage
-                    │   ├── MetricCard (×4)
-                    │   ├── InventoryBreakdown
-                    │   ├── GoogleBanner
-                    │   └── ActivityFeed
+                    ├── RoleBasedDashboard (delegates to Admin/HR/Employee Dashboards)
                     ├── InventoryPage
                     │   ├── SearchBar
                     │   ├── FilterToolbar
@@ -433,7 +434,7 @@ Incoming HTTP Request
 ┌─────────────────────┐
 │  Global Error       │  Catches all thrown errors, returns JSON
 │  Handler            │  { error: true, message: "...", code: 500 }
-└─────────────────────┘
+└─────────────┘
 ```
 
 ### 4.4 Route Modules
@@ -986,8 +987,9 @@ with asset details      "No asset found"
 > **Updated:** The system now supports explicit Roles-Based Access Control (RBAC) with `admin`, `employee`, and `hr` roles. Google OAuth and directory sync features remain functionally untouched and operate in a parallel legacy flow (currently out of scope for the new RBAC flow).
 
 - Authentication relies on a simple email + password credential check against bcrypt hashes in the `users` table.
-- A successful login issues a secure, random `token` that is persisted to the `sessions` table in the database and linked to the `user_id`.
-- The frontend stores this token and includes it as a Bearer token in the `Authorization` header on all API calls.
+- A successful login issues a secure, random `token` that is persisted to the database.
+- **`App.jsx`**: Top-level `react-router-dom` setup, `AuthProvider`, and `ThemeProvider`. Branches the root `/` route using a `<RoleBasedDashboard />` component that delegates to `<Dashboard />` (Admin), `<HrDashboard />` (HR), or `<EmployeeDashboard />` (Employee) based on context, ensuring isolated rendering trees and avoiding 403 API errors for non-admins.
+- **`ProtectedRoute.jsx`**: Validates `user` existence and `allowedRoles` array against `user.role`, redirecting to `/login` or `/` if unauthorized.
 - The `validateSession` middleware checks the token against the database, validates expiration (8 hours), and attaches `req.user = { id, role, employeeId }`.
 - The `requireRole('role1', 'role2')` middleware enforces access control at the route level.
 - All existing API endpoints (`assets`, `employees`, `categories`, `history`, `serial`) have been strictly guarded with `requireRole('admin')`.

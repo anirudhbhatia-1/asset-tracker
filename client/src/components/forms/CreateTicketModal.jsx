@@ -25,8 +25,8 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
           const catRes = await getCategories();
           setCategories(catRes.data?.data || catRes.data || []);
           
-          if (user?.employeeId) {
-            const assetRes = await getEmployeeAssets(user.employeeId);
+          if (user?.id) {
+            const assetRes = await getEmployeeAssets(user.id);
             setMyAssets(assetRes.data?.data || assetRes.data || []);
           }
         } catch (err) {
@@ -127,7 +127,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
                   >
                     <option value="">Select a device (Optional)</option>
                     {myAssets.map(asset => (
-                      <option key={asset.id} value={asset.id}>{asset.name} ({asset.serial_number})</option>
+                      <option key={asset.id} value={asset.id}>{asset.name} ({asset.serialNumber})</option>
                     ))}
                   </select>
                 </div>

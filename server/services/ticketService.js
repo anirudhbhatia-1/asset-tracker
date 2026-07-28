@@ -7,7 +7,7 @@ const getTickets = async (user) => {
 
   if (user.role === 'employee') {
     query += ' WHERE t.employee_id = $1';
-    params.push(user.employeeId);
+    params.push(user.id);
   }
 
   query += ' ORDER BY t.created_at DESC';
@@ -18,7 +18,7 @@ const getTickets = async (user) => {
 
 const createTicket = async (user, payload) => {
   const { type, title, description, assetId, categoryId } = payload;
-  const employeeId = user.employeeId;
+  const employeeId = user.id;
 
   if (!employeeId) {
     const err = new Error('User is not associated with an employee profile');

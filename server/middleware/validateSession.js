@@ -10,9 +10,9 @@ const validateSession = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     
     const { rows } = await pool.query(
-      `SELECT s.user_id, u.role, u.employee_id, s.expires_at 
+      `SELECT s.employee_id, e.role, s.expires_at 
        FROM sessions s 
-       JOIN users u ON s.user_id = u.id 
+       JOIN employees e ON s.employee_id = e.id 
        WHERE s.token = $1`,
       [token]
     );
@@ -28,9 +28,8 @@ const validateSession = async (req, res, next) => {
     }
 
     req.user = {
-      id: session.user_id,
-      role: session.role,
-      employeeId: session.employee_id
+      id: session.employee_id,
+      role: session.role
     };
 
     next();

@@ -72,13 +72,12 @@ const getEmployees = async (filters = {}) => {
   const sql = `
     SELECT e.id, e.name, e.email, e.department, e.location, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
-           u.role,
+           e.role,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
     FROM employees e
     LEFT JOIN assets a ON e.id = a.assigned_to
-    LEFT JOIN users u ON e.id = u.employee_id
     ${whereClause}
-    GROUP BY e.id, u.role
+    GROUP BY e.id
     ORDER BY e.name ASC
   `;
 
@@ -90,13 +89,12 @@ const getEmployeeById = async (id) => {
   const result = await pool.query(`
     SELECT e.id, e.name, e.email, e.department, e.location, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
-           u.role,
+           e.role,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
     FROM employees e
     LEFT JOIN assets a ON e.id = a.assigned_to
-    LEFT JOIN users u ON e.id = u.employee_id
     WHERE e.id = $1
-    GROUP BY e.id, u.role
+    GROUP BY e.id
   `, [id]);
 
   if (result.rows.length === 0) {
@@ -192,7 +190,7 @@ const updateEmployeeRole = async (id, newRole) => {
     err.statusCode = 400;
     throw err;
   }
-  await pool.query('UPDATE users SET role = $1 WHERE employee_id = $2', [newRole, id]);
+  await pool.query('UPDATE employees SET role = $1 WHERE id = $2', [newRole, id]);
   return getEmployeeById(id);
 };
 
@@ -204,19 +202,9 @@ const grantEmployeeAccess = async (id, role, passwordHash) => {
     throw err;
   }
   
-  // Use employee's email for the user account
-  const email = current.email;
-  
-  const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-  if (existingUser.rows.length > 0) {
-    const err = new Error('A user account with this email already exists');
-    err.statusCode = 409;
-    throw err;
-  }
-
   await pool.query(
-    'INSERT INTO users (email, password_hash, role, employee_id, created_at) VALUES ($1, $2, $3, $4, NOW())',
-    [email, passwordHash, role, id]
+    'UPDATE employees SET password_hash = $1, role = $2 WHERE id = $3',
+    [passwordHash, role, id]
   );
   
   return getEmployeeById(id);
