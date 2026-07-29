@@ -5,8 +5,7 @@ import useScanner from '../hooks/useScanner';
 import WebcamFeed from '../components/scanner/WebcamFeed';
 import LaserViewfinder from '../components/scanner/LaserViewfinder';
 import ScanResultCard from '../components/scanner/ScanResultCard';
-import SerialSimulator from '../components/scanner/SerialSimulator';
-import { QrCode, RefreshCw, ShieldCheck, Camera } from 'lucide-react';
+import { QrCode, RefreshCw, Camera } from 'lucide-react';
 
 export default function Scanner() {
   const [loading, setLoading] = useState(false);
@@ -132,28 +131,6 @@ export default function Scanner() {
         />
       </div>
 
-      {/* Interactive Serial & Barcode Simulator below */}
-      <div className="pt-4 border-t border-border">
-        <SerialSimulator
-          onSimulateScan={(serial) => {
-            resolveSerial(serial);
-            // Scroll smoothly towards result box
-            window.scrollTo({ top: 120, behavior: 'smooth' });
-          }}
-          disabled={loading}
-        />
-      </div>
-
-      {/* Footer Info Box */}
-      <div className="max-w-xl mx-auto bg-base/40 rounded-xl p-4 border border-border flex items-start gap-3 text-xs text-secondary">
-        <ShieldCheck className="w-4 h-4 text-success shrink-0 mt-0.5" />
-        <div>
-          <span className="font-semibold text-secondary block mb-0.5">Hardware Compatibility & ZXing Decoding</span>
-          <span>
-            The ZXing multi-format reader decodes standard QR tags, Code 128, Code 39, and EAN-13 barcodes directly from your local video frame buffer (`BrowserMultiFormatReader`). All checks against `GET /api/serial/scan/:serial` execute locally with sub-10ms response times.
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

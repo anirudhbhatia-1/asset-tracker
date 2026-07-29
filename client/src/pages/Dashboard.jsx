@@ -84,6 +84,7 @@ export default function Dashboard() {
               icon={PackageCheck}
               subtitle="Ready in stockroom"
               colorClass="text-success bg-success/10 border-success/20"
+              onClick={() => navigate('/inventory?status=available')}
             />
             <MetricCard
               title="In Use / Assigned"
@@ -91,6 +92,7 @@ export default function Dashboard() {
               icon={Users}
               subtitle={`${activePercentage}% of fleet active`}
               colorClass="text-info-blue bg-info-blue/10 border-info-blue/20"
+              onClick={() => navigate('/inventory?status=in-use')}
             />
             <MetricCard
               title="Open Tickets"
@@ -98,6 +100,7 @@ export default function Dashboard() {
               icon={AlertCircle}
               subtitle="Require attention"
               colorClass="text-warning bg-warning/10 border-warning/20"
+              onClick={() => navigate('/tickets')}
             />
             <MetricCard
               title="Retired / EOL"
@@ -105,6 +108,7 @@ export default function Dashboard() {
               icon={Archive}
               subtitle="End of life"
               colorClass="text-secondary bg-secondary/10 border-secondary/20"
+              onClick={() => navigate('/inventory?status=retired')}
             />
           </>
         )}

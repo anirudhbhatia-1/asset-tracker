@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function MetricCard({ title, subtitle, count = 0, icon: Icon, delta, deltaPositive = true, colorClass = 'text-accent bg-accent/10 border-accent/20' }) {
+export default function MetricCard({ title, subtitle, count = 0, icon: Icon, delta, deltaPositive = true, colorClass = 'text-accent bg-accent/10 border-accent/20', onClick }) {
   const [displayCount, setDisplayCount] = useState(0);
 
   useEffect(() => {
@@ -31,8 +31,14 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
     requestAnimationFrame(animate);
   }, [count]);
 
+  const Wrapper = onClick ? 'button' : 'div';
   return (
-    <div className="bg-surface rounded-xl p-5 border border-border/60 shadow-sm hover:border-border transition-all duration-200 flex flex-col justify-between">
+    <Wrapper
+      onClick={onClick}
+      type={onClick ? 'button' : undefined}
+      className={`bg-surface rounded-xl p-5 border border-border/60 shadow-sm transition-all duration-200 flex flex-col justify-between text-left w-full
+        ${onClick ? 'hover:border-accent/50 hover:shadow-md hover:bg-raised/30 cursor-pointer active:scale-[0.99]' : 'hover:border-border'}`}
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-secondary">{title}</span>
         {Icon && (
@@ -59,6 +65,6 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
       {subtitle && (
         <div className="mt-1 text-xs text-secondary">{subtitle}</div>
       )}
-    </div>
+    </Wrapper>
   );
 }
