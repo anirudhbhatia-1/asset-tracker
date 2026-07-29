@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function MetricCard({ title, count = 0, icon: Icon, delta, deltaPositive = true, colorClass = 'text-accent bg-accent/10 border-accent/20' }) {
+export default function MetricCard({ title, subtitle, count = 0, icon: Icon, delta, deltaPositive = true, colorClass = 'text-accent bg-accent/10 border-accent/20' }) {
   const [displayCount, setDisplayCount] = useState(0);
 
   useEffect(() => {
@@ -56,6 +56,9 @@ export default function MetricCard({ title, count = 0, icon: Icon, delta, deltaP
           </span>
         )}
       </div>
+      {subtitle && (
+        <div className="mt-1 text-xs text-secondary">{subtitle}</div>
+      )}
     </div>
   );
 }

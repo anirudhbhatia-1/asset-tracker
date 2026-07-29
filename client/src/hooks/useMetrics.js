@@ -142,11 +142,25 @@ export default function useMetrics() {
       .sort((a, b) => b.count - a.count);
   }, [data.assets]);
 
+  const lowStockCategories = useMemo(() => {
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    const map = new Map();
+    assets.forEach(a => {
+      const key = a.categoryId ?? 0;
+      const name = a.categoryName || 'Uncategorized';
+      if (!map.has(key)) map.set(key, { name, available: 0, total: 0 });
+      map.get(key).total += 1;
+      if (a.status === 'available') map.get(key).available += 1;
+    });
+    return Array.from(map.values()).filter(c => c.available <= 2).sort((a, b) => a.available - b.available);
+  }, [data.assets]);
+
   return {
     metrics,
     breakdown: Array.isArray(breakdown) ? breakdown : [],
     breakdownByLocation,
     breakdownByStatus,
+    lowStockCategories,
     categories: Array.isArray(data.categories) ? data.categories : [],
     employees: Array.isArray(data.employees) ? data.employees : [],
     loading,
