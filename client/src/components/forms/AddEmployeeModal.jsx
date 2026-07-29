@@ -9,18 +9,25 @@ const OFFICE_LOCATIONS = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
 export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [department, setDepartment] = useState('Engineering');
-  const [location, setLocation] = useState('Bangalore');
+  const [department, setDepartment] = useState('');
+  const [location, setLocation] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  const [grantAccess, setGrantAccess] = useState(false);
+  const [role, setRole] = useState('employee');
+  const [temporaryPassword, setTemporaryPassword] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setName('');
       setEmail('');
-      setDepartment('Engineering');
-      setLocation('Bangalore');
+      setDepartment('');
+      setLocation('');
       setError('');
+      setGrantAccess(false);
+      setRole('employee');
+      setTemporaryPassword('');
     }
   }, [isOpen]);
 
@@ -34,28 +41,59 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
     setSubmitting(true);
     setError('');
     try {
-      await onAdd({
+      const result = await onAdd({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         department,
         location,
+        grantAccess,
+        role: grantAccess ? role : undefined,
       });
-      onClose();
+      
+      // If a temp password came back, show it instead of closing
+      if (result?.temporaryPassword) {
+        setTemporaryPassword(result.temporaryPassword);
+      } else {
+        onClose();
+      }
     } catch (err) {
-      setError(err.message || 'Failed to add employee profile.');
+      setError(err.message || 'Failed to add employee. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Employee Profile" maxWidth="max-w-md">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="p-3 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger">
-            {error}
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Employee" maxWidth="max-w-md">
+      {temporaryPassword ? (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm text-center">
+            Employee created with login access!
           </div>
-        )}
+          <p className="text-sm text-secondary">
+            Share these credentials securely with <strong className="text-primary">{name}</strong>.
+          </p>
+          <div className="p-4 rounded-xl bg-base border border-border space-y-3">
+            <div>
+              <label className="block text-xs text-secondary mb-1">Email</label>
+              <code className="text-sm font-bold text-primary">{email.trim().toLowerCase()}</code>
+            </div>
+            <div>
+              <label className="block text-xs text-secondary mb-1">Temporary Password</label>
+              <code className="text-sm font-bold text-accent select-all bg-accent/10 px-2 py-1 rounded">{temporaryPassword}</code>
+            </div>
+          </div>
+          <div className="pt-4 border-t border-border flex justify-end">
+            <Button variant="primary" onClick={onClose}>Done</Button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger">
+              {error}
+            </div>
+          )}
 
         {/* Full Name */}
         <div>
@@ -128,8 +166,37 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
           </div>
         </div>
 
+        {/* Grant Login Access Toggle */}
+        <div className="pt-2 border-t border-border">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={grantAccess}
+              onChange={(e) => setGrantAccess(e.target.checked)}
+              className="w-4 h-4 rounded text-accent border-border focus:ring-accent"
+            />
+            <span className="text-sm font-medium text-primary">Also create a login account</span>
+          </label>
+          {grantAccess && (
+            <div className="mt-3 ml-7">
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+                Role
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+              >
+                <option value="employee">Employee</option>
+                <option value="hr">HR</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          )}
+        </div>
+
         {/* Footer Actions */}
-        <div className="pt-4 border-t border-border flex justify-end gap-3">
+        <div className="pt-4 border-t border-border flex justify-end gap-3 mt-8">
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
@@ -139,6 +206,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
           </Button>
         </div>
       </form>
+      )}
     </Modal>
   );
 }

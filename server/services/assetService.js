@@ -138,7 +138,7 @@ const getAssetBySerial = async (serialNumber) => {
   return asset;
 };
 
-const createAsset = async (data, performedBy = 'Rajan Sharma') => {
+const createAsset = async (data, actorUser = null) => {
   const {
     name, categoryId, model, serialNumber, status = 'available',
     location, costCents = 0, purchaseDate, notes, warrantyExpiryDate, assignedTo, assignedDate
@@ -188,10 +188,10 @@ const createAsset = async (data, performedBy = 'Rajan Sharma') => {
     ]);
 
     const id = result.rows[0].id;
-    await historyService.logEvent(id, 'created', performedBy, null, `Initial registration: ${name}`, null, client);
+    await historyService.logEvent(id, 'created', actorUser, null, `Initial registration: ${name}`, null, client);
 
     if (status === 'in-use' && finalAssignedTo) {
-      await historyService.logEvent(id, 'assigned', performedBy, finalAssignedTo, 'Assigned upon creation', null, client);
+      await historyService.logEvent(id, 'assigned', actorUser, finalAssignedTo, 'Assigned upon creation', null, client);
     }
     
     return id;
@@ -200,7 +200,7 @@ const createAsset = async (data, performedBy = 'Rajan Sharma') => {
   return getAssetById(newAssetId);
 };
 
-const updateAsset = async (id, data, performedBy = 'Rajan Sharma') => {
+const updateAsset = async (id, data, actorUser = null) => {
   const current = await getAssetById(id);
 
   if (current.status === 'retired') {
@@ -249,13 +249,13 @@ const updateAsset = async (id, data, performedBy = 'Rajan Sharma') => {
       id
     ]);
 
-    await historyService.logEvent(id, 'updated', performedBy, current.assignedTo, data.note || 'Asset metadata updated', null, client);
+    await historyService.logEvent(id, 'updated', actorUser, current.assignedTo, data.note || 'Asset metadata updated', null, client);
   });
 
   return getAssetById(id);
 };
 
-const deleteAsset = async (id, confirm, performedBy = 'Rajan Sharma') => {
+const deleteAsset = async (id, confirm, actorUser = null) => {
   if (confirm !== true && confirm !== 'true') {
     const err = new Error('Destructive actions require confirm: true in request body');
     err.statusCode = 400;
@@ -265,14 +265,14 @@ const deleteAsset = async (id, confirm, performedBy = 'Rajan Sharma') => {
   const current = await getAssetById(id);
 
   await withTransaction(async (client) => {
-    await historyService.logEvent(id, 'deleted', performedBy, current.assignedTo, `Permanently deleted asset: ${current.name} (${current.serialNumber})`, null, client);
+    await historyService.logEvent(id, 'deleted', actorUser, current.assignedTo, `Permanently deleted asset: ${current.name} (${current.serialNumber})`, null, client);
     await client.query('DELETE FROM assets WHERE id = $1', [id]);
   });
 
   return { id: Number(id), deleted: true };
 };
 
-const assignAsset = async (id, employeeId, assignedDate, note, performedBy = 'Rajan Sharma') => {
+const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null) => {
   const current = await getAssetById(id);
 
   if (current.status === 'retired') {
@@ -300,13 +300,13 @@ const assignAsset = async (id, employeeId, assignedDate, note, performedBy = 'Ra
       WHERE id = $3
     `, [employeeId, dateToSet, id]);
 
-    await historyService.logEvent(id, 'assigned', performedBy, employeeId, note || `Assigned to ${emp.rows[0].name}`, null, client);
+    await historyService.logEvent(id, 'assigned', actorUser, employeeId, note || `Assigned to ${emp.rows[0].name}`, null, client);
   });
 
   return getAssetById(id);
 };
 
-const returnAsset = async (id, note, performedBy = 'Rajan Sharma') => {
+const returnAsset = async (id, note, actorUser = null) => {
   const current = await getAssetById(id);
 
   if (current.status === 'retired') {
@@ -333,13 +333,13 @@ const returnAsset = async (id, note, performedBy = 'Rajan Sharma') => {
       WHERE id = $1
     `, [id]);
 
-    await historyService.logEvent(id, 'returned', performedBy, previousAssignee, note || 'Returned to stock', null, client);
+    await historyService.logEvent(id, 'returned', actorUser, previousAssignee, note || 'Returned to stock', null, client);
   });
 
   return getAssetById(id);
 };
 
-const retireAsset = async (id, note, confirm, performedBy = 'Rajan Sharma') => {
+const retireAsset = async (id, note, confirm, actorUser = null) => {
   if (confirm !== true && confirm !== 'true') {
     const err = new Error('Destructive actions require confirm: true in request body');
     err.statusCode = 400;
@@ -359,7 +359,7 @@ const retireAsset = async (id, note, confirm, performedBy = 'Rajan Sharma') => {
       WHERE id = $1
     `, [id]);
 
-    await historyService.logEvent(id, 'retired', performedBy, previousAssignee, note || 'Asset decommissioned and retired', null, client);
+    await historyService.logEvent(id, 'retired', actorUser, previousAssignee, note || 'Asset decommissioned and retired', null, client);
   });
 
   return getAssetById(id);

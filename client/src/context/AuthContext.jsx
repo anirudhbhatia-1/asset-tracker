@@ -47,6 +47,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // loginWithToken — used by the Google testing flow.
+  // WHEN GOING TO PRODUCTION: Keep this helper, it is generic enough.
+  const loginWithToken = (token, userData) => {
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
   const logout = async () => {
     try {
       if (sessionStorage.getItem('token')) {
@@ -62,7 +70,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, loginWithToken }}>
       {!loading && children}
     </AuthContext.Provider>
   );

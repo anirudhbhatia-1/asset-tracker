@@ -69,9 +69,29 @@ router.post('/', [
   body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL().withMessage('Must be a valid URL'),
+  // Optional: grant login access at creation time
+  body('grantAccess').optional().isBoolean(),
+  body('role').optional().isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
   validateRequest,
 ], async (req, res, next) => {
   try {
+    const { grantAccess, role, ...employeeData } = req.body;
+    
+    if (grantAccess) {
+      // Create profile + login in one transaction
+      const { employee, temporaryPassword } = await employeeService.createEmployeeWithAccess({
+        ...employeeData,
+        role: role || 'employee',
+      });
+      
+      return res.status(201).json({
+        data: employee,
+        temporaryPassword,
+        message: 'Employee created with login access',
+      });
+    }
+
+    // Original behavior — profile only, no login
     const created = await employeeService.createEmployee(req.body);
     res.status(201).json({
       data: created,
@@ -160,6 +180,23 @@ router.post('/:id/grant-access', [
       data: updated,
       temporaryPassword,
       message: 'Login access granted successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+// POST /api/employees/:id/grant-google-access — Grant Google-only login (TESTING ONLY)
+// WHEN GOING TO PRODUCTION: Remove this route.
+router.post('/:id/grant-google-access', [
+  requireRole('admin'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const updated = await employeeService.grantGoogleAccess(Number(req.params.id));
+    res.status(200).json({
+      data: updated,
+      message: 'Google login access granted successfully',
     });
   } catch (err) {
     next(err);

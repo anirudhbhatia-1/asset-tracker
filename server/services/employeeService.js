@@ -1,4 +1,4 @@
-const { pool } = require('../db');
+const { pool, withTransaction } = require('../db');
 
 const mapEmployee = (row) => {
   if (!row) return null;
@@ -138,6 +138,37 @@ const createEmployee = async (data) => {
   return getEmployeeById(result.rows[0].id);
 };
 
+/**
+ * Creates an employee profile AND a login account in a single transaction.
+ * Used when admin wants to provision login access at creation time.
+ * Returns { employee, temporaryPassword }
+ */
+const createEmployeeWithAccess = async (data) => {
+  const bcrypt = require('bcrypt');
+  const crypto = require('crypto');
+  const { name, email, department, location, role } = data;
+  
+  // Check duplicate before starting transaction
+  const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
+  if (existing.rows.length > 0) {
+    const err = new Error('Employee email already exists');
+    err.statusCode = 409;
+    throw err;
+  }
+  
+  const temporaryPassword = crypto.randomBytes(6).toString('hex'); // 12 chars
+  const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+  
+  const result = await pool.query(`
+    INSERT INTO employees (name, email, department, location, google_id, avatar_url, is_google_synced, password_hash, role, created_at)
+    VALUES ($1, $2, $3, $4, NULL, NULL, 0, $5, $6, NOW())
+    RETURNING id
+  `, [name, email, department ?? null, location ?? null, passwordHash, role]);
+  
+  const employee = await getEmployeeById(result.rows[0].id);
+  return { employee, temporaryPassword };
+};
+
 const updateEmployee = async (id, data) => {
   const current = await getEmployeeById(id);
   const { name, email, department, location, avatarUrl } = data;
@@ -210,13 +241,38 @@ const grantEmployeeAccess = async (id, role, passwordHash) => {
   return getEmployeeById(id);
 };
 
+// ============================================================
+// TESTING ONLY — Grant Google login access (no password)
+// WHEN GOING TO PRODUCTION: Remove this function.
+// Google-login employees will be created via Workspace sync.
+// ============================================================
+const grantGoogleAccess = async (id) => {
+  return withTransaction(async (client) => {
+    const current = await getEmployeeById(id);
+    if (current.hasLogin) {
+      const err = new Error('Employee already has a login account');
+      err.statusCode = 400;
+      throw err;
+    }
+    // Set role to 'employee', leave password_hash as NULL (already nullable).
+    // This account can ONLY log in via Google — not via email/password.
+    await client.query(
+      'UPDATE employees SET role = $1 WHERE id = $2',
+      ['employee', id]
+    );
+    return getEmployeeById(id);
+  });
+};
+
 module.exports = {
   getEmployees,
   getEmployeeById,
   getEmployeeAssets,
   createEmployee,
+  createEmployeeWithAccess,
   updateEmployee,
   deleteEmployee,
   updateEmployeeRole,
   grantEmployeeAccess,
+  grantGoogleAccess,
 };

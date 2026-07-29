@@ -380,6 +380,7 @@ router.post('/:id/assign', [
 - Service functions must be **pure in intent** — same inputs produce the same database outcome.
 - Service functions must not call `res` or `req` — they are HTTP-agnostic.
 - Service functions must always log audit history when modifying an asset's state.
+- Actor identity in any audit/history log must always be derived from the authenticated session (e.g. `req.user`) at write time, never from a secondary lookup that can drift or point to the wrong person, and never fallback to a hardcoded default.
 - If multiple database writes are needed in one operation (e.g., update asset + insert history), they **must** be wrapped in a Postgres transaction using a checked-out `pg` client.
 
 ```javascript

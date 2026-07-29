@@ -50,7 +50,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
       // Force logout as sessions have been invalidated
       await logout();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to change password');
+      setError(err.response?.data?.message || 'Failed to change password');
     } finally {
       setLoading(false);
     }

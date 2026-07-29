@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, grantEmployeeAccess } from '../api/employeesApi';
+import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, grantEmployeeAccess, grantEmployeeGoogleAccess } from '../api/employeesApi';
 import toast from 'react-hot-toast';
 
 export default function useEmployees() {
@@ -30,9 +30,10 @@ export default function useEmployees() {
       const newEmp = res.data?.data || res.data;
       setEmployees((prev) => [newEmp, ...prev]);
       toast.success('Employee profile created successfully');
-      return newEmp;
+      // Return full response so caller can access temporaryPassword if present
+      return res.data;
     } catch (err) {
-      toast.error(err.message || 'Failed to add employee');
+      toast.error(err.response?.data?.message || err.message || 'Failed to add employee');
       throw err;
     }
   };
@@ -75,6 +76,20 @@ export default function useEmployees() {
     }
   };
 
+  // TESTING ONLY — remove when production Google Workspace flow is implemented
+  const grantGoogleAccess = async (id) => {
+    try {
+      const res = await grantEmployeeGoogleAccess(id);
+      const updatedEmp = res.data?.data || res.data;
+      setEmployees((prev) => prev.map((e) => (e.id === id ? updatedEmp : e)));
+      toast.success('Google login access granted');
+      return res.data;
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to grant Google access');
+      throw err;
+    }
+  };
+
   return {
     employees: Array.isArray(employees) ? employees : [],
     loading,
@@ -84,5 +99,6 @@ export default function useEmployees() {
     deleteEmployee,
     changeRole,
     grantAccess,
+    grantGoogleAccess,
   };
 }

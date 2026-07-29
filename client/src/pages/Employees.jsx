@@ -12,7 +12,7 @@ import { Users, Search, UserPlus, RefreshCw, Building2, Filter } from 'lucide-re
 const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing'];
 
 export default function Employees() {
-  const { employees, loading, error, refresh, addEmployee, deleteEmployee, changeRole, grantAccess } = useEmployees();
+  const { employees, loading, error, refresh, addEmployee, deleteEmployee, changeRole, grantAccess, grantGoogleAccess } = useEmployees();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -196,6 +196,7 @@ export default function Employees() {
         employee={selectedEmployee}
         onChangeRole={changeRole}
         onGrantAccess={grantAccess}
+        onGrantGoogleAccess={grantGoogleAccess}
       />
 
       {/* Add Employee Modal */}

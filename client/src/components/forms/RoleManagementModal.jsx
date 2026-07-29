@@ -10,7 +10,7 @@ const ROLES = [
   { value: 'admin', label: 'Admin', description: 'Full access to manage inventory, settings, and users.' },
 ];
 
-export default function RoleManagementModal({ isOpen, onClose, employee, onGrantAccess, onChangeRole }) {
+export default function RoleManagementModal({ isOpen, onClose, employee, onGrantAccess, onChangeRole, onGrantGoogleAccess }) {
   const [role, setRole] = useState('employee');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -105,14 +105,40 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-border flex justify-end gap-3">
-            <Button variant="secondary" onClick={onClose} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" loading={submitting}>
-              {employee.hasLogin ? <Edit3 className="w-4 h-4" /> : <Key className="w-4 h-4" />}
-              <span>{employee.hasLogin ? 'Save Role Changes' : 'Grant Login Access'}</span>
-            </Button>
+          <div className="pt-4 border-t border-border flex flex-col gap-2">
+            {!employee.hasLogin && (
+              // TESTING ONLY — Grant Google Access button
+              // WHEN GOING TO PRODUCTION: Remove this button entirely.
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  setError('');
+                  try {
+                    await onGrantGoogleAccess(employee.id);
+                    onClose();
+                  } catch (err) {
+                    setError(err.response?.data?.message || 'Failed to grant Google access');
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold border border-border bg-base hover:bg-raised text-secondary transition-colors"
+              >
+                <span>🔑</span>
+                <span>Grant Google Login (Testing Only)</span>
+              </button>
+            )}
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={onClose} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" loading={submitting}>
+                {employee.hasLogin ? <Edit3 className="w-4 h-4" /> : <Key className="w-4 h-4" />}
+                <span>{employee.hasLogin ? 'Save Role Changes' : 'Grant Password Access'}</span>
+              </Button>
+            </div>
           </div>
         </form>
       ) : (

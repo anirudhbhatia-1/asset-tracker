@@ -8,3 +8,6 @@ export const updateEmployee = (id, payload) => api.put(`/employees/${id}`, paylo
 export const deleteEmployeeApi = (id) => api.delete(`/employees/${id}`);
 export const updateEmployeeRole = (id, role) => api.patch(`/employees/${id}/role`, { role });
 export const grantEmployeeAccess = (id, role) => api.post(`/employees/${id}/grant-access`, { role });
+
+// TESTING ONLY — remove when production Google Workspace flow is implemented
+export const grantEmployeeGoogleAccess = (id) => api.post(`/employees/${id}/grant-google-access`);

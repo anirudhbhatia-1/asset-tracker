@@ -4,6 +4,8 @@ import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut, Menu, 
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from './ChangePasswordModal';
+import useNotifications from '../../hooks/useNotifications';
+import NotificationPanel from './NotificationPanel';
 
 const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const location = useLocation();
@@ -13,8 +15,10 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { notifications, loading: notifLoading, hasUnread } = useNotifications();
 
   // Close user menu on outside click
   useEffect(() => {
@@ -142,13 +146,26 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            <button 
-              className="hidden sm:flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative"
-              aria-label="View notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
-            </button>
+            {/* Notifications Bell */}
+            <div className="relative hidden sm:block">
+              <button
+                id="notification-bell"
+                onClick={() => setIsNotificationPanelOpen((prev) => !prev)}
+                className="flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative"
+                aria-label="View notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {hasUnread && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent animate-pulse" />
+                )}
+              </button>
+              <NotificationPanel
+                isOpen={isNotificationPanelOpen}
+                onClose={() => setIsNotificationPanelOpen(false)}
+                notifications={notifications}
+                loading={notifLoading}
+              />
+            </div>
 
             {/* User Profile Dropdown */}
             <div id="user-menu-container" className="relative ml-1 sm:ml-2">

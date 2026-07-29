@@ -76,7 +76,7 @@ router.post('/', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const created = await assetService.createAsset(req.body);
+    const created = await assetService.createAsset(req.body, req.user);
     res.status(201).json({
       data: created,
       message: 'Asset created successfully',
@@ -101,7 +101,7 @@ router.put('/:id', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const updated = await assetService.updateAsset(Number(req.params.id), req.body);
+    const updated = await assetService.updateAsset(Number(req.params.id), req.body, req.user);
     res.status(200).json({
       data: updated,
       message: 'Asset updated successfully',
@@ -117,7 +117,7 @@ router.delete('/:id', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const result = await assetService.deleteAsset(Number(req.params.id), req.body?.confirm);
+    const result = await assetService.deleteAsset(Number(req.params.id), req.body?.confirm, req.user);
     res.status(200).json({
       data: result,
       message: 'Asset permanently deleted',
@@ -140,7 +140,8 @@ router.post('/:id/assign', [
       Number(req.params.id),
       Number(req.body.employeeId),
       req.body.assignedDate,
-      req.body.note
+      req.body.note,
+      req.user
     );
     res.status(200).json({
       data: assigned,
@@ -158,7 +159,7 @@ router.post('/:id/return', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const returned = await assetService.returnAsset(Number(req.params.id), req.body?.note);
+    const returned = await assetService.returnAsset(Number(req.params.id), req.body?.note, req.user);
     res.status(200).json({
       data: returned,
       message: 'Asset returned to stock successfully',
@@ -175,7 +176,7 @@ router.post('/:id/retire', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const retired = await assetService.retireAsset(Number(req.params.id), req.body?.note, req.body?.confirm);
+    const retired = await assetService.retireAsset(Number(req.params.id), req.body?.note, req.body?.confirm, req.user);
     res.status(200).json({
       data: retired,
       message: 'Asset decommissioned and retired successfully',
