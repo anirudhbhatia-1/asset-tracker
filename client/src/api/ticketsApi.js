@@ -11,5 +11,7 @@ export const ticketsApi = {
   
   transfer: (id, data) => api.patch(`/tickets/${id}/transfer`, data).then(res => res.data.data),
   
-  confirm: (id, action) => api.patch(`/tickets/${id}/confirm`, { action }).then(res => res.data.data),
+  confirmClose: (id) => api.patch(`/tickets/${id}/confirm-close`).then(res => res.data.data),
+  
+  reopen: (id, note) => api.patch(`/tickets/${id}/reopen`, { note }).then(res => res.data.data),
 };

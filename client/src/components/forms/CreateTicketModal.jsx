@@ -4,12 +4,12 @@ import { useAuth } from '../../context/AuthContext';
 import { getEmployeeAssets } from '../../api/employeesApi';
 import { getCategories } from '../../api/categoriesApi';
 
-const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
+const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', initialAssetId = '' }) => {
   const { user } = useAuth();
-  const [type, setType] = useState('issue');
+  const [type, setType] = useState(initialType);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assetId, setAssetId] = useState('');
+  const [assetId, setAssetId] = useState(initialAssetId);
   const [categoryId, setCategoryId] = useState('');
   const [targetAdminType, setTargetAdminType] = useState('it');
   
@@ -20,6 +20,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
 
   useEffect(() => {
     if (isOpen) {
+      setType(initialType);
+      setAssetId(initialAssetId);
+      
       const fetchData = async () => {
         setLoadingContext(true);
         try {
@@ -39,14 +42,14 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
       fetchData();
     } else {
       // Reset state on close
-      setType('issue');
+      setType(initialType);
       setTitle('');
       setDescription('');
-      setAssetId('');
+      setAssetId(initialAssetId);
       setCategoryId('');
       setTargetAdminType('it');
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, initialType, initialAssetId]);
 
   if (!isOpen) return null;
 

@@ -58,7 +58,7 @@ const Login = () => {
     }
   };
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-base relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-base relative overflow-hidden p-4 sm:p-8">
       {/* Background decoration */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[120px]" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[120px]" />
@@ -68,8 +68,10 @@ const Login = () => {
           <div className="w-20 h-20 flex items-center justify-center mb-4">
             <img src="/logo.png" alt="ThinkVibes Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-primary tracking-tight mb-2">Welcome Back</h1>
-          <p className="text-secondary text-sm text-center">Sign in to ThinkVibes management system</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight mb-2 text-center">Welcome Back</h1>
+          <p className="text-secondary text-sm text-center max-w-xs mx-auto leading-relaxed">
+            Sign in to ThinkVibes management system
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">

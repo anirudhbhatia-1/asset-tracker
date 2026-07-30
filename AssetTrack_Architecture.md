@@ -519,7 +519,7 @@ listAssets(filters)           // Parameterized filter query
 // Key functions:
 createTicket(user, payload)   // Insert + log 'created'
 updateTicket(id, payload, user) // Admin sets status='resolved' (or other), updates fields
-confirmTicket(id, user, action) // Employee confirms resolved ticket (status->'closed') or reopens (status->'open')
+confirmTicket(id, user, action, note) // Employee confirms resolved ticket (status->'closed') or reopens (status->'open')
 transferTicket(id, target, note, user) // Admin transfers ticket queue
 ```
 

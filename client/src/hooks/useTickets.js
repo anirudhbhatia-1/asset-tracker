@@ -70,14 +70,27 @@ export const useTickets = () => {
     }
   };
 
-  const confirmTicket = async (id, action) => {
+  const confirmCloseTicket = async (id) => {
     try {
-      const updatedTicket = await ticketsApi.confirm(id, action);
+      const updatedTicket = await ticketsApi.confirmClose(id);
       setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updatedTicket } : t));
-      toast.success(action === 'confirm' ? 'Ticket resolution confirmed' : 'Ticket reopened');
+      toast.success('Ticket resolution confirmed');
       return updatedTicket;
     } catch (err) {
-      const message = err.response?.data?.message || 'Failed to update ticket';
+      const message = err.response?.data?.message || 'Failed to close ticket';
+      toast.error(message);
+      throw err;
+    }
+  };
+
+  const reopenTicket = async (id, note) => {
+    try {
+      const updatedTicket = await ticketsApi.reopen(id, note);
+      setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updatedTicket } : t));
+      toast.success('Ticket reopened');
+      return updatedTicket;
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to reopen ticket';
       toast.error(message);
       throw err;
     }
@@ -92,6 +105,7 @@ export const useTickets = () => {
     updateTicket,
     transferTicket,
     fetchTicketHistory,
-    confirmTicket
+    confirmCloseTicket,
+    reopenTicket
   };
 };

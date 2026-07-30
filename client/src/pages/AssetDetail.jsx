@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useAsset from '../hooks/useAsset';
+import { useAuth } from '../context/AuthContext';
 import SpecsProfile from '../components/asset-detail/SpecsProfile';
 import HistoryTimeline from '../components/asset-detail/HistoryTimeline';
 import AssigneeCard from '../components/asset-detail/AssigneeCard';
@@ -22,6 +23,9 @@ export default function AssetDetail() {
     retireAsset,
     deleteAsset,
   } = useAsset(id);
+  
+  const { user } = useAuth();
+  const isReadOnly = user?.role !== 'admin';
 
   if (loading) {
     return (
@@ -58,13 +62,23 @@ export default function AssetDetail() {
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Top Breadcrumb & Actions */}
       <div className="flex items-center justify-between gap-4">
-        <Link
-          to="/inventory"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-secondary hover:text-accent transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Hardware Inventory</span>
-        </Link>
+        {!isReadOnly ? (
+          <Link
+            to="/inventory"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-secondary hover:text-accent transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Hardware Inventory</span>
+          </Link>
+        ) : (
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-secondary hover:text-accent transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
+          </Link>
+        )}
 
         <button
           type="button"
@@ -81,19 +95,21 @@ export default function AssetDetail() {
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] lg:grid-cols-3 gap-6 items-start">
         <div className="md:col-span-1 lg:col-span-2 space-y-6">
           {/* 1. Technical & Financial Specs Profile */}
-          <SpecsProfile asset={asset} onUpdateAssetData={updateAssetData} />
+          <SpecsProfile asset={asset} onUpdateAssetData={updateAssetData} readOnly={isReadOnly} />
 
           {/* 2. Assignee Profile Card (Only shown when in-use) */}
-          <AssigneeCard asset={asset} />
+          <AssigneeCard asset={asset} readOnly={isReadOnly} />
 
           {/* 3. Lifecycle & Operational Controls */}
-          <LifecycleActions
-            asset={asset}
-            onAssign={assignToEmployee}
-            onReturn={returnToStock}
-            onRetire={retireAsset}
-            onDelete={deleteAsset}
-          />
+          {!isReadOnly && (
+            <LifecycleActions
+              asset={asset}
+              onAssign={assignToEmployee}
+              onReturn={returnToStock}
+              onRetire={retireAsset}
+              onDelete={deleteAsset}
+            />
+          )}
         </div>
 
         {/* 4. Chronological Audit Timeline */}

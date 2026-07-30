@@ -3,7 +3,13 @@ const assetService = require('./assetService');
 
 const getRequests = async () => {
   const query = `
-    SELECT o.*, u.email as requested_by_email, emp.name as linked_employee_name 
+    SELECT o.*, u.email as requested_by_email, emp.name as linked_employee_name,
+      (
+        SELECT string_agg(c.name || ' (Qty: ' || i.quantity || ')', ', ')
+        FROM onboarding_request_items i
+        LEFT JOIN categories c ON i.category_id = c.id
+        WHERE i.onboarding_request_id = o.id
+      ) as items_summary
     FROM onboarding_requests o 
     LEFT JOIN employees u ON o.requested_by = u.id 
     LEFT JOIN employees emp ON o.linked_employee_id = emp.id 
@@ -121,10 +127,22 @@ const fulfillItem = async (requestId, itemId, assetId) => {
   return rows[0];
 };
 
+const getHrMetrics = async () => {
+  const query = `
+    SELECT
+      (SELECT COUNT(*) FROM onboarding_requests WHERE status = 'pending') as pending_onboardings,
+      (SELECT COUNT(*) FROM onboarding_requests WHERE status = 'arranged' AND date_trunc('month', arranged_at) = date_trunc('month', NOW())) as arranged_this_month,
+      (SELECT COUNT(*) FROM assets WHERE status = 'in-use' AND assigned_to IS NOT NULL) as assets_allocated
+  `;
+  const { rows } = await db.pool.query(query);
+  return rows[0];
+};
+
 module.exports = {
   getRequests,
   getRequestById,
   createRequest,
   updateRequestStatus,
-  fulfillItem
+  fulfillItem,
+  getHrMetrics
 };

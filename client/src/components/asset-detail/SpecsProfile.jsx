@@ -6,7 +6,7 @@ import { Copy, Check, Edit2, X, MapPin, DollarSign, Calendar, Tag, ShieldCheck }
 import toast from 'react-hot-toast';
 import { getWarrantyStatus } from '../../utils/formatters';
 
-export default function SpecsProfile({ asset, onUpdateAssetData }) {
+export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(asset?.notes || '');
   const [warrantyValue, setWarrantyValue] = useState(asset?.warrantyExpiryDate || '');
@@ -142,7 +142,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData }) {
           <span className="text-xs font-semibold text-secondary uppercase tracking-wider">
             Operational & Audit Notes
           </span>
-          {!isEditingNotes && asset.status !== 'retired' && (
+          {!isEditingNotes && asset.status !== 'retired' && !readOnly && (
             <button
               type="button"
               onClick={() => {

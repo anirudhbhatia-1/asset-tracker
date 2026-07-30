@@ -8,10 +8,10 @@ const { validateSession, requireRole } = require('../middleware/validateSession'
 
 const router = express.Router();
 
-router.use(validateSession, requireRole('admin'));
+router.use(validateSession);
 
 // GET /api/assets — list assets with optional filters
-router.get('/', async (req, res, next) => {
+router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
   try {
     const assets = await assetService.getAssets(req.query);
     res.status(200).json({
@@ -26,6 +26,7 @@ router.get('/', async (req, res, next) => {
 
 // GET /api/assets/:id — get single asset with history
 router.get('/:id', [
+  requireRole('admin', 'hr', 'employee'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -42,6 +43,7 @@ router.get('/:id', [
 
 // GET /api/assets/:id/history — get full history for one asset
 router.get('/:id/history', [
+  requireRole('admin', 'hr', 'employee'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -61,6 +63,7 @@ router.get('/:id/history', [
 
 // POST /api/assets — create asset
 router.post('/', [
+  requireRole('admin'),
   body('name').notEmpty().withMessage('Asset name is required').trim().isLength({ max: 150 }),
   body('serialNumber').notEmpty().withMessage('Serial number is required').trim().isLength({ max: 100 }),
   body('categoryId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
@@ -88,6 +91,7 @@ router.post('/', [
 
 // PUT /api/assets/:id — update asset
 router.put('/:id', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 150 }),
   body('serialNumber').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 100 }),
@@ -113,6 +117,7 @@ router.put('/:id', [
 
 // DELETE /api/assets/:id — delete asset (requires confirm: true)
 router.delete('/:id', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -129,6 +134,7 @@ router.delete('/:id', [
 
 // POST /api/assets/:id/assign — assign asset to employee
 router.post('/:id/assign', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('employeeId').notEmpty().withMessage('employeeId is required').isInt({ min: 1 }),
   body('assignedDate').optional().isISO8601().withMessage('Must be valid ISO date'),
@@ -154,6 +160,7 @@ router.post('/:id/assign', [
 
 // POST /api/assets/:id/return — return asset to stock
 router.post('/:id/return', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('note').optional().isString().trim().isLength({ max: 500 }),
   validateRequest,
@@ -171,6 +178,7 @@ router.post('/:id/return', [
 
 // POST /api/assets/:id/retire — retire asset (requires confirm: true)
 router.post('/:id/retire', [
+  requireRole('admin'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('note').optional().isString().trim().isLength({ max: 500 }),
   validateRequest,

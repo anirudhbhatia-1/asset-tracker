@@ -97,17 +97,33 @@ router.patch('/:id/transfer', [
   }
 });
 
-// PATCH /api/tickets/:id/confirm — employee confirms or reopens a resolved ticket
-router.patch('/:id/confirm', [
+// PATCH /api/tickets/:id/confirm-close — employee confirms a resolved ticket
+router.patch('/:id/confirm-close', [
   requireRole('employee'),
-  body('action').isIn(['confirm', 'reopen']).withMessage('Invalid action'),
   validateRequest
 ], async (req, res, next) => {
   try {
-    const ticket = await ticketService.confirmTicket(req.params.id, req.user, req.body.action);
+    const ticket = await ticketService.confirmTicket(req.params.id, req.user, 'confirm');
     res.status(200).json({
       data: ticket,
-      message: 'Ticket confirmation updated successfully'
+      message: 'Ticket closed successfully'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/tickets/:id/reopen — employee reopens a resolved ticket
+router.patch('/:id/reopen', [
+  requireRole('employee'),
+  body('note').optional({ nullable: true }).isString().trim(),
+  validateRequest
+], async (req, res, next) => {
+  try {
+    const ticket = await ticketService.confirmTicket(req.params.id, req.user, 'reopen', req.body.note);
+    res.status(200).json({
+      data: ticket,
+      message: 'Ticket reopened successfully'
     });
   } catch (err) {
     next(err);

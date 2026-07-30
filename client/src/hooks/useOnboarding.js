@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 
 export const useOnboarding = () => {
   const [requests, setRequests] = useState([]);
+  const [hrMetrics, setHrMetrics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -18,6 +19,15 @@ export const useOnboarding = () => {
       toast.error('Could not load onboarding requests');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const fetchHrMetrics = useCallback(async () => {
+    try {
+      const data = await onboardingApi.getHrMetrics();
+      setHrMetrics(data);
+    } catch (err) {
+      console.error('Failed to load HR metrics', err);
     }
   }, []);
 
@@ -73,9 +83,11 @@ export const useOnboarding = () => {
 
   return {
     requests,
+    hrMetrics,
     loading,
     error,
     fetchRequests,
+    fetchHrMetrics,
     createRequest,
     updateStatus,
     fulfillItem,

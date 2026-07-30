@@ -9,5 +9,7 @@ export const onboardingApi = {
   
   updateStatus: (id, status) => api.put(`/onboarding/${id}/status`, { status }).then(res => res.data.data),
   
-  fulfillItem: (id, itemId, assetId) => api.patch(`/onboarding/${id}/items/${itemId}/fulfill`, { assetId }).then(res => res.data.data)
+  fulfillItem: (id, itemId, assetId) => api.patch(`/onboarding/${id}/items/${itemId}/fulfill`, { assetId }).then(res => res.data.data),
+  
+  getHrMetrics: () => api.get('/onboarding/hr-metrics').then(res => res.data.data)
 };

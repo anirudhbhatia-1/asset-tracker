@@ -4,9 +4,9 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    // Default to dark on first visit, per requirements
+    // Default to light on first visit
     const stored = localStorage.getItem('assettrack-theme');
-    return stored === 'light' ? 'light' : 'dark';
+    return stored === 'dark' ? 'dark' : 'light';
   });
 
   useEffect(() => {

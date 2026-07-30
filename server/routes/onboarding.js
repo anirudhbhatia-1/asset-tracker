@@ -22,6 +22,19 @@ router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
   }
 });
 
+// GET /api/onboarding/hr-metrics
+router.get('/hr-metrics', requireRole('hr'), async (req, res, next) => {
+  try {
+    const metrics = await onboardingService.getHrMetrics();
+    res.status(200).json({
+      data: metrics,
+      message: 'OK'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/onboarding/:id
 router.get('/:id', [
   requireRole('admin', 'hr'),

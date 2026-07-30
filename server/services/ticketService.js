@@ -2,7 +2,15 @@ const db = require('../db');
 const assetService = require('./assetService');
 
 const getTickets = async (user, filters = {}) => {
-  let query = 'SELECT t.*, c.name as category_name, a.name as asset_name FROM tickets t LEFT JOIN categories c ON t.category_id = c.id LEFT JOIN assets a ON t.asset_id = a.id';
+  let query = `
+    SELECT t.*, 
+           c.name as category_name, 
+           a.name as asset_name,
+           'TK-' || LPAD(t.id::text, 4, '0') as human_readable_id
+    FROM tickets t 
+    LEFT JOIN categories c ON t.category_id = c.id 
+    LEFT JOIN assets a ON t.asset_id = a.id
+  `;
   let params = [];
   let conditions = [];
 
@@ -156,7 +164,7 @@ const transferTicket = async (id, targetAdminType, note, adminUser) => {
   return rows[0];
 };
 
-const confirmTicket = async (id, employeeUser, action) => {
+const confirmTicket = async (id, employeeUser, action, note) => {
   const { rows: currentRows } = await db.pool.query('SELECT * FROM tickets WHERE id = $1', [id]);
   if (currentRows.length === 0) {
     const err = new Error('Ticket not found');
@@ -186,10 +194,14 @@ const confirmTicket = async (id, employeeUser, action) => {
     [newStatus, id]
   );
   
+  const historyNote = action === 'confirm' 
+    ? 'Employee confirmed resolution.' 
+    : (note || 'Employee reopened ticket.');
+
   await db.pool.query(
     `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note) 
      VALUES ($1, $2, $3, $4)`,
-    [id, eventType, employeeUser.id, action === 'confirm' ? 'Employee confirmed resolution.' : 'Employee reopened ticket.']
+    [id, eventType, employeeUser.id, historyNote]
   );
   
   return rows[0];
