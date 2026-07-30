@@ -18,7 +18,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const { notifications, loading: notifLoading, hasUnread } = useNotifications();
+  const { notifications, loading: notifLoading, hasUnread, refresh, markAsRead } = useNotifications();
 
   // Close user menu on outside click
   useEffect(() => {
@@ -155,7 +155,14 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
             <div className="relative hidden sm:block">
               <button
                 id="notification-bell"
-                onClick={() => setIsNotificationPanelOpen((prev) => !prev)}
+                onClick={() => {
+                  const newState = !isNotificationPanelOpen;
+                  setIsNotificationPanelOpen(newState);
+                  if (newState) {
+                    refresh();
+                    markAsRead();
+                  }
+                }}
                 className="flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative"
                 aria-label="View notifications"
               >

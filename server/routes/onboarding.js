@@ -62,6 +62,7 @@ router.post('/', [
   body('newHireEmail').optional({ nullable: true, checkFalsy: true }).isEmail(),
   body('department').optional({ nullable: true, checkFalsy: true }).isString(),
   body('location').optional({ nullable: true, checkFalsy: true }).isString(),
+  body('address').optional({ nullable: true, checkFalsy: true }).isString(),
   body('joiningDate').isISO8601().withMessage('Valid date required'),
   body('notes').optional({ nullable: true, checkFalsy: true }).isString(),
   body('items').optional().isArray(),
@@ -75,6 +76,42 @@ router.post('/', [
     res.status(201).json({
       data: request,
       message: 'Onboarding request created'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/onboarding/:id — update existing pending request
+router.put('/:id', [
+  requireRole('admin', 'hr'),
+  param('id').isInt({ min: 1 }),
+  body('newHireName').notEmpty().withMessage('Name is required').trim(),
+  body('newHireEmail').optional({ nullable: true, checkFalsy: true }).isEmail(),
+  body('department').optional({ nullable: true, checkFalsy: true }).isString(),
+  body('location').optional({ nullable: true, checkFalsy: true }).isString(),
+  body('address').optional({ nullable: true, checkFalsy: true }).isString(),
+  body('joiningDate').isISO8601().withMessage('Valid date required'),
+  body('notes').optional({ nullable: true, checkFalsy: true }).isString(),
+  body('items').optional().isArray(),
+  body('items.*.categoryId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
+  body('items.*.quantity').optional().isInt({ min: 1 }),
+  body('items.*.notes').optional().isString(),
+  validateRequest
+], async (req, res, next) => {
+  try {
+    const existing = await onboardingService.getRequestById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: true, message: 'Request not found', code: 404 });
+    }
+    if (existing.status !== 'pending' && existing.status !== 'in_progress') {
+      return res.status(400).json({ error: true, message: 'Only pending requests can be edited', code: 400 });
+    }
+    
+    const request = await onboardingService.updateRequestDetails(req.params.id, req.body);
+    res.status(200).json({
+      data: request,
+      message: 'Onboarding request updated'
     });
   } catch (err) {
     next(err);
@@ -111,7 +148,7 @@ router.patch('/:id/items/:itemId/fulfill', [
   validateRequest
 ], async (req, res, next) => {
   try {
-    const item = await onboardingService.fulfillItem(req.params.id, req.params.itemId, req.body.assetId || null);
+    const item = await onboardingService.fulfillItem(Number(req.params.id), Number(req.params.itemId), req.body.assetId || null);
     if (!item) {
       return res.status(404).json({ error: true, message: 'Item not found in this request', code: 404 });
     }

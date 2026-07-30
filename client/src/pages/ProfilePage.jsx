@@ -81,7 +81,7 @@ export default function ProfilePage() {
             <InfoRow icon={User} label="Name" value={profile?.name || '—'} />
             <InfoRow icon={Mail} label="Email" value={profile?.email || '—'} />
             <InfoRow icon={Building2} label="Department" value={profile?.department || '—'} />
-            <InfoRow icon={MapPin} label="Location" value={profile?.location || '—'} />
+            <InfoRow icon={MapPin} label="Location" value={profile?.address ? `${profile.location} (${profile.address})` : (profile?.location || '—')} />
             <InfoRow icon={ShieldCheck} label="Role" value={profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : '—'} />
             <InfoRow
               icon={Calendar}

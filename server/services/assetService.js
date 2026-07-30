@@ -14,6 +14,7 @@ const mapAsset = (row) => {
     serialNumber: row.serial_number,
     status: row.status,
     location: row.location || null,
+    address: row.address || null,
     costCents: row.cost_cents !== undefined ? Number(row.cost_cents) : 0,
     purchaseDate: row.purchase_date || null,
     notes: row.notes || null,
@@ -141,7 +142,7 @@ const getAssetBySerial = async (serialNumber) => {
 const createAsset = async (data, actorUser = null) => {
   const {
     name, categoryId, model, serialNumber, status = 'available',
-    location, costCents = 0, purchaseDate, notes, warrantyExpiryDate, assignedTo, assignedDate
+    location, address, costCents = 0, purchaseDate, notes, warrantyExpiryDate, assignedTo, assignedDate
   } = data;
 
   const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1', [serialNumber]);
@@ -178,12 +179,12 @@ const createAsset = async (data, actorUser = null) => {
 
   const newAssetId = await withTransaction(async (client) => {
     const result = await client.query(`
-      INSERT INTO assets (name, category_id, model, serial_number, status, location, cost_cents, purchase_date, notes, warranty_expiry_date, assigned_to, assigned_date, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+      INSERT INTO assets (name, category_id, model, serial_number, status, location, address, cost_cents, purchase_date, notes, warranty_expiry_date, assigned_to, assigned_date, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
       RETURNING id
     `, [
       name, categoryId || null, model || null, serialNumber, status,
-      location || null, Number(costCents), purchaseDate || null, notes || null,
+      location || null, address || null, Number(costCents), purchaseDate || null, notes || null,
       warrantyExpiryDate || null, finalAssignedTo, finalAssignedDate
     ]);
 
@@ -210,7 +211,7 @@ const updateAsset = async (id, data, actorUser = null) => {
   }
 
   const {
-    name, categoryId, model, serialNumber, location, costCents, purchaseDate, notes, warrantyExpiryDate
+    name, categoryId, model, serialNumber, location, address, costCents, purchaseDate, notes, warrantyExpiryDate
   } = data;
 
   if (serialNumber && serialNumber !== current.serialNumber) {
@@ -230,18 +231,20 @@ const updateAsset = async (id, data, actorUser = null) => {
           model = $3,
           serial_number = $4,
           location = $5,
-          cost_cents = $6,
-          purchase_date = $7,
-          notes = $8,
-          warranty_expiry_date = $9,
+          address = $6,
+          cost_cents = $7,
+          purchase_date = $8,
+          notes = $9,
+          warranty_expiry_date = $10,
           updated_at = NOW()
-      WHERE id = $10
+      WHERE id = $11
     `, [
       name !== undefined ? name : current.name,
       categoryId !== undefined ? (categoryId ? Number(categoryId) : null) : current.categoryId,
       model !== undefined ? model : current.model,
       serialNumber !== undefined ? serialNumber : current.serialNumber,
       location !== undefined ? location : current.location,
+      address !== undefined ? address : current.address,
       costCents !== undefined ? Number(costCents) : current.costCents,
       purchaseDate !== undefined ? purchaseDate : current.purchaseDate,
       notes !== undefined ? notes : current.notes,

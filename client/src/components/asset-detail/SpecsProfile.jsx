@@ -95,7 +95,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
           </div>
           <div>
             <span className="text-xs font-semibold text-secondary uppercase tracking-wider block">Office Location</span>
-            <span className="text-primary font-medium">{asset.location || 'Not specified'}</span>
+            <span className="text-primary font-medium">{asset.address ? `${asset.location} (${asset.address})` : (asset.location || 'Not specified')}</span>
           </div>
         </div>
 

@@ -123,7 +123,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
           {employee.location && (
             <span className="inline-flex items-center gap-1 text-secondary shrink-0">
               <MapPin className="w-3.5 h-3.5 text-secondary shrink-0" />
-              <span>{employee.location}</span>
+              <span>{employee.address ? `${employee.location} (${employee.address})` : employee.location}</span>
             </span>
           )}
         </div>

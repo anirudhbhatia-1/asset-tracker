@@ -7,6 +7,7 @@ import { generateUniqueSerial } from '../../utils/serialGenerator';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import useScanner from '../../hooks/useScanner';
+import useLocations from '../../hooks/useLocations';
 import WebcamFeed from '../scanner/WebcamFeed';
 import LaserViewfinder from '../scanner/LaserViewfinder';
 import SerialSimulator from '../scanner/SerialSimulator';
@@ -14,18 +15,18 @@ import { scanSerial } from '../../api/assetsApi';
 import { Wand2, Plus, ArrowLeft, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const OFFICE_LOCATIONS = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
-
 export default function AddAssetForm({ initialData, isEdit = false, onSaveSuccess }) {
   const navigate = useNavigate();
   const { categories, loading: categoriesLoading } = useCategories();
   const { employees, loading: employeesLoading } = useEmployees();
+  const { locations, loading: locationsLoading } = useLocations();
 
   // Form fields
   const [name, setName] = useState(initialData?.name || '');
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || '');
   const [model, setModel] = useState(initialData?.model || '');
-  const [location, setLocation] = useState(initialData?.location || 'Bangalore');
+  const [location, setLocation] = useState(initialData?.location || '');
+  const [address, setAddress] = useState(initialData?.address || '');
   const [costString, setCostString] = useState(
     initialData?.costCents ? (initialData.costCents / 100).toFixed(2) : ''
   );
@@ -148,6 +149,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         categoryId: Number(categoryId),
         model: model.trim() || null,
         location: location.trim() || undefined,
+        address: address.trim() || undefined,
         purchaseDate: purchaseDate || undefined,
         warrantyExpiryDate: warrantyExpiryDate || undefined,
         costCents: costCents || undefined,
@@ -293,9 +295,9 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
             >
               <option value="">Select location...</option>
-              {OFFICE_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc} Office
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.name}>
+                  {loc.name}
                 </option>
               ))}
             </select>
@@ -306,6 +308,34 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               </p>
             )}
           </div>
+
+          {/* Address Dropdown */}
+          {location && (() => {
+            const selectedLoc = locations.find(l => l.name === location);
+            const addrs = selectedLoc?.addresses ? (Array.isArray(selectedLoc.addresses) ? selectedLoc.addresses : JSON.parse(selectedLoc.addresses)) : [];
+            if (addrs.length === 0) return null;
+            return (
+              <div>
+                <label htmlFor="address" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Office Address</span>
+                </label>
+                <select
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+                >
+                  <option value="">Select address...</option>
+                  {addrs.map((addr, idx) => (
+                    <option key={idx} value={addr}>
+                      {addr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })()}
 
           {/* Model / Specs */}
           <div>

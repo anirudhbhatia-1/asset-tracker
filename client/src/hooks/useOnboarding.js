@@ -44,6 +44,19 @@ export const useOnboarding = () => {
     }
   };
 
+  const updateRequestDetails = async (id, data) => {
+    try {
+      const updatedReq = await onboardingApi.updateRequest(id, data);
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, ...updatedReq } : r));
+      toast.success('Onboarding request updated');
+      return updatedReq;
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to update request';
+      toast.error(message);
+      throw err;
+    }
+  };
+
   const updateStatus = async (id, status) => {
     try {
       const updatedReq = await onboardingApi.updateStatus(id, status);
@@ -89,6 +102,7 @@ export const useOnboarding = () => {
     fetchRequests,
     fetchHrMetrics,
     createRequest,
+    updateRequestDetails,
     updateStatus,
     fulfillItem,
     getRequestDetails

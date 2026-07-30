@@ -302,3 +302,23 @@ It shows, live:
 **Prepared by:** Design / Frontend Lead
 **Review requested from:** Product, Engineering Lead, IT Admin persona
 **Next step:** Sign off on tokens (§2) and component library (§4) before Phase 1, Week 1 Tailwind config is written (Phases §3, Week 1).
+
+### 8. Forms and Modals
+#### New Onboarding Request Modal
+- **Purpose**: Allow HR to request IT setup for a new hire.
+- **Trigger**: "New Hire" button on HR Dashboard.
+- **Fields**:
+  - `New Hire Name`: Text input (Required).
+  - `Department`: Select dropdown populated via `GET /api/employees/departments` (live data).
+  - `Location`: Select dropdown (fixed list: Bangalore, Mumbai, Delhi, Hyderabad).
+  - `Joining Date`: Date picker (Required).
+- **Hardware Requirements**:
+  - Dynamic list of requested items.
+  - `Category`: Select dropdown (live from `categories` table).
+  - `Quantity`: Number input.
+
+#### Edit Onboarding Request Modal
+- **Purpose**: Allow HR/Admin to edit an existing pending onboarding request.
+- **Trigger**: "Edit Request" button on HR Dashboard.
+- **Fields**: Mirrors New Onboarding Request.
+- **Action**: "Save Changes" (PUT to `/api/onboarding/:id`).

@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { User, Mail, Building2, MapPin, UserPlus } from 'lucide-react';
+import useLocations from '../../hooks/useLocations';
 
 const DEPARTMENTS = ['Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing', 'Sales'];
-const OFFICE_LOCATIONS = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
 
 export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
+  const { locations } = useLocations();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [department, setDepartment] = useState('');
   const [location, setLocation] = useState('');
+  const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   
@@ -24,6 +26,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
       setEmail('');
       setDepartment('');
       setLocation('');
+      setAddress('');
       setError('');
       setGrantAccess(false);
       setRole('employee');
@@ -46,6 +49,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
         email: email.trim().toLowerCase(),
         department,
         location,
+        address,
         grantAccess,
         role: grantAccess ? role : undefined,
       });
@@ -157,14 +161,41 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
               onChange={(e) => setLocation(e.target.value)}
               className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
             >
-              {OFFICE_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
+              <option value="">Select location...</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.name}>
+                  {loc.name}
                 </option>
               ))}
             </select>
           </div>
         </div>
+
+        {location && (() => {
+          const selectedLoc = locations.find(l => l.name === location);
+          const addrs = selectedLoc?.addresses ? (Array.isArray(selectedLoc.addresses) ? selectedLoc.addresses : JSON.parse(selectedLoc.addresses)) : [];
+          if (addrs.length === 0) return null;
+          return (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-accent" />
+                <span>Office Address</span>
+              </label>
+              <select
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+              >
+                <option value="">Select address...</option>
+                {addrs.map((addr, idx) => (
+                  <option key={idx} value={addr}>
+                    {addr}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })()}
 
         {/* Grant Login Access Toggle */}
         <div className="pt-2 border-t border-border">

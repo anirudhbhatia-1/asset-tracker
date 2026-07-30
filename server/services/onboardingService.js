@@ -44,7 +44,7 @@ const getRequestById = async (id) => {
 };
 
 const createRequest = async (user, payload) => {
-  const { newHireName, newHireEmail, department, location, joiningDate, notes, items } = payload;
+  const { newHireName, newHireEmail, department, location, address, joiningDate, notes, items } = payload;
   
   const client = await db.pool.connect();
   try {
@@ -52,9 +52,9 @@ const createRequest = async (user, payload) => {
     
     const { rows } = await client.query(
       `INSERT INTO onboarding_requests 
-       (requested_by, new_hire_name, new_hire_email, department, location, joining_date, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [user.id, newHireName, newHireEmail || null, department || null, location || null, joiningDate, notes || null]
+       (requested_by, new_hire_name, new_hire_email, department, location, address, joining_date, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [user.id, newHireName, newHireEmail || null, department || null, location || null, address || null, joiningDate, notes || null]
     );
     const request = rows[0];
 
@@ -70,6 +70,43 @@ const createRequest = async (user, payload) => {
 
     await client.query('COMMIT');
     return getRequestById(request.id);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+const updateRequestDetails = async (id, payload) => {
+  const { newHireName, newHireEmail, department, location, address, joiningDate, notes, items } = payload;
+  
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    await client.query(
+      `UPDATE onboarding_requests 
+       SET new_hire_name = $1, new_hire_email = $2, department = $3, 
+           location = $4, address = $5, joining_date = $6, notes = $7, updated_at = NOW()
+       WHERE id = $8`,
+      [newHireName, newHireEmail || null, department || null, location || null, address || null, joiningDate, notes || null, id]
+    );
+
+    await client.query(`DELETE FROM onboarding_request_items WHERE onboarding_request_id = $1`, [id]);
+
+    if (items && items.length > 0) {
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO onboarding_request_items (onboarding_request_id, category_id, quantity, notes)
+           VALUES ($1, $2, $3, $4)`,
+          [id, item.categoryId, item.quantity || 1, item.notes || null]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    return getRequestById(id);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -142,6 +179,7 @@ module.exports = {
   getRequests,
   getRequestById,
   createRequest,
+  updateRequestDetails,
   updateRequestStatus,
   fulfillItem,
   getHrMetrics

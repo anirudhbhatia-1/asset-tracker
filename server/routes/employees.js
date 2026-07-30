@@ -23,6 +23,16 @@ router.get('/', requireRole('admin'), async (req, res, next) => {
   }
 });
 
+// GET /api/employees/departments — list distinct departments
+router.get('/departments', requireRole('admin', 'hr'), async (req, res, next) => {
+  try {
+    const departments = await employeeService.getDepartments();
+    res.status(200).json({ data: departments, message: 'OK' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/employees/me — returns the logged-in user's own profile (all roles)
 router.get('/me', async (req, res, next) => {
   try {
@@ -78,6 +88,7 @@ router.post('/', [
   body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Must be a valid email').normalizeEmail(),
   body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('address').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
   body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL().withMessage('Must be a valid URL'),
   // Optional: grant login access at creation time
   body('grantAccess').optional().isBoolean(),
@@ -120,6 +131,7 @@ router.put('/:id', [
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Must be a valid email').normalizeEmail(),
   body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('address').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
   body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL(),
   validateRequest,
 ], async (req, res, next) => {

@@ -7,6 +7,8 @@ export const onboardingApi = {
   
   create: (data) => api.post('/onboarding', data).then(res => res.data.data),
   
+  updateRequest: (id, data) => api.put(`/onboarding/${id}`, data).then(res => res.data.data),
+  
   updateStatus: (id, status) => api.put(`/onboarding/${id}/status`, { status }).then(res => res.data.data),
   
   fulfillItem: (id, itemId, assetId) => api.patch(`/onboarding/${id}/items/${itemId}/fulfill`, { assetId }).then(res => res.data.data),

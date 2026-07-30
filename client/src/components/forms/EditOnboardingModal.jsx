@@ -4,7 +4,7 @@ import { getCategories } from '../../api/categoriesApi';
 import { getDepartments } from '../../api/employeesApi';
 import useLocations from '../../hooks/useLocations';
 
-const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
+const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
   const { locations } = useLocations();
   const [newHireName, setNewHireName] = useState('');
   const [newHireEmail, setNewHireEmail] = useState('');
@@ -22,7 +22,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && request) {
       const fetchData = async () => {
         setLoadingContext(true);
         try {
@@ -42,10 +42,19 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
       };
       fetchData();
       
-      // Default to tomorrow for joining date
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      setJoiningDate(tomorrow.toISOString().split('T')[0]);
+      setNewHireName(request.new_hire_name || '');
+      setNewHireEmail(request.new_hire_email || '');
+      setDepartment(request.department || '');
+      setLocation(request.location || '');
+      setAddress(request.address || '');
+      setJoiningDate(request.joining_date ? new Date(request.joining_date).toISOString().split('T')[0] : '');
+      setNotes(request.notes || '');
+      
+      if (request.items && request.items.length > 0) {
+        setItems(request.items.map(i => ({ categoryId: i.category_id, quantity: i.quantity, notes: i.notes || '' })));
+      } else {
+        setItems([]);
+      }
     } else {
       setNewHireName('');
       setNewHireEmail('');
@@ -56,7 +65,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
       setNotes('');
       setItems([]);
     }
-  }, [isOpen]);
+  }, [isOpen, request]);
 
   if (!isOpen) return null;
 
@@ -99,7 +108,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
     };
 
     try {
-      await onSubmit(payload);
+      await onUpdate(request.id, payload);
       onClose();
     } catch (err) {
       // Error handled by hook
@@ -114,7 +123,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
       
       <div className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
-          <h2 className="text-lg font-semibold text-primary">New Onboarding Request</h2>
+          <h2 className="text-lg font-semibold text-primary">Edit Onboarding Request</h2>
           <button onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -305,13 +314,13 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
             Cancel
           </button>
           <button
-            form="onboarding-form"
             type="submit"
-            disabled={submitting || !newHireName.trim() || !joiningDate}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+            form="onboarding-form"
+            disabled={submitting}
+            className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Submit Request
+            Save Changes
           </button>
         </div>
       </div>
@@ -319,4 +328,4 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   );
 };
 
-export default CreateOnboardingModal;
+export default EditOnboardingModal;

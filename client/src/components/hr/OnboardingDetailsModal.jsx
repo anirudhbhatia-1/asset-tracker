@@ -137,7 +137,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                 </div>
                 <div>
                   <div className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Location</div>
-                  <div className="text-sm text-primary">{fullData.location || '—'}</div>
+                  <div className="text-sm text-primary">{fullData.address ? `${fullData.location} (${fullData.address})` : (fullData.location || '—')}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Joining Date</div>
@@ -190,8 +190,8 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                                   className="w-full sm:w-48 px-2 py-1.5 bg-surface border border-border rounded-md text-xs text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                                 >
                                   <option value="">Select Asset...</option>
-                                  {assets.filter(a => a.category_id === item.category_id).map(a => (
-                                    <option key={a.id} value={a.id}>{a.name} ({a.serial_number})</option>
+                                  {assets.filter(a => a.categoryId === item.category_id).map(a => (
+                                    <option key={a.id} value={a.id}>{a.name} ({a.serialNumber || a.serial_number})</option>
                                   ))}
                                 </select>
                                 <button

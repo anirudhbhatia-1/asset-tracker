@@ -1,7 +1,8 @@
 import React from 'react';
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
-import { Settings as SettingsIcon, Tags, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, Tags, Globe, MapPin } from 'lucide-react';
 import CategoriesTab from '../components/categories/CategoriesTab';
+import LocationsTab from '../components/settings/LocationsTab';
 
 const Settings = () => {
   const location = useLocation();
@@ -9,6 +10,7 @@ const Settings = () => {
   const tabs = [
     { name: 'Google Workspace', path: '/settings/google', icon: Globe },
     { name: 'Categories', path: '/settings/categories', icon: Tags },
+    { name: 'Locations', path: '/settings/locations', icon: MapPin },
   ];
 
   return (
@@ -19,7 +21,7 @@ const Settings = () => {
           System Settings
         </h2>
         <p className="text-sm text-secondary mt-1">
-          Manage integrations, categories, and application preferences.
+          Manage integrations, categories, locations, and application preferences.
         </p>
       </div>
 
@@ -60,6 +62,7 @@ const Settings = () => {
             </div>
           } />
           <Route path="categories" element={<CategoriesTab />} />
+          <Route path="locations" element={<LocationsTab />} />
           <Route path="*" element={<Navigate to="google" replace />} />
         </Routes>
       </div>

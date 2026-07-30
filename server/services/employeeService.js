@@ -8,6 +8,7 @@ const mapEmployee = (row) => {
     email: row.email,
     department: row.department || null,
     location: row.location || null,
+    address: row.address || null,
     googleId: row.google_id || null,
     avatarUrl: row.avatar_url || null,
     isGoogleSynced: Boolean(row.is_google_synced),
@@ -70,7 +71,7 @@ const getEmployees = async (filters = {}) => {
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `
-    SELECT e.id, e.name, e.email, e.department, e.location, e.google_id,
+    SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
@@ -87,7 +88,7 @@ const getEmployees = async (filters = {}) => {
 
 const getEmployeeById = async (id) => {
   const result = await pool.query(`
-    SELECT e.id, e.name, e.email, e.department, e.location, e.google_id,
+    SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
@@ -105,6 +106,16 @@ const getEmployeeById = async (id) => {
   return mapEmployee(result.rows[0]);
 };
 
+const getDepartments = async () => {
+  const result = await pool.query(`
+    SELECT DISTINCT department
+    FROM employees
+    WHERE department IS NOT NULL AND department != ''
+    ORDER BY department ASC
+  `);
+  return result.rows.map(row => row.department);
+};
+
 const getEmployeeAssets = async (id) => {
   await getEmployeeById(id);
 
@@ -120,7 +131,7 @@ const getEmployeeAssets = async (id) => {
 };
 
 const createEmployee = async (data) => {
-  const { name, email, department, location, googleId, avatarUrl } = data;
+  const { name, email, department, location, address, googleId, avatarUrl } = data;
 
   const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
   if (existing.rows.length > 0) {
@@ -130,10 +141,10 @@ const createEmployee = async (data) => {
   }
 
   const result = await pool.query(`
-    INSERT INTO employees (name, email, department, location, google_id, avatar_url, is_google_synced, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, 0, NOW())
+    INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 0, NOW())
     RETURNING id
-  `, [name, email, department ?? null, location ?? null, googleId ?? null, avatarUrl ?? null]);
+  `, [name, email, department ?? null, location ?? null, address ?? null, googleId ?? null, avatarUrl ?? null]);
 
   return getEmployeeById(result.rows[0].id);
 };
@@ -146,7 +157,7 @@ const createEmployee = async (data) => {
 const createEmployeeWithAccess = async (data) => {
   const bcrypt = require('bcrypt');
   const crypto = require('crypto');
-  const { name, email, department, location, role } = data;
+  const { name, email, department, location, address, role } = data;
   
   // Check duplicate before starting transaction
   const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
@@ -160,10 +171,10 @@ const createEmployeeWithAccess = async (data) => {
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
   
   const result = await pool.query(`
-    INSERT INTO employees (name, email, department, location, google_id, avatar_url, is_google_synced, password_hash, role, created_at)
-    VALUES ($1, $2, $3, $4, NULL, NULL, 0, $5, $6, NOW())
+    INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, password_hash, role, created_at)
+    VALUES ($1, $2, $3, $4, $5, NULL, NULL, 0, $6, $7, NOW())
     RETURNING id
-  `, [name, email, department ?? null, location ?? null, passwordHash, role]);
+  `, [name, email, department ?? null, location ?? null, address ?? null, passwordHash, role]);
   
   const employee = await getEmployeeById(result.rows[0].id);
   return { employee, temporaryPassword };
@@ -171,7 +182,7 @@ const createEmployeeWithAccess = async (data) => {
 
 const updateEmployee = async (id, data) => {
   const current = await getEmployeeById(id);
-  const { name, email, department, location, avatarUrl } = data;
+  const { name, email, department, location, address, avatarUrl } = data;
 
   if (email && email !== current.email) {
     const existing = await pool.query('SELECT id FROM employees WHERE email = $1 AND id != $2', [email, id]);
@@ -188,13 +199,15 @@ const updateEmployee = async (id, data) => {
         email = $2,
         department = $3,
         location = $4,
-        avatar_url = $5
-    WHERE id = $6
+        address = $5,
+        avatar_url = $6
+    WHERE id = $7
   `, [
     name !== undefined ? name : current.name,
     email !== undefined ? email : current.email,
     department !== undefined ? department : current.department,
     location !== undefined ? location : current.location,
+    address !== undefined ? address : current.address,
     avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
     id
   ]);
@@ -268,6 +281,7 @@ module.exports = {
   getEmployees,
   getEmployeeById,
   getEmployeeAssets,
+  getDepartments,
   createEmployee,
   createEmployeeWithAccess,
   updateEmployee,

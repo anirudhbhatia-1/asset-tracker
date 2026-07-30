@@ -4,7 +4,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { pool } = require('./db');
 
 async function migrate() {
-  const sqlPath = path.join(__dirname, '..', 'supabase', 'migrations', '20260728150000_it_hardware_admin_queues.sql');
+  const sqlPath = path.join(__dirname, '..', 'supabase', 'migrations', '20260731000002_add_address_columns.sql');
   const sql = fs.readFileSync(sqlPath, 'utf8');
   
   try {

@@ -1,19 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { getNotifications } from '../api/notificationsApi';
-
-const POLL_INTERVAL_MS = 30000; // 30 seconds
 
 export default function useNotifications() {
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const intervalRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchNotifications = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await getNotifications();
-      setNotifications(res.data?.data || []);
+      const fetchedNotifications = res.data?.data || [];
+      setNotifications(fetchedNotifications);
+      
+      const lastRead = localStorage.getItem('last_notification_read_at');
+      const lastReadTime = lastRead ? new Date(lastRead).getTime() : 0;
+      
+      const unread = fetchedNotifications.filter(n => new Date(n.createdAt).getTime() > lastReadTime);
+      setUnreadCount(unread.length);
     } catch (err) {
-      // Silently fail — don't show error UI for background polling
       console.error('Failed to fetch notifications:', err);
     } finally {
       setLoading(false);
@@ -22,15 +27,19 @@ export default function useNotifications() {
 
   useEffect(() => {
     fetchNotifications();
-    intervalRef.current = setInterval(fetchNotifications, POLL_INTERVAL_MS);
-    return () => clearInterval(intervalRef.current);
   }, [fetchNotifications]);
+
+  const markAsRead = useCallback(() => {
+    localStorage.setItem('last_notification_read_at', new Date().toISOString());
+    setUnreadCount(0);
+  }, []);
 
   return {
     notifications,
     loading,
     count: notifications.length,
-    hasUnread: notifications.length > 0,
+    hasUnread: unreadCount > 0,
     refresh: fetchNotifications,
+    markAsRead,
   };
 }

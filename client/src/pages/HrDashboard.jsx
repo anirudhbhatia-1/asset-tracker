@@ -7,6 +7,7 @@ import StatusPill from '../components/ui/StatusPill';
 import { Laptop, Users, Calendar, Plus, PackageX, Briefcase, Settings, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
+import EditOnboardingModal from '../components/forms/EditOnboardingModal';
 import OnboardingDetailsModal from '../components/hr/OnboardingDetailsModal';
 
 const OnboardingStatusBadge = ({ status }) => {
@@ -29,9 +30,11 @@ export default function HrDashboard() {
   const [assets, setAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
   
-  const { requests, hrMetrics, loading: requestsLoading, fetchRequests, fetchHrMetrics, createRequest, updateStatus, fulfillItem, getRequestDetails } = useOnboarding();
+  const { requests, hrMetrics, loading: requestsLoading, fetchRequests, fetchHrMetrics, createRequest, updateStatus, updateRequestDetails, fulfillItem, getRequestDetails } = useOnboarding();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [requestToEdit, setRequestToEdit] = useState(null);
   const [filter, setFilter] = useState('All');
 
   useEffect(() => {
@@ -53,8 +56,8 @@ export default function HrDashboard() {
   const recentRequests = requests
     .filter(req => req.requested_by === user?.id)
     .filter(req => {
-      if (filter === 'Pending') return req.status === 'pending' || req.status === 'in_progress';
-      if (filter === 'Completed') return req.status === 'arranged' || req.status === 'completed';
+      if (filter === 'Pending') return ['pending', 'in_progress', 'arranged'].includes(req.status);
+      if (filter === 'Completed') return req.status === 'completed';
       return true;
     })
     .sort((a, b) => new Date(a.joining_date) - new Date(b.joining_date));
@@ -121,7 +124,7 @@ export default function HrDashboard() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === f ? 'bg-primary text-base-100 border-primary' : 'bg-base text-secondary border-border hover:border-primary/30'}`}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === f ? 'bg-primary text-white border-primary' : 'bg-base text-secondary border-border hover:border-primary/30'}`}
               >
                 {f}
               </button>
@@ -161,7 +164,13 @@ export default function HrDashboard() {
                            View Items
                          </button>
                          {['pending', 'in_progress'].includes(req.status) && (
-                           <button className="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent text-xs font-medium rounded-lg transition-colors border border-accent/20">
+                           <button 
+                             onClick={() => {
+                               setRequestToEdit(req);
+                               setIsEditModalOpen(true);
+                             }}
+                             className="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent text-xs font-medium rounded-lg transition-colors border border-accent/20"
+                           >
                              Edit Request
                            </button>
                          )}
@@ -225,8 +234,24 @@ export default function HrDashboard() {
           </div>
         </div>
       </div>
-      <CreateOnboardingModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={createRequest} />
-      <OnboardingDetailsModal isOpen={!!selectedRequest} request={selectedRequest} onClose={() => setSelectedRequest(null)} getRequestDetails={getRequestDetails} onUpdateStatus={updateStatus} onFulfillItem={fulfillItem} />
+      <CreateOnboardingModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={createRequest}
+      />
+      
+      <EditOnboardingModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setRequestToEdit(null);
+        }}
+        onUpdate={updateRequestDetails}
+        request={requestToEdit}
+      />
+
+      <OnboardingDetailsModal
+        isOpen={!!selectedRequest} request={selectedRequest} onClose={() => setSelectedRequest(null)} getRequestDetails={getRequestDetails} onUpdateStatus={updateStatus} onFulfillItem={fulfillItem} />
     </div>
   );
 }

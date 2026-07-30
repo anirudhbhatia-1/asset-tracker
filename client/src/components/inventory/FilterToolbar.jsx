@@ -2,6 +2,8 @@ import React from 'react';
 import Badge from '../ui/Badge';
 import { Filter, X } from 'lucide-react';
 
+import useLocations from '../../hooks/useLocations';
+
 export default function FilterToolbar({
   categories = [],
   selectedCategoryId = 'all',
@@ -14,7 +16,7 @@ export default function FilterToolbar({
   onSelectWarranty,
   onClearFilters,
 }) {
-  const locations = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
+  const { locations } = useLocations();
   const hasActiveFilters = selectedCategoryId !== 'all' || selectedStatus !== 'all' || selectedLocation !== 'all' || selectedWarranty !== 'all';
   const safeCategories = Array.isArray(categories) ? categories : [];
 
@@ -93,8 +95,8 @@ export default function FilterToolbar({
             >
               <option value="all">All Locations</option>
               {locations.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
+                <option key={loc.id} value={loc.name}>
+                  {loc.name}
                 </option>
               ))}
             </select>
