@@ -70,7 +70,7 @@ const Login = () => {
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight mb-2 text-center">Welcome Back</h1>
           <p className="text-secondary text-sm text-center max-w-xs mx-auto leading-relaxed">
-            Sign in to ThinkVibes management system
+            Sign in to Thinkvibes management system
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">

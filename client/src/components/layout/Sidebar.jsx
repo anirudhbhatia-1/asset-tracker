@@ -55,7 +55,7 @@ const Sidebar = ({ isOpen = true }) => {
             {isOpen && (
               <div className="hidden md:block">
                 <span className="font-bold text-lg tracking-tight text-primary flex items-center gap-1.5">
-                  ThinkVibes
+                  Thinkvibes
                   <span className="w-2 h-2 rounded-full bg-accent animate-pulse inline-block" />
                 </span>
                 <span className="block text-[10px] text-secondary uppercase font-semibold tracking-wider -mt-1">
