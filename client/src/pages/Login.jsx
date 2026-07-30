@@ -65,11 +65,11 @@ const Login = () => {
       
       <div className="relative z-10 w-full max-w-md p-6 sm:p-8 bg-surface/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent mb-4 shadow-inner">
-            <ShieldCheck className="w-8 h-8" />
+          <div className="w-20 h-20 flex items-center justify-center mb-4">
+            <img src="/logo.png" alt="ThinkVibes Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-primary tracking-tight mb-2">Welcome Back</h1>
-          <p className="text-secondary text-sm text-center">Sign in to AssetTrack to manage your IT inventory.</p>
+          <p className="text-secondary text-sm text-center">Sign in to ThinkVibes management system</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">

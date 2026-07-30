@@ -49,7 +49,7 @@ export default function HrDashboard() {
   }, [fetchRequests]);
 
   const recentRequests = requests
-    .filter(req => req.requested_by_id === user?.id)
+    .filter(req => req.requested_by === user?.id)
     .sort((a, b) => new Date(a.joining_date) - new Date(b.joining_date))
     .slice(0, 5); // show most recent 5 on dashboard
 
@@ -101,7 +101,7 @@ export default function HrDashboard() {
                        </div>
                     </div>
                  ))}
-                 {requests.filter(req => req.requested_by_id === user?.id).length > 5 && (
+                 {requests.filter(req => req.requested_by === user?.id).length > 5 && (
                    <Link to="/onboarding" className="block text-center text-xs font-medium text-accent hover:underline mt-4">
                      View All Requests
                    </Link>

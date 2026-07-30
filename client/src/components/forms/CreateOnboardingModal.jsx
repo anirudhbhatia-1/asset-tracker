@@ -25,14 +25,19 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
       const fetchData = async () => {
         setLoadingContext(true);
         try {
-          const [catRes, empRes] = await Promise.all([getCategories(), getEmployees()]);
+          const catRes = await getCategories();
           setCategories(catRes.data?.data || catRes.data || []);
-          
+        } catch (err) {
+          console.error('Failed to load categories:', err);
+        }
+        try {
+          const empRes = await getEmployees();
           const emps = empRes.data?.data || empRes.data || [];
           const deps = new Set(emps.map(e => e.department).filter(Boolean));
           setDepartments(Array.from(deps).sort());
         } catch (err) {
-          console.error('Failed to load categories', err);
+          // HR role may not have access to the full employees list — silently ignore
+          console.warn('Could not load departments:', err.message);
         } finally {
           setLoadingContext(false);
         }
@@ -227,6 +232,11 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                             <option key={c.id} value={c.id}>{c.name}</option>
                           ))}
                         </select>
+                        {categories.length === 0 && !loadingContext && (
+                          <p className="text-xs text-warning mt-1">
+                            No categories available. Ask an admin to create asset categories first.
+                          </p>
+                        )}
                       </div>
                       <div className="w-full sm:w-24">
                         <input

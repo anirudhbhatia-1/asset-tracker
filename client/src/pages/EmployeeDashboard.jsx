@@ -119,13 +119,28 @@ export default function EmployeeDashboard() {
              ) : (
                <div className="space-y-3">
                  {recentTickets.map(ticket => (
-                    <div key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="bg-base/80 p-3.5 rounded-xl border border-border/80 flex items-center justify-between cursor-pointer hover:bg-raised/50">
-                       <div className="min-w-0">
+                    <div key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="bg-base/80 p-3.5 rounded-xl border border-border/80 flex items-center justify-between cursor-pointer hover:bg-raised/50 gap-4">
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center gap-2 mb-1">
+                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${ticket.type === 'issue' ? 'bg-error/10 text-error' : 'bg-info-blue/10 text-info-blue'}`}>
+                             {ticket.type}
+                           </span>
+                           {ticket.category_name && (
+                             <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-raised text-secondary border border-border/50 truncate max-w-[120px]">
+                               {ticket.category_name}
+                             </span>
+                           )}
+                           {ticket.asset_name && (
+                             <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-surface text-secondary border border-border/50 truncate max-w-[120px]">
+                               {ticket.asset_name}
+                             </span>
+                           )}
+                         </div>
                          <div className="text-sm font-bold text-primary truncate">{ticket.title}</div>
                          <div className="text-xs text-secondary mt-0.5">{new Date(ticket.created_at).toLocaleDateString()}</div>
                        </div>
-                       <div>
-                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wider ${ticket.status === 'open' ? 'bg-error/10 text-error border-error/20' : ticket.status === 'in_progress' ? 'bg-warning/10 text-warning border-warning/20' : ticket.status === 'resolved' ? 'bg-success/10 text-success border-success/20' : 'bg-raised text-secondary border-border'}`}>
+                       <div className="shrink-0">
+                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wider ${ticket.status === 'open' ? 'bg-error/10 text-error border-error/20' : ticket.status === 'in_progress' ? 'bg-warning/10 text-warning border-warning/20' : ticket.status === 'resolved' ? 'bg-success/10 text-success border-success/20' : ticket.status === 'closed' ? 'bg-secondary/10 text-secondary border-secondary/20' : 'bg-raised text-secondary border-border'}`}>
                            {ticket.status.replace('_', ' ')}
                          </span>
                        </div>

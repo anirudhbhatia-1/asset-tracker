@@ -11,3 +11,5 @@ export const grantEmployeeAccess = (id, role) => api.post(`/employees/${id}/gran
 
 // TESTING ONLY — remove when production Google Workspace flow is implemented
 export const grantEmployeeGoogleAccess = (id) => api.post(`/employees/${id}/grant-google-access`);
+
+export const getMyProfile = () => api.get('/employees/me');

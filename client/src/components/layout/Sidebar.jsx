@@ -49,17 +49,17 @@ const Sidebar = ({ isOpen = true }) => {
         {/* Brand Header (Hidden on Mobile, visible on md+) */}
         <div className={`hidden md:flex h-16 px-4 items-center border-b border-border shrink-0 ${isOpen ? 'justify-start lg:px-6' : 'justify-center'}`}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-8 h-8 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="ThinkVibes Logo" className="w-full h-full object-contain" />
             </div>
             {isOpen && (
               <div className="hidden md:block">
                 <span className="font-bold text-lg tracking-tight text-primary flex items-center gap-1.5">
-                  AssetTrack
+                  ThinkVibes
                   <span className="w-2 h-2 rounded-full bg-accent animate-pulse inline-block" />
                 </span>
                 <span className="block text-[10px] text-secondary uppercase font-semibold tracking-wider -mt-1">
-                  IT Operations
+                  Asset Management
                 </span>
               </div>
             )}
@@ -112,9 +112,6 @@ const Sidebar = ({ isOpen = true }) => {
                 Online
               </span>
             </div>
-            <p className="text-secondary text-[11px] leading-relaxed">
-              Connected to local DB
-            </p>
           </div>
         )}
       </aside>

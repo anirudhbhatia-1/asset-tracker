@@ -938,3 +938,11 @@ These decisions must be made before the relevant phase begins. Track the answer 
 **Owner:** Engineering Lead  
 **Updated by:** Any AI assistant or team member who makes a meaningful project decision.  
 **Frequency:** Update after every session that changes code, decisions, or project state.
+
+### Bug Fixes & Refinements (Late July 2026)
+- **Closed Ticket Status:** Validated the undocumented 'closed' ticket status as part of a two-step resolution process. Added this to documentation.
+- **HR Onboarding Undercounting:** Fixed an issue where `requested_by_id` was being referenced instead of `requested_by` on HR dashboards, hiding active requests.
+- **HR Ticket Access:** Confirmed HR is intended to have access to the Ticket system. Updated design documentation to reflect this permission.
+- **Asset Data Accumulation:** Identified duplicate integration test assets (e.g. 'Integration Test MacBook Pro') as messy seed/test data.
+- **Employee Ticket UI:** Enhanced the My Tickets dashboard cards to display ticket type and related asset/category badges.
+- **Sidebar Footer:** Removed the inaccurate hardcoded "Connected to local DB" status string.

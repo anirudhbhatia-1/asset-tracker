@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
@@ -19,6 +19,7 @@ const Tickets = lazy(() => import('./pages/Tickets'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const HrDashboard = lazy(() => import('./pages/HrDashboard'));
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 import { useAuth } from './context/AuthContext';
 
 const RoleBasedDashboard = () => {
@@ -58,6 +59,12 @@ const App = () => {
                 <Route element={<MainLayout />}>
                   {/* Common Routes */}
                   <Route index element={<RoleBasedDashboard />} />
+                  
+                  {/* Profile — accessible to all authenticated users */}
+                  <Route element={<ProtectedRoute allowedRoles={['admin', 'hr', 'employee']} />}>
+                    <Route path="profile" element={<ProfilePage />} />
+                  </Route>
+
                   <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                     <Route path="settings/*" element={<Settings />} />
                   </Route>
@@ -81,6 +88,8 @@ const App = () => {
                     <Route path="employees" element={<Employees />} />
                     <Route path="onboarding" element={<Onboarding />} />
                   </Route>
+                  {/* Catch-all Route for 404s */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>
               </Route>
             </Routes>

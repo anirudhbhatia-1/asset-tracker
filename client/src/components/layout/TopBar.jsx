@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut, Menu, ChevronDown, Key } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut, Menu, ChevronDown, Key, User } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -126,16 +126,21 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
               <Search className="w-5 h-5" />
             </button>
 
-            <Link
-              to="/inventory/new"
-              className="bg-accent hover:bg-accent/90 text-white p-2 md:px-4 md:py-2 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
-              aria-label="Add Asset"
-            >
-              <Plus className="w-5 h-5 md:w-4 md:h-4" />
-              <span className="hidden md:inline">Add Asset</span>
-            </Link>
+            {/* Only Admins can add assets */}
+            {user?.role === 'admin' && (
+              <Link
+                to="/inventory/new"
+                className="bg-accent hover:bg-accent/90 text-white p-2 md:px-4 md:py-2 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+                aria-label="Add Asset"
+              >
+                <Plus className="w-5 h-5 md:w-4 md:h-4" />
+                <span className="hidden md:inline">Add Asset</span>
+              </Link>
+            )}
 
-            <div className="hidden sm:block h-6 w-[1px] bg-raised mx-1" />
+            {user?.role === 'admin' && (
+              <div className="hidden sm:block h-6 w-[1px] bg-raised mx-1" />
+            )}
 
             <button 
               onClick={toggleTheme}
@@ -201,6 +206,17 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
                   </div>
 
                   <div className="p-2 space-y-1">
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        navigate('/profile');
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 transition-colors text-left"
+                    >
+                      <User className="w-4 h-4" />
+                      View My Profile
+                    </button>
+
                     <button
                       onClick={() => {
                         setIsUserMenuOpen(false);

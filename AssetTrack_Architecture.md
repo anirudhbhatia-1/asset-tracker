@@ -513,6 +513,16 @@ getAssetWithHistory(id)       // JOIN asset + history + assignee
 listAssets(filters)           // Parameterized filter query
 ```
 
+**Example: `ticketService.js`**
+
+```javascript
+// Key functions:
+createTicket(user, payload)   // Insert + log 'created'
+updateTicket(id, payload, user) // Admin sets status='resolved' (or other), updates fields
+confirmTicket(id, user, action) // Employee confirms resolved ticket (status->'closed') or reopens (status->'open')
+transferTicket(id, target, note, user) // Admin transfers ticket queue
+```
+
 ---
 
 ## 5. Database Architecture

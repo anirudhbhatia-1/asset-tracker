@@ -23,6 +23,16 @@ router.get('/', requireRole('admin'), async (req, res, next) => {
   }
 });
 
+// GET /api/employees/me — returns the logged-in user's own profile (all roles)
+router.get('/me', async (req, res, next) => {
+  try {
+    const employee = await employeeService.getEmployeeById(req.user.id);
+    res.status(200).json({ data: employee, message: 'OK' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/employees/:id — get single employee
 router.get('/:id', [
   requireRole('admin'),

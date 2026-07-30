@@ -68,9 +68,10 @@ export default function Dashboard() {
       )}
 
       {/* 1. TIER 1 — KPI Cards (Top Row) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
         {metricsLoading || ticketsLoading ? (
           <>
+            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -78,6 +79,14 @@ export default function Dashboard() {
           </>
         ) : (
           <>
+            <MetricCard
+              title="Total Assets"
+              count={metrics.total}
+              icon={Archive}
+              subtitle="All fleet assets"
+              colorClass="text-accent bg-accent/10 border-accent/20"
+              onClick={() => navigate('/inventory')}
+            />
             <MetricCard
               title="Available to Deploy"
               count={metrics.available}
