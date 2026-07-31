@@ -150,12 +150,6 @@ const Login = () => {
             Only works if your admin has pre-approved your Google account.
           </p>
         </div>
-        {/* ====== END TESTING ONLY SECTION ====== */}
-        
-        <div className="mt-6 text-center text-xs text-secondary/60">
-          <p>Demo Credentials: admin / password</p>
-          <p>employee / password | hr / password</p>
-        </div>
       </div>
     </div>
   );
