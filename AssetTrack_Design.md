@@ -208,7 +208,11 @@ Per PRD §6.4 — the signature screen.
 
 ### 5.5 Employees (`/employees`)
 
-Per PRD §6.5. Responsive card grid (`grid-cols-4 → 2 → 1`): avatar (photo or initials-fallback in an indigo circle), name, department, location, small Google-verified check badge if synced. Search bar filters by name/email/department. Clicking a card opens the **Employee Asset Drawer** (slide-in panel from the right) listing every asset currently assigned, or an empty state if none.
+Per PRD §6.5. Responsive card grid (`grid-cols-4 → 2 → 1`): avatar (photo or initials-fallback in an indigo circle), name, department, location, small Google-verified check badge if synced. 
+- **System Accounts**: System accounts (e.g. admin@company.com, hardwareadmin@company.com) are distinguished with a "Service Account" badge instead of standard roles.
+- **Location Field**: The location field is always a constrained short-label office selector (e.g., 'Mumbai', 'Bangalore'), never a free-text full address. Any full address is displayed only via tooltip.
+- **Missing Data Fallback**: The card footer maintains alignment with subtle "No Dept" or "No Location" fallbacks when data is absent.
+- Search bar filters by name/email/department. Clicking a card opens the **Employee Asset Drawer** (slide-in panel from the right) listing every asset currently assigned, or an empty state if none.
 
 ### 5.6 Categories (`/categories`)
 

@@ -50,7 +50,13 @@ const Sidebar = ({ isOpen = true }) => {
         <div className={`hidden md:flex h-16 px-4 items-center border-b border-border shrink-0 ${isOpen ? 'justify-start lg:px-6' : 'justify-center'}`}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="ThinkVibes Logo" className="w-full h-full object-contain" />
+              <img 
+                src="/logo.png" 
+                alt="Thinkvibes Logo" 
+                className="w-full h-full object-contain pointer-events-none select-none"
+                draggable="false"
+                onContextMenu={(e) => e.preventDefault()}
+              />
             </div>
             {isOpen && (
               <div className="hidden md:block">

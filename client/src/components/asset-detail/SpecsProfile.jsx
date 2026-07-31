@@ -57,6 +57,11 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-raised/80 text-secondary border border-border/70">
                 {asset.categoryName || 'Uncategorized'}
               </span>
+              {asset.assetType === 'client' && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-accent/10 text-accent border border-accent/20 uppercase tracking-wider">
+                  Client
+                </span>
+              )}
             </div>
             {asset.model && <p className="text-sm text-secondary mt-1">Model: {asset.model}</p>}
           </div>

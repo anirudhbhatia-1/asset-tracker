@@ -98,11 +98,17 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
               <Menu className="w-5 h-5" />
             </button>
             <div className="md:hidden w-8 h-8 flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="Thinkvibes Logo" className="w-full h-full object-contain" />
+              <img 
+                src="/logo.png" 
+                alt="Thinkvibes Logo" 
+                className="w-full h-full object-contain pointer-events-none select-none"
+                draggable="false"
+                onContextMenu={(e) => e.preventDefault()}
+              />
             </div>
 
             
-            <div className="relative w-full max-w-sm hidden md:block">
+            <div className="relative w-full hidden md:block">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
               <input
                 type="text"
@@ -188,8 +194,8 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-xs uppercase shrink-0">
                   {user?.email?.[0] || 'U'}
                 </div>
-                <div className="hidden sm:block text-left min-w-[80px]">
-                  <span className="block text-xs font-semibold text-primary leading-none truncate max-w-[120px]">
+                <div className="hidden sm:block text-left min-w-0 max-w-[200px] lg:max-w-xs">
+                  <span className="block text-xs font-semibold text-primary leading-none truncate">
                     {user?.email || 'User'}
                   </span>
                   <span className="block text-[11px] text-secondary mt-0.5 capitalize">

@@ -224,5 +224,39 @@ router.post('/:id/grant-google-access', [
     next(err);
   }
 });
+// PATCH /api/employees/:id/role — change role for an employee who already has login
+router.patch('/:id/role', [
+  requireRole('admin'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  body('role').isIn(['admin', 'employee', 'hr']).withMessage('Role must be admin, employee, or hr'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const updated = await employeeService.updateEmployeeRole(Number(req.params.id), req.body.role);
+    res.status(200).json({ data: updated, message: 'Role updated successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/employees/:id — update employee details (admin only)
+router.patch('/:id', [
+  requireRole('admin'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
+  body('email').optional().isEmail().withMessage('Invalid email format'),
+  body('department').optional().trim(),
+  body('location').optional().trim(),
+  body('address').optional().trim(),
+  body('role').optional().isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const updated = await employeeService.updateEmployee(Number(req.params.id), req.body);
+    res.status(200).json({ data: updated, message: 'Employee updated successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;

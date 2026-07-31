@@ -66,7 +66,13 @@ const Login = () => {
       <div className="relative z-10 w-full max-w-md p-6 sm:p-8 bg-surface/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl">
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 flex items-center justify-center mb-4">
-            <img src="/logo.png" alt="ThinkVibes Logo" className="w-full h-full object-contain" />
+            <img 
+              src="/logo.png" 
+              alt="Thinkvibes Logo" 
+              className="w-full h-full object-contain pointer-events-none select-none"
+              draggable="false"
+              onContextMenu={(e) => e.preventDefault()}
+            />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight mb-2 text-center">Welcome Back</h1>
           <p className="text-secondary text-sm text-center max-w-xs mx-auto leading-relaxed">

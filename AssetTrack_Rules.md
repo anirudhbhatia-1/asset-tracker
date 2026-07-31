@@ -91,8 +91,8 @@ export const ASSET_STATUS = {
   RETIRED: 'retired',
 };
 
-export const OFFICE_LOCATIONS = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'];
-
+// Location must always be set via a constrained selector (from the database locations table). Never use a free text field.
+// export const OFFICE_LOCATIONS = ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad']; // Deprecated, now fetched dynamically
 export const HISTORY_EVENT_TYPES = {
   CREATED: 'created',
   ASSIGNED: 'assigned',

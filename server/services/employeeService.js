@@ -1,5 +1,4 @@
 const { pool, withTransaction } = require('../db');
-
 const mapEmployee = (row) => {
   if (!row) return null;
   return {
@@ -149,6 +148,15 @@ const createEmployee = async (data) => {
   return getEmployeeById(result.rows[0].id);
 };
 
+const validateCorporateEmail = (email) => {
+  const allowedDomains = ['@company.com', '@thinkvibes.com'];
+  if (!email || !allowedDomains.some(domain => email.toLowerCase().endsWith(domain))) {
+    const err = new Error('Login access can only be granted to corporate emails (@company.com or @thinkvibes.com)');
+    err.statusCode = 403;
+    throw err;
+  }
+};
+
 /**
  * Creates an employee profile AND a login account in a single transaction.
  * Used when admin wants to provision login access at creation time.
@@ -158,6 +166,8 @@ const createEmployeeWithAccess = async (data) => {
   const bcrypt = require('bcrypt');
   const crypto = require('crypto');
   const { name, email, department, location, address, role } = data;
+  
+  validateCorporateEmail(email);
   
   // Check duplicate before starting transaction
   const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
@@ -182,7 +192,9 @@ const createEmployeeWithAccess = async (data) => {
 
 const updateEmployee = async (id, data) => {
   const current = await getEmployeeById(id);
-  const { name, email, department, location, address, avatarUrl } = data;
+  const { name, email, department, location, address, avatarUrl, role } = data;
+
+  const newRole = (role !== undefined && current.hasLogin) ? role : current.role;
 
   if (email && email !== current.email) {
     const existing = await pool.query('SELECT id FROM employees WHERE email = $1 AND id != $2', [email, id]);
@@ -200,8 +212,9 @@ const updateEmployee = async (id, data) => {
         department = $3,
         location = $4,
         address = $5,
-        avatar_url = $6
-    WHERE id = $7
+        avatar_url = $6,
+        role = $7
+    WHERE id = $8
   `, [
     name !== undefined ? name : current.name,
     email !== undefined ? email : current.email,
@@ -209,6 +222,7 @@ const updateEmployee = async (id, data) => {
     location !== undefined ? location : current.location,
     address !== undefined ? address : current.address,
     avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
+    newRole,
     id
   ]);
 
@@ -240,6 +254,9 @@ const updateEmployeeRole = async (id, newRole) => {
 
 const grantEmployeeAccess = async (id, role, passwordHash) => {
   const current = await getEmployeeById(id);
+  
+  validateCorporateEmail(current.email);
+  
   if (current.hasLogin) {
     const err = new Error('Employee already has a login account');
     err.statusCode = 400;
@@ -262,6 +279,9 @@ const grantEmployeeAccess = async (id, role, passwordHash) => {
 const grantGoogleAccess = async (id) => {
   return withTransaction(async (client) => {
     const current = await getEmployeeById(id);
+    
+    validateCorporateEmail(current.email);
+    
     if (current.hasLogin) {
       const err = new Error('Employee already has a login account');
       err.statusCode = 400;

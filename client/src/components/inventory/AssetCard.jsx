@@ -29,8 +29,13 @@ export default function AssetCard({ asset }) {
 
         {/* Title & Serial */}
         <div>
-          <h3 className="font-bold text-primary truncate text-base mb-1.5 group-hover:text-accent transition-colors">
-            {asset.name}
+          <h3 className="font-bold text-primary truncate text-base mb-1.5 group-hover:text-accent transition-colors flex items-center gap-2">
+            <span className="truncate">{asset.name}</span>
+            {asset.assetType === 'client' && (
+              <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent/10 text-accent uppercase tracking-wider border border-accent/20 mt-0.5">
+                Client
+              </span>
+            )}
           </h3>
           <div className="inline-block bg-base border border-border/50 px-2 py-0.5 rounded text-xs font-mono text-secondary">
             {asset.serialNumber}

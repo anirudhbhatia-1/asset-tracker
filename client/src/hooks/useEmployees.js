@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, grantEmployeeAccess, grantEmployeeGoogleAccess } from '../api/employeesApi';
+import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, updateEmployeeDetails, grantEmployeeAccess, grantEmployeeGoogleAccess } from '../api/employeesApi';
 import toast from 'react-hot-toast';
 
 export default function useEmployees() {
@@ -22,6 +22,27 @@ export default function useEmployees() {
 
   useEffect(() => {
     fetchEmployeesData();
+  }, [fetchEmployeesData]);
+
+  const updateEmployee = useCallback(async (id, data) => {
+    try {
+      await updateEmployeeDetails(id, data);
+      await fetchEmployeesData();
+      toast.success('Employee details updated');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update employee');
+      throw err;
+    }
+  }, [fetchEmployeesData]);
+
+  const changeRoleInline = useCallback(async (employeeId, newRole) => {
+    try {
+      await updateEmployeeRole(employeeId, newRole);
+      await fetchEmployeesData();
+      toast.success('Role updated successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update role');
+    }
   }, [fetchEmployeesData]);
 
   const addEmployee = async (data) => {
@@ -96,6 +117,8 @@ export default function useEmployees() {
     error,
     refresh: fetchEmployeesData,
     addEmployee,
+    updateEmployee,
+    changeRoleInline,
     deleteEmployee,
     changeRole,
     grantAccess,

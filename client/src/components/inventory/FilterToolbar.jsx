@@ -24,9 +24,8 @@ export default function FilterToolbar({
     <div className="bg-surface/60 border border-border/60 rounded-xl p-4 space-y-3.5 shadow-sm">
       {/* Top row: Category chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
-        <span className="text-xs font-semibold text-secondary inline-flex items-center gap-1.5 shrink-0 mr-1">
-          <Filter className="w-3.5 h-3.5 text-accent" />
-          <span>Category:</span>
+        <span className="text-xs font-semibold text-secondary inline-flex items-center gap-1.5 shrink-0 mr-2 uppercase tracking-wider">
+          Category:
         </span>
 
         <button

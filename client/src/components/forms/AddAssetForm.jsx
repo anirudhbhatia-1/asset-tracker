@@ -25,6 +25,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [name, setName] = useState(initialData?.name || '');
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || '');
   const [model, setModel] = useState(initialData?.model || '');
+  const [assetType, setAssetType] = useState(initialData?.assetType || 'company');
   const [location, setLocation] = useState(initialData?.location || '');
   const [address, setAddress] = useState(initialData?.address || '');
   const [costString, setCostString] = useState(
@@ -147,6 +148,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
       const assetPayload = {
         name: name.trim(),
         categoryId: Number(categoryId),
+        assetType,
         model: model.trim() || null,
         location: location.trim() || undefined,
         address: address.trim() || undefined,
@@ -277,6 +279,37 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 <span>{errors.categoryId}</span>
               </p>
             )}
+          </div>
+
+          {/* Asset Ownership Type Toggle */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+              Asset Ownership <span className="text-danger">*</span>
+            </label>
+            <div className="flex bg-base border border-border p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setAssetType('company')}
+                className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors ${
+                  assetType === 'company'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-secondary hover:text-primary hover:bg-surface'
+                }`}
+              >
+                Company Owned
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssetType('client')}
+                className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors ${
+                  assetType === 'client'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-secondary hover:text-primary hover:bg-surface'
+                }`}
+              >
+                Client Provided
+              </button>
+            </div>
           </div>
 
           {/* Office Location */}

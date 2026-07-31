@@ -1,11 +1,19 @@
 import React, { memo } from 'react';
 import { User, Mail, Building2, MapPin, ShieldCheck, Laptop, Trash2, Key, Edit3 } from 'lucide-react';
 
+const toTitleCase = (str) => {
+  if (!str) return '';
+  return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+};
+
 const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete }) {
   if (!employee) return null;
 
-  const initials = employee.name
-    ? employee.name
+  const displayName = toTitleCase(employee.name);
+  const isServiceAccount = ['admin@company.com', 'hardwareadmin@company.com', 'hr@company.com', 'testsync@company.com'].includes(employee.email?.toLowerCase());
+
+  const initials = displayName
+    ? displayName
         .split(' ')
         .map((n) => n[0])
         .join('')
@@ -42,37 +50,49 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="w-12 h-12 rounded-2xl bg-raised/80 border border-border/70 flex items-center justify-center text-primary font-bold text-base shadow-inner overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
           {employee.avatarUrl ? (
-            <img src={employee.avatarUrl} alt={employee.name} className="w-full h-full object-cover" />
+            <img src={employee.avatarUrl} alt={displayName} className="w-full h-full object-cover" />
           ) : (
             <span>{initials}</span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5">
-          {employee.isGoogleSynced === 1 && (
-            <span
-              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/30"
-              title="Verified & synced from Google Workspace Directory"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Synced</span>
-            </span>
-          )}
-
-          {employee.hasLogin ? (
-            <span
-              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize ${roleColors[employee.role] || 'bg-base text-secondary border-border'}`}
-            >
-              <Key className="w-3 h-3" />
-              <span>{employee.role}</span>
-            </span>
+          {isServiceAccount ? (
+             <span
+             className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface text-primary border border-primary/20"
+             title="System Service Account"
+           >
+             <ShieldCheck className="w-3 h-3 text-accent" />
+             <span>Service Account</span>
+           </span>
           ) : (
-            <span
-              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-base/60 text-secondary/70 border border-border/50"
-            >
-              <User className="w-3 h-3" />
-              <span>No Login</span>
-            </span>
+            <>
+              {employee.isGoogleSynced === 1 && (
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/30"
+                  title="Verified & synced from Google Workspace Directory"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Synced</span>
+                </span>
+              )}
+
+              {employee.hasLogin ? (
+                <span
+                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize ${roleColors[employee.role] || 'bg-base text-secondary border-border'}`}
+                >
+                  <Key className="w-3 h-3" />
+                  <span>{employee.role}</span>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-base/60 text-secondary/70 border border-border/50"
+                >
+                  <User className="w-3 h-3" />
+                  <span>No Login</span>
+                </span>
+              )}
+            </>
           )}
 
           <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
@@ -101,7 +121,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
       {/* Middle Section: Name & Email */}
       <div className="space-y-1 mb-4 min-w-0">
         <h3 className="text-base font-bold text-primary group-hover:text-accent transition-colors truncate">
-          {employee.name}
+          {displayName}
         </h3>
         {employee.email && (
           <p className="text-xs text-secondary flex items-center gap-1.5 truncate">
@@ -113,19 +133,18 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
 
       {/* Bottom Section: Department, Location & Asset Count */}
       <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-3 text-secondary min-w-0 truncate">
-          {employee.department && (
-            <span className="inline-flex items-center gap-1 truncate font-medium">
-              <Building2 className="w-3.5 h-3.5 text-accent shrink-0" />
-              <span className="truncate">{employee.department}</span>
-            </span>
-          )}
-          {employee.location && (
-            <span className="inline-flex items-center gap-1 text-secondary shrink-0">
-              <MapPin className="w-3.5 h-3.5 text-secondary shrink-0" />
-              <span>{employee.address ? `${employee.location} (${employee.address})` : employee.location}</span>
-            </span>
-          )}
+        <div className="flex items-center gap-3 text-secondary min-w-0">
+          <span className={`inline-flex items-center gap-1 min-w-0 font-medium ${!employee.department && 'opacity-60'}`}>
+            <Building2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{employee.department || 'No Dept'}</span>
+          </span>
+          <span 
+            className={`inline-flex items-center gap-1 min-w-0 shrink-0 ${!employee.location && 'opacity-60'}`}
+            title={employee.address || undefined}
+          >
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate max-w-[120px]">{employee.location || 'No Location'}</span>
+          </span>
         </div>
 
         {/* Assigned Hardware Count Badge */}

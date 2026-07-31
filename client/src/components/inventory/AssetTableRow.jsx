@@ -24,6 +24,11 @@ const AssetTableRow = memo(function AssetTableRow({ asset }) {
           className="font-semibold text-primary group-hover:text-accent transition-colors block text-sm"
         >
           {asset.name}
+          {asset.assetType === 'client' && (
+            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-accent/10 text-accent uppercase tracking-wider border border-accent/20 align-middle">
+              Client
+            </span>
+          )}
         </Link>
         {asset.model && <span className="text-xs text-secondary block truncate max-w-[200px]">{asset.model}</span>}
       </td>
