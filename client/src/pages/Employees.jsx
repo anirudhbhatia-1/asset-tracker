@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import useEmployees from '../hooks/useEmployees';
 import EmployeeAssetDrawer from '../components/employees/EmployeeAssetDrawer';
 import AddEmployeeModal from '../components/forms/AddEmployeeModal';
@@ -13,6 +14,8 @@ const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operatio
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
 
 export default function Employees() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { employees, loading, error, refresh, addEmployee, updateEmployee, deleteEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline } = useEmployees();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'roles'
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,6 +27,10 @@ export default function Employees() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin && activeTab === 'roles') setActiveTab('directory');
+  }, [isAdmin, activeTab]);
 
   const safeEmployees = Array.isArray(employees) ? employees : [];
 
@@ -90,29 +97,31 @@ export default function Employees() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex items-center gap-1 bg-base p-1 rounded-xl border border-border w-fit">
-        {[
-          { id: 'directory', label: 'Directory', icon: Users },
-          { id: 'roles', label: 'Role Management', icon: ShieldCheck },
-        ].map(tab => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                activeTab === tab.id
-                  ? 'bg-surface text-primary shadow-sm border border-border'
-                  : 'text-secondary hover:text-primary'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      {isAdmin && (
+        <div className="flex items-center gap-1 bg-base p-1 rounded-xl border border-border w-fit">
+          {[
+            { id: 'directory', label: 'Directory', icon: Users },
+            { id: 'roles', label: 'Role Management', icon: ShieldCheck },
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-surface text-primary shadow-sm border border-border'
+                    : 'text-secondary hover:text-primary'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {activeTab === 'directory' && (
         <>
@@ -254,12 +263,14 @@ export default function Employees() {
                             <XCircle className="w-3 h-3" />
                             No Access
                           </span>
-                          <button
-                            onClick={(e) => handleGrantAccessClick(e, emp)}
-                            className="text-[11px] font-semibold text-accent hover:underline px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            Grant Access
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => handleGrantAccessClick(e, emp)}
+                              className="text-[11px] font-semibold text-accent hover:underline px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              Grant Access
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -282,14 +293,13 @@ export default function Employees() {
       </>
       )}
 
-      {activeTab === 'roles' && (
+      {activeTab === 'roles' && isAdmin && (
         <RoleManagementPanel
           employees={safeEmployees}
           onRoleChange={changeRoleInline}
         />
       )}
 
-      {/* Edit Employee Modal */}
       <EditEmployeeModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -298,6 +308,7 @@ export default function Employees() {
         }}
         employee={selectedEmployee}
         onSave={updateEmployee}
+        canEditRole={isAdmin}
       />
 
       <EmployeeAssetDrawer

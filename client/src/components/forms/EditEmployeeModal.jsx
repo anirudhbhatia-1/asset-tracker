@@ -9,7 +9,7 @@ const ROLES = [
   { value: 'employee', label: 'Employee', desc: 'View own assets & raise tickets' },
 ];
 
-export default function EditEmployeeModal({ isOpen, employee, onClose, onSave }) {
+export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, canEditRole = false }) {
   const [name, setName] = useState('');
   const [department, setDepartment] = useState('');
   const [location, setLocation] = useState('');
@@ -228,7 +228,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave })
               )}
 
               {/* Role — only shown if the employee already has a login account */}
-              {employee.hasLogin && (
+              {employee.hasLogin && canEditRole && (
                 <div>
                   <label className={labelClass}>
                     <ShieldCheck className="w-3.5 h-3.5" /> System Role
@@ -263,6 +263,18 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave })
                   <p className="text-xs text-warning mt-2 flex items-start gap-1">
                     ⚠️ Changing role takes effect on next login.
                   </p>
+                </div>
+              )}
+
+              {employee.hasLogin && !canEditRole && (
+                <div>
+                  <label className={labelClass}>
+                    <ShieldCheck className="w-3.5 h-3.5" /> System Role
+                  </label>
+                  <div className="p-3 bg-base/60 rounded-lg border border-border/60 text-xs text-secondary flex items-start gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>Role changes require Admin access.</span>
+                  </div>
                 </div>
               )}
 

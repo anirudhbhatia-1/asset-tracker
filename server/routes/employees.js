@@ -10,7 +10,7 @@ const router = express.Router();
 router.use(validateSession);
 
 // GET /api/employees — list all employees
-router.get('/', requireRole('admin'), async (req, res, next) => {
+router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
   try {
     const employees = await employeeService.getEmployees(req.query);
     res.status(200).json({
@@ -45,7 +45,7 @@ router.get('/me', async (req, res, next) => {
 
 // GET /api/employees/:id — get single employee
 router.get('/:id', [
-  requireRole('admin'),
+  requireRole('admin', 'hr'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -83,7 +83,7 @@ router.get('/:id/assets', [
 
 // POST /api/employees — create employee
 router.post('/', [
-  requireRole('admin'),
+  requireRole('admin', 'hr'),
   body('name').notEmpty().withMessage('Employee name is required').trim().isLength({ max: 150 }),
   body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Must be a valid email').normalizeEmail(),
   body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
@@ -98,26 +98,22 @@ router.post('/', [
   try {
     const { grantAccess, role, ...employeeData } = req.body;
     
-    if (grantAccess) {
-      // Create profile + login in one transaction
-      const { employee, temporaryPassword } = await employeeService.createEmployeeWithAccess({
-        ...employeeData,
-        role: role || 'employee',
-      });
-      
-      return res.status(201).json({
-        data: employee,
-        temporaryPassword,
-        message: 'Employee created with login access',
-      });
+    // HR can only create employees, not admins or other HRs
+    let effectiveRole = role || 'employee';
+    if (req.user.role === 'hr' && effectiveRole !== 'employee') {
+      effectiveRole = 'employee'; // Force to employee role
     }
 
-    // Original behavior — profile only, no login
+    if (grantAccess) {
+      const { employee, temporaryPassword } = await employeeService.createEmployeeWithAccess({
+        ...employeeData,
+        role: effectiveRole,
+      });
+      return res.status(201).json({ data: employee, temporaryPassword, message: 'Employee created with login access' });
+    }
+
     const created = await employeeService.createEmployee(req.body);
-    res.status(201).json({
-      data: created,
-      message: 'Employee created successfully',
-    });
+    res.status(201).json({ data: created, message: 'Employee created successfully' });
   } catch (err) {
     next(err);
   }
@@ -125,7 +121,7 @@ router.post('/', [
 
 // PUT /api/employees/:id — update employee
 router.put('/:id', [
-  requireRole('admin'),
+  requireRole('admin', 'hr'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 150 }),
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Must be a valid email').normalizeEmail(),
@@ -136,11 +132,11 @@ router.put('/:id', [
   validateRequest,
 ], async (req, res, next) => {
   try {
+    if (req.user.role === 'hr') {
+      delete req.body.role;
+    }
     const updated = await employeeService.updateEmployee(Number(req.params.id), req.body);
-    res.status(200).json({
-      data: updated,
-      message: 'Employee updated successfully',
-    });
+    res.status(200).json({ data: updated, message: 'Employee updated successfully' });
   } catch (err) {
     next(err);
   }
@@ -224,24 +220,9 @@ router.post('/:id/grant-google-access', [
     next(err);
   }
 });
-// PATCH /api/employees/:id/role — change role for an employee who already has login
-router.patch('/:id/role', [
-  requireRole('admin'),
-  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
-  body('role').isIn(['admin', 'employee', 'hr']).withMessage('Role must be admin, employee, or hr'),
-  validateRequest,
-], async (req, res, next) => {
-  try {
-    const updated = await employeeService.updateEmployeeRole(Number(req.params.id), req.body.role);
-    res.status(200).json({ data: updated, message: 'Role updated successfully' });
-  } catch (err) {
-    next(err);
-  }
-});
-
 // PATCH /api/employees/:id — update employee details (admin only)
 router.patch('/:id', [
-  requireRole('admin'),
+  requireRole('admin', 'hr'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
   body('email').optional().isEmail().withMessage('Invalid email format'),
@@ -252,6 +233,9 @@ router.patch('/:id', [
   validateRequest,
 ], async (req, res, next) => {
   try {
+    if (req.user.role === 'hr') {
+      delete req.body.role;
+    }
     const updated = await employeeService.updateEmployee(Number(req.params.id), req.body);
     res.status(200).json({ data: updated, message: 'Employee updated successfully' });
   } catch (err) {
