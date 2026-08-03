@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Ticket as TicketIcon, Search, AlertCircle } from 'lucide-react';
+import { Plus, Ticket as TicketIcon, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTickets } from '../hooks/useTickets';
 import CreateTicketModal from '../components/forms/CreateTicketModal';

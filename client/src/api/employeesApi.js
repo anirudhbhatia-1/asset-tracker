@@ -5,7 +5,7 @@ export const getDepartments = () => api.get('/employees/departments');
 export const getEmployee = (id) => api.get(`/employees/${id}`);
 export const getEmployeeAssets = (id) => api.get(`/employees/${id}/assets`);
 export const createEmployee = (payload) => api.post('/employees', payload);
-export const updateEmployee = (id, payload) => api.put(`/employees/${id}`, payload);
+export const updateEmployee = (id, payload) => api.patch(`/employees/${id}`, payload);
 export const deleteEmployeeApi = (id) => api.delete(`/employees/${id}`);
 export const restoreEmployee = (id) => api.patch(`/employees/${id}/restore`);
 export const updateEmployeeRole = (id, role) => api.patch(`/employees/${id}/role`, { role });

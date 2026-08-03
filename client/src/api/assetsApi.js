@@ -9,4 +9,8 @@ export const deleteAssetApi = (id) => api.delete(`/assets/${id}`, { data: { conf
 export const assignAssetApi = (id, payload) => api.post(`/assets/${id}/assign`, payload);
 export const returnAssetApi = (id, note) => api.post(`/assets/${id}/return`, { note });
 export const retireAssetApi = (id, note) => api.post(`/assets/${id}/retire`, { note, confirm: true });
+export const bulkAssignAssets = (employeeId, assetIds, note) =>
+  api.post(`/employees/${employeeId}/assign-assets`, { assetIds, note });
 export const scanSerial = (serial) => api.get(`/serial/scan/${encodeURIComponent(serial)}`);
+export const getChildAssets = (parentId) => api.get('/assets', { params: { parentId } });
+

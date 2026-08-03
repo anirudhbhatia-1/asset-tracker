@@ -35,6 +35,9 @@ const mapAsset = (row) => {
     } : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    parentId: row.parent_id || null,
+    parentAssetName: row.parent_asset_name || null,
+    parentSerialNumber: row.parent_serial_number || null,
   };
 };
 
@@ -56,6 +59,11 @@ const getAssets = async (filters = {}) => {
   if (filters.location && filters.location !== 'all') {
     params.push(filters.location);
     conditions.push(`a.location = $${params.length}`);
+  }
+
+  if (filters.parentId) {
+    params.push(Number(filters.parentId));
+    conditions.push(`a.parent_id = $${params.length}`);
   }
 
   if (filters.q) {
@@ -100,10 +108,12 @@ const getAssetById = async (id, client = pool) => {
   const result = await client.query(`
     SELECT a.*,
            c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color,
-           e.name AS assignee_name, e.email AS assignee_email, e.department AS assignee_department, e.avatar_url AS assignee_avatar_url
+           e.name AS assignee_name, e.email AS assignee_email, e.department AS assignee_department, e.avatar_url AS assignee_avatar_url,
+           parent.name AS parent_asset_name, parent.serial_number AS parent_serial_number
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
     LEFT JOIN employees e ON a.assigned_to = e.id
+    LEFT JOIN assets parent ON a.parent_id = parent.id
     WHERE a.id = $1
   `, [id]);
 
@@ -122,10 +132,12 @@ const getAssetBySerial = async (serialNumber) => {
   const result = await pool.query(`
     SELECT a.*,
            c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color,
-           e.name AS assignee_name, e.email AS assignee_email, e.department AS assignee_department, e.avatar_url AS assignee_avatar_url
+           e.name AS assignee_name, e.email AS assignee_email, e.department AS assignee_department, e.avatar_url AS assignee_avatar_url,
+           parent.name AS parent_asset_name, parent.serial_number AS parent_serial_number
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
     LEFT JOIN employees e ON a.assigned_to = e.id
+    LEFT JOIN assets parent ON a.parent_id = parent.id
     WHERE UPPER(a.serial_number) = UPPER($1)
   `, [serialNumber]);
 
@@ -143,7 +155,8 @@ const getAssetBySerial = async (serialNumber) => {
 const createAsset = async (data, actorUser = null) => {
   const {
     name, categoryId, model, serialNumber, status = 'available', assetType = 'company',
-    location, address, costCents = 0, purchaseDate, notes, warrantyExpiryDate, assignedTo, assignedDate
+    location, address, costCents = 0, purchaseDate, notes, warrantyExpiryDate, assignedTo, assignedDate,
+    parentId, subAssets
   } = data;
 
   const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1', [serialNumber]);
@@ -180,13 +193,13 @@ const createAsset = async (data, actorUser = null) => {
 
   const newAssetId = await withTransaction(async (client) => {
     const result = await client.query(`
-      INSERT INTO assets (name, category_id, model, serial_number, status, asset_type, location, address, cost_cents, purchase_date, notes, warranty_expiry_date, assigned_to, assigned_date, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+      INSERT INTO assets (name, category_id, model, serial_number, status, asset_type, location, address, cost_cents, purchase_date, notes, warranty_expiry_date, assigned_to, assigned_date, parent_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
       RETURNING id
     `, [
       name, categoryId || null, model || null, serialNumber, status, assetType,
       location || null, address || null, Number(costCents), purchaseDate || null, notes || null,
-      warrantyExpiryDate || null, finalAssignedTo, finalAssignedDate
+      warrantyExpiryDate || null, finalAssignedTo, finalAssignedDate, parentId || null
     ]);
 
     const id = result.rows[0].id;
@@ -194,6 +207,35 @@ const createAsset = async (data, actorUser = null) => {
 
     if (status === 'in-use' && finalAssignedTo) {
       await historyService.logEvent(id, 'assigned', actorUser, finalAssignedTo, 'Assigned upon creation', null, client);
+    }
+
+    if (Array.isArray(subAssets) && subAssets.length > 0) {
+      for (const sub of subAssets) {
+        if (!sub.serialNumber) continue;
+        const subResult = await client.query(`
+          INSERT INTO assets (name, category_id, model, serial_number, status, location, address,
+                              cost_cents, purchase_date, notes, warranty_expiry_date, parent_id, asset_type, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, 'available', $5, $6, 0, NULL, NULL, NULL, $7, 'company', NOW(), NOW())
+          RETURNING id
+        `, [
+          sub.name || `Accessory for ${name}`,
+          sub.categoryId ? Number(sub.categoryId) : null,
+          sub.model || null,
+          sub.serialNumber,
+          location || null,
+          address || null,
+          id,
+        ]);
+        await historyService.logEvent(
+          subResult.rows[0].id,
+          'created',
+          actorUser,
+          null,
+          `Sub-asset linked to parent #${id}: ${name}`,
+          null,
+          client
+        );
+      }
     }
     
     return id;
@@ -307,6 +349,17 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null)
     `, [employeeId, dateToSet, id]);
 
     await historyService.logEvent(id, 'assigned', actorUser, employeeId, note || `Assigned to ${emp.rows[0].name}`, null, client);
+
+    // CASCADE to sub-assets
+    await client.query(
+      `UPDATE assets SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW()
+       WHERE parent_id = $3 AND status != 'retired'`,
+      [employeeId, dateToSet, id]
+    );
+    const subAssets = await client.query('SELECT id FROM assets WHERE parent_id = $1', [id]);
+    for (const sub of subAssets.rows) {
+      await historyService.logEvent(sub.id, 'assigned', actorUser, employeeId, `Cascaded from parent asset #${id}`, null, client);
+    }
   });
 
   return getAssetById(id);
@@ -340,6 +393,17 @@ const returnAsset = async (id, note, actorUser = null) => {
     `, [id]);
 
     await historyService.logEvent(id, 'returned', actorUser, previousAssignee, note || 'Returned to stock', null, client);
+
+    // CASCADE to sub-assets
+    await client.query(
+      `UPDATE assets SET status = 'available', assigned_to = NULL, assigned_date = NULL, updated_at = NOW()
+       WHERE parent_id = $1 AND status = 'in-use'`,
+      [id]
+    );
+    const subAssets = await client.query('SELECT id FROM assets WHERE parent_id = $1', [id]);
+    for (const sub of subAssets.rows) {
+      await historyService.logEvent(sub.id, 'returned', actorUser, previousAssignee, `Cascaded from parent asset #${id}`, null, client);
+    }
   });
 
   return getAssetById(id);
@@ -371,6 +435,58 @@ const retireAsset = async (id, note, confirm, actorUser = null) => {
   return getAssetById(id);
 };
 
+const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
+  if (!Array.isArray(assetIds) || assetIds.length === 0) {
+    const err = new Error('assetIds must be a non-empty array');
+    err.statusCode = 400;
+    throw err;
+  }
+  // Verify employee exists
+  const empCheck = await pool.query('SELECT id, name FROM employees WHERE id = $1 AND deleted_at IS NULL', [employeeId]);
+  if (empCheck.rows.length === 0) {
+    const err = new Error('Employee not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const today = new Date().toISOString().substring(0, 10);
+  const assignedNote = note || `Bulk assignment of ${assetIds.length} asset(s)`;
+  await withTransaction(async (client) => {
+    for (const assetId of assetIds) {
+      // Lock the row and verify it is available
+      const assetCheck = await client.query(
+        'SELECT id, name, status FROM assets WHERE id = $1 FOR UPDATE',
+        [assetId]
+      );
+      if (assetCheck.rows.length === 0) {
+        throw Object.assign(new Error(`Asset #${assetId} not found`), { statusCode: 404 });
+      }
+      if (assetCheck.rows[0].status !== 'available') {
+        throw Object.assign(
+          new Error(`Asset "${assetCheck.rows[0].name}" is not available (current status: ${assetCheck.rows[0].status})`),
+          { statusCode: 409 }
+        );
+      }
+      // Update the asset
+      await client.query(
+        `UPDATE assets SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW() WHERE id = $3`,
+        [employeeId, today, assetId]
+      );
+      // Log to audit trail using the existing historyService pattern
+      await historyService.logEvent(assetId, 'assigned', actorUser, employeeId, assignedNote, null, client);
+      // Cascade to any sub-assets (parent-child — Feature 3 prerequisite)
+      await client.query(
+        `UPDATE assets SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW() WHERE parent_id = $3 AND status = 'available'`,
+        [employeeId, today, assetId]
+      );
+      const subAssets = await client.query('SELECT id FROM assets WHERE parent_id = $1', [assetId]);
+      for (const sub of subAssets.rows) {
+        await historyService.logEvent(sub.id, 'assigned', actorUser, employeeId, `Cascaded from parent asset #${assetId}`, null, client);
+      }
+    }
+  });
+  return { assigned: assetIds.length, employeeId };
+};
+
 module.exports = {
   getAssets,
   getAssetById,
@@ -381,4 +497,5 @@ module.exports = {
   assignAsset,
   returnAsset,
   retireAsset,
+  bulkAssignAssets,
 };

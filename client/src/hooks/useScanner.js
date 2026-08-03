@@ -84,7 +84,6 @@ export default function useScanner({ onDecode, autoStart = true } = {}) {
 
     // Use Native BarcodeDetector if available (Ultra-fast, hardware accelerated, handles all formats effortlessly)
     if ('BarcodeDetector' in window) {
-      console.log('Using native BarcodeDetector API for ultra-fast scanning.');
       const barcodeDetector = new window.BarcodeDetector({ 
         formats: ['qr_code', 'ean_13', 'upc_a', 'code_128', 'code_39', 'ean_8', 'upc_e', 'itf', 'data_matrix'] 
       });
@@ -136,7 +135,6 @@ export default function useScanner({ onDecode, autoStart = true } = {}) {
 
     // Fallback: ZXing Javascript Library
     if (!readerRef.current) {
-      console.log('Using ZXing fallback for barcode scanning.');
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.AZTEC,

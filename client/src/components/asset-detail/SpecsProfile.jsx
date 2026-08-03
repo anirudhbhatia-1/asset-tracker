@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import Button from '../ui/Button';
-import { Copy, Check, Edit2, MapPin, DollarSign, Calendar, ShieldCheck, Building2, Briefcase } from 'lucide-react';
+import { Copy, Check, Edit2, MapPin, DollarSign, Calendar, ShieldCheck, Building2, Briefcase, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getWarrantyStatus, formatDate } from '../../utils/formatters';
+import { getWarrantyStatus, formatDate, getWarrantyDaysLeft } from '../../utils/formatters';
 import useLocations from '../../hooks/useLocations';
+import QrTagModal from './QrTagModal';
 
 export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
   const { locations } = useLocations();
@@ -17,6 +18,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
   const [warrantyValue, setWarrantyValue] = useState(asset?.warrantyExpiryDate || '');
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   useEffect(() => {
     if (asset) {
@@ -109,6 +111,17 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
 
         <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
           <StatusPill status={asset.status} />
+          {asset.serialNumber && (
+            <button
+              type="button"
+              onClick={() => setIsQrModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-raised hover:bg-raised/80 text-secondary hover:text-primary border border-border rounded-lg transition-colors cursor-pointer"
+              title="Generate & Print QR Asset Tag"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>QR Tag</span>
+            </button>
+          )}
           {!isEditing && asset.status !== 'retired' && !readOnly && (
             <button
               type="button"
@@ -308,6 +321,17 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
               <div>
                 <span className="text-xs font-semibold text-secondary uppercase tracking-wider block">Warranty Expiry</span>
                 <span className="text-primary font-mono font-medium">{formatDate(asset.warrantyExpiryDate)}</span>
+                {getWarrantyDaysLeft(asset.warrantyExpiryDate) && (
+                  <span className={`text-[10px] mt-0.5 block font-medium ${
+                    getWarrantyStatus(asset.warrantyExpiryDate) === 'expired'
+                      ? 'text-danger'
+                      : getWarrantyStatus(asset.warrantyExpiryDate) === 'expiring soon'
+                      ? 'text-warning'
+                      : 'text-success'
+                  }`}>
+                    {getWarrantyDaysLeft(asset.warrantyExpiryDate)}
+                  </span>
+                )}
               </div>
             </div>
             <StatusPill status={getWarrantyStatus(asset.warrantyExpiryDate)} />
@@ -324,6 +348,12 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
           </div>
         </div>
       )}
+
+      <QrTagModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        asset={asset}
+      />
     </div>
   );
 }

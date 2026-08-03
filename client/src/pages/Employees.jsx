@@ -5,10 +5,11 @@ import EmployeeAssetDrawer from '../components/employees/EmployeeAssetDrawer';
 import AddEmployeeModal from '../components/forms/AddEmployeeModal';
 import RoleManagementModal from '../components/forms/RoleManagementModal';
 import EditEmployeeModal from '../components/forms/EditEmployeeModal';
+import BulkAssignModal from '../components/forms/BulkAssignModal';
 import RoleManagementPanel from '../components/dashboard/RoleManagementPanel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
-import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck } from 'lucide-react';
+import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package } from 'lucide-react';
 
 const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing'];
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
@@ -27,6 +28,21 @@ export default function Employees() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkAssignTarget, setBulkAssignTarget] = useState(null);
+
+  const handleCardClick = (emp, action) => {
+    if (action === 'bulk-assign') {
+      setBulkAssignTarget(emp);
+      setIsBulkAssignOpen(true);
+    } else if (action === 'role') {
+      setSelectedEmployee(emp);
+      setIsRoleModalOpen(true);
+    } else {
+      setSelectedEmployee(emp);
+      setIsEditModalOpen(true);
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin && activeTab === 'roles') setActiveTab('directory');
@@ -274,7 +290,19 @@ export default function Employees() {
                         </div>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-right">
+                    <td className="px-5 py-3 text-right flex items-center justify-end gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBulkAssignTarget(emp);
+                          setIsBulkAssignOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm"
+                        title="Assign Hardware to Employee"
+                      >
+                        <Package className="w-3.5 h-3.5 text-accent" />
+                        Assign Hardware
+                      </button>
                       <button
                         onClick={(e) => handleAssetsClick(e, emp)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm"
@@ -336,6 +364,13 @@ export default function Employees() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={addEmployee}
+      />
+
+      <BulkAssignModal
+        isOpen={isBulkAssignOpen}
+        onClose={() => { setIsBulkAssignOpen(false); setBulkAssignTarget(null); }}
+        employee={bulkAssignTarget}
+        onSuccess={refresh}
       />
     </div>
   );

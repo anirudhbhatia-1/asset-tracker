@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useAsset from '../hooks/useAsset';
 import { useAuth } from '../context/AuthContext';
@@ -6,9 +6,11 @@ import SpecsProfile from '../components/asset-detail/SpecsProfile';
 import HistoryTimeline from '../components/asset-detail/HistoryTimeline';
 import AssigneeCard from '../components/asset-detail/AssigneeCard';
 import LifecycleActions from '../components/asset-detail/LifecycleActions';
+import LinkedAccessoriesCard from '../components/asset-detail/LinkedAccessoriesCard';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import { ArrowLeft, RefreshCw, PackageX } from 'lucide-react';
+import { getChildAssets } from '../api/assetsApi';
 
 export default function AssetDetail() {
   const { id } = useParams();
@@ -26,6 +28,16 @@ export default function AssetDetail() {
   
   const { user } = useAuth();
   const isReadOnly = user?.role !== 'admin';
+
+  const [childAssets, setChildAssets] = useState([]);
+
+  useEffect(() => {
+    if (asset?.id) {
+      getChildAssets(asset.id)
+        .then(res => setChildAssets(res.data?.data || []))
+        .catch(() => {});
+    }
+  }, [asset?.id]);
 
   if (loading) {
     return (
@@ -99,6 +111,14 @@ export default function AssetDetail() {
 
           {/* 2. Assignee Profile Card (Only shown when in-use) */}
           <AssigneeCard asset={asset} readOnly={isReadOnly} />
+
+          {/* Linked Accessories / Parent Asset Card */}
+          {asset?.parentId && (
+            <LinkedAccessoriesCard parentAsset={{ id: asset.parentId, name: asset.parentAssetName }} />
+          )}
+          {childAssets.length > 0 && (
+            <LinkedAccessoriesCard children={childAssets} />
+          )}
 
           {/* 3. Lifecycle & Operational Controls */}
           {!isReadOnly && (

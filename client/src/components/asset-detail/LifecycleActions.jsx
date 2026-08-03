@@ -75,12 +75,23 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
         </div>
       )}
 
+      {asset.parentId && (
+        <div className="bg-accent/10 border border-accent/20 rounded-xl p-3.5 flex items-center gap-3 text-xs text-accent">
+          <ShieldAlert className="w-4.5 h-4.5 shrink-0" />
+          <span>
+            This item is a sub-asset linked to its parent device. Assignment and return lifecycle actions are automatically cascaded from the parent asset.
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         {/* Assign / Reassign Button */}
         {!isRetired && (
           <Button
             variant="primary"
             onClick={() => setIsAssignModalOpen(true)}
+            disabled={Boolean(asset.parentId)}
+            title={asset.parentId ? 'Managed via parent asset' : undefined}
             className="flex-1 sm:flex-initial"
           >
             <UserPlus className="w-4 h-4" />
@@ -93,6 +104,8 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
           <Button
             variant="secondary"
             onClick={() => setIsReturnModalOpen(true)}
+            disabled={Boolean(asset.parentId)}
+            title={asset.parentId ? 'Managed via parent asset' : undefined}
             className="flex-1 sm:flex-initial"
           >
             <CornerDownLeft className="w-4 h-4" />

@@ -48,10 +48,23 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Scanner states
+  // Sub-Assets (Accessories e.g. Adaptor)
+  const [subAssets, setSubAssets] = useState([]); // [{ categoryId, model, serialNumber }]
+  const addSubAsset = () => setSubAssets(prev => [...prev, { categoryId: '', model: '', serialNumber: '' }]);
+  const removeSubAsset = (i) => setSubAssets(prev => prev.filter((_, idx) => idx !== i));
+  const updateSubAsset = (i, field, val) => setSubAssets(prev =>
+    prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s)
+  );
+
+  // Scanner states — main asset
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const [scanChecking, setScanChecking] = useState(false);
   const [existingAssetMatch, setExistingAssetMatch] = useState(null);
+
+  // Scanner states — sub-asset
+  const [subScanTarget, setSubScanTarget] = useState(null); // index of sub-asset being scanned
+  const [isSubScannerModalOpen, setIsSubScannerModalOpen] = useState(false);
+  const [subScanChecking, setSubScanChecking] = useState(false);
 
   const handleScanDecode = useCallback(async (serialText) => {
     setScanChecking(true);
@@ -85,7 +98,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
     stopScanner
   } = useScanner({ onDecode: handleScanDecode, autoStart: false });
 
-  // Ensure scanner stops when modal closes
+  // Ensure main scanner stops when modal closes
   React.useEffect(() => {
     if (!isScannerModalOpen) {
       stopScanner();
@@ -100,6 +113,45 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
   const closeScanner = () => {
     setIsScannerModalOpen(false);
+  };
+
+  // Sub-asset scan handler
+  const handleSubScanDecode = useCallback(async (serialText) => {
+    setSubScanChecking(true);
+    try {
+      updateSubAsset(subScanTarget, 'serialNumber', serialText.trim());
+      setIsSubScannerModalOpen(false);
+      toast.success(`Scanned serial for accessory: ${serialText.trim()}`);
+    } catch (err) {
+      toast.error('Error capturing scanned serial');
+    } finally {
+      setSubScanChecking(false);
+    }
+  }, [subScanTarget]);
+
+  const {
+    videoRef: subVideoRef,
+    cameraAvailable: subCameraAvailable,
+    isScanning: subIsScanning,
+    startScanner: subStartScanner,
+    stopScanner: subStopScanner
+  } = useScanner({ onDecode: handleSubScanDecode, autoStart: false });
+
+  // Ensure sub-scanner stops when modal closes
+  React.useEffect(() => {
+    if (!isSubScannerModalOpen) {
+      subStopScanner();
+    }
+  }, [isSubScannerModalOpen, subStopScanner]);
+
+  const openSubScanner = (index) => {
+    setSubScanTarget(index);
+    setIsSubScannerModalOpen(true);
+    subStartScanner();
+  };
+
+  const closeSubScanner = () => {
+    setIsSubScannerModalOpen(false);
   };
 
   const handleAutoGenSerial = async () => {
@@ -157,6 +209,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         costCents: costCents || undefined,
         serialNumber: serialNumber.trim(),
         notes: notes.trim() || null,
+        subAssets: subAssets.filter(s => s.serialNumber && s.serialNumber.trim()),
       };
 
       if (isEdit && initialData?.id) {
@@ -665,6 +718,66 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         </div>
       )}
 
+      {/* Accessories / Sub-Assets */}
+      {!isEdit && (
+        <div className="space-y-4 pt-6 border-t border-border/60">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-primary flex items-center gap-2">
+                <Tag className="w-4 h-4 text-accent" />
+                <span>Accessories / Sub-Assets</span>
+              </h2>
+              <p className="text-xs text-secondary mt-0.5">
+                Attach accessories (chargers, adaptors, bags) that will be assigned and returned together with this primary asset.
+              </p>
+            </div>
+            <Button type="button" variant="secondary" size="sm" onClick={addSubAsset}>
+              <Plus className="w-3.5 h-3.5" /> Add Accessory
+            </Button>
+          </div>
+          {subAssets.map((sub, i) => (
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-base/60 rounded-xl border border-border/60 relative">
+              <select
+                value={sub.categoryId}
+                onChange={e => updateSubAsset(i, 'categoryId', e.target.value)}
+                className="rounded-lg bg-base border border-border px-3 py-2 text-sm text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+              >
+                <option value="">Select Category...</option>
+                {safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <input
+                type="text"
+                value={sub.model}
+                onChange={e => updateSubAsset(i, 'model', e.target.value)}
+                placeholder="Model / Specs (e.g. 85W USB-C)"
+                className="rounded-lg bg-base border border-border px-3 py-2 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={sub.serialNumber}
+                  onChange={e => updateSubAsset(i, 'serialNumber', e.target.value)}
+                  placeholder="Serial number *"
+                  className="flex-1 min-w-0 rounded-lg bg-base border border-border px-3 py-2 text-sm font-mono text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+                <button
+                  type="button"
+                  onClick={() => openSubScanner(i)}
+                  className="p-2 rounded-lg bg-surface border border-border text-secondary hover:text-accent hover:border-accent/40 transition-colors shrink-0"
+                  title="Scan barcode / QR for serial number"
+                >
+                  <QrCode className="w-4 h-4" />
+                </button>
+                <button type="button" onClick={() => removeSubAsset(i)}
+                  className="p-2 text-secondary hover:text-danger rounded-lg transition-colors" title="Remove Accessory">
+                  <AlertCircle className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Footer Submission Actions */}
       <div className="pt-6 border-t border-border flex items-center justify-end gap-4">
         <Button
@@ -729,6 +842,56 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
           
           <div className="flex justify-end pt-2">
             <Button type="button" variant="secondary" onClick={closeScanner}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Sub-Asset Scanner Modal */}
+      <Modal
+        isOpen={isSubScannerModalOpen}
+        onClose={closeSubScanner}
+        title={`Scan Serial — Accessory #${(subScanTarget ?? 0) + 1}`}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-secondary">
+            Hold the barcode or QR code of the accessory steady within the viewfinder. The scanned value will be filled in automatically.
+          </p>
+
+          <div className="relative">
+            {subCameraAvailable && subIsScanning ? (
+              <WebcamFeed
+                videoRef={subVideoRef}
+                isScanning={subIsScanning}
+                onStop={subStopScanner}
+              />
+            ) : (
+              <LaserViewfinder
+                onRetryCamera={subStartScanner}
+              />
+            )}
+
+            {subScanChecking && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-base/60 backdrop-blur-sm rounded-2xl">
+                <div className="bg-surface border border-border p-4 rounded-xl flex items-center gap-3 shadow-xl">
+                  <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                  <span className="text-sm font-medium text-primary">Capturing serial...</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-border/60">
+            <SerialSimulator
+              onSimulateScan={(serial) => handleSubScanDecode(serial)}
+              disabled={subScanChecking}
+            />
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button type="button" variant="secondary" onClick={closeSubScanner}>
               Cancel
             </Button>
           </div>

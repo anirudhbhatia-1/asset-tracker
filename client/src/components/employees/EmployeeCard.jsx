@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { User, Mail, Building2, MapPin, ShieldCheck, Laptop, Trash2, Key, Edit3 } from 'lucide-react';
+import { User, Mail, Building2, MapPin, ShieldCheck, Laptop, Trash2, Key, Edit3, Package } from 'lucide-react';
 
 const toTitleCase = (str) => {
   if (!str) return '';
@@ -96,6 +96,14 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
           )}
 
           <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onClick && onClick(employee, 'bulk-assign'); }}
+              className="p-1.5 rounded-lg text-secondary hover:text-success hover:bg-raised/60 transition-all"
+              title="Assign Hardware"
+            >
+              <Package className="w-4 h-4" />
+            </button>
             <button
               type="button"
               onClick={handleEditRole}

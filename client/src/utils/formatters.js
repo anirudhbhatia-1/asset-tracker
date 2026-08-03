@@ -77,3 +77,21 @@ export function getWarrantyStatus(warrantyExpiryDate) {
     return 'in warranty';
   }
 }
+
+/**
+ * Returns a human-readable string showing days remaining/elapsed on warranty.
+ * Examples: "45 days left", "Expires today", "Expired 12 days ago"
+ */
+export function getWarrantyDaysLeft(warrantyExpiryDate) {
+  if (!warrantyExpiryDate) return null;
+  const expiry = new Date(warrantyExpiryDate);
+  if (!isValid(expiry)) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((expiry - now) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Expires today';
+  if (diffDays > 0) return `${diffDays} day${diffDays === 1 ? '' : 's'} left`;
+  return `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} ago`;
+}
+

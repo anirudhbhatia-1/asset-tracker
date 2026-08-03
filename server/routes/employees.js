@@ -2,6 +2,9 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const employeeService = require('../services/employeeService');
+const assetService = require('../services/assetService');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const { validateSession, requireRole } = require('../middleware/validateSession');
 
@@ -139,28 +142,6 @@ router.post('/', [
   }
 });
 
-// PUT /api/employees/:id — update employee
-router.put('/:id', [
-  requireRole('admin', 'hr'),
-  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
-  body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 150 }),
-  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Must be a valid email').normalizeEmail(),
-  body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
-  body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
-  body('address').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
-  body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL(),
-  validateRequest,
-], async (req, res, next) => {
-  try {
-    if (req.user.role === 'hr') {
-      delete req.body.role;
-    }
-    const updated = await employeeService.updateEmployee(Number(req.params.id), req.body);
-    res.status(200).json({ data: updated, message: 'Employee updated successfully' });
-  } catch (err) {
-    next(err);
-  }
-});
 
 // DELETE /api/employees/:id — soft delete employee
 router.delete('/:id', [
@@ -205,9 +186,6 @@ router.post('/:id/grant-access', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const bcrypt = require('bcrypt');
-    const crypto = require('crypto');
-    
     // Generate a secure temporary password
     const temporaryPassword = crypto.randomBytes(6).toString('hex'); // 12 chars
     const passwordHash = await bcrypt.hash(temporaryPassword, 10);
@@ -258,6 +236,28 @@ router.patch('/:id', [
     }
     const updated = await employeeService.updateEmployee(Number(req.params.id), req.body);
     res.status(200).json({ data: updated, message: 'Employee updated successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/employees/:id/assign-assets — bulk assign available assets to employee
+router.post('/:id/assign-assets', [
+  requireRole('admin', 'hr'),
+  param('id').isInt({ min: 1 }).withMessage('Employee ID must be a positive integer'),
+  body('assetIds').isArray({ min: 1 }).withMessage('assetIds must be a non-empty array'),
+  body('assetIds.*').isInt({ min: 1 }).withMessage('Each assetId must be a positive integer'),
+  body('note').optional({ nullable: true }).isString().trim().isLength({ max: 500 }),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const result = await assetService.bulkAssignAssets(
+      Number(req.params.id),
+      req.body.assetIds,
+      req.body.note || null,
+      req.user
+    );
+    res.status(200).json({ data: result, message: `${result.assigned} asset(s) assigned successfully` });
   } catch (err) {
     next(err);
   }

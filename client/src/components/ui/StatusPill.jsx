@@ -16,10 +16,6 @@ export default function StatusPill({ status }) {
   if (normalizedStatus === 'in-use') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-info-blue/10 border border-info-blue/30 text-info-blue">
-        <span className="relative flex h-2 w-2 shrink-0 items-center justify-center">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-info-blue opacity-75" />
-          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-info-blue" />
-        </span>
         <Clock className="w-3.5 h-3.5 shrink-0" />
         <span>In Use</span>
       </span>
