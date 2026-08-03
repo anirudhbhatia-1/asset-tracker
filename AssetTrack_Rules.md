@@ -679,6 +679,11 @@ client/dist/
 - Minimum tap target size on mobile: **44×44px**.
 - All form inputs must have associated `<label>` elements.
 
+### 8.8 Timestamp Formatting Rules
+- All timestamp display across the UI must go through the single shared `formatDateTime` utility in `client/src/utils/formatters.js` — no component should format a date/time independently or use relative time strings (e.g. `formatDistanceToNow` or "X minutes ago").
+- Timestamps must display in the unified absolute format `DD/MM/YYYY, H:MM AM/PM` (e.g. `27/07/2026, 3:42 PM`).
+- Date-only fields (e.g., ticket creation date, onboarding joining date, asset purchase/warranty dates) must use `formatDate`.
+
 ---
 
 ## 9. Testing Rules

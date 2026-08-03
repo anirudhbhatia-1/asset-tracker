@@ -1,6 +1,6 @@
 import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
 import { History, Activity } from 'lucide-react';
+import { formatDateTime } from '../../utils/formatters';
 
 export default function ActivityFeed({ history = [], loading = false }) {
   const getTagStyles = (type) => {
@@ -68,15 +68,13 @@ export default function ActivityFeed({ history = [], loading = false }) {
           <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1 divide-y divide-border/40">
             {safeHistory.map((event) => {
               const { label, badgeClass } = getTagStyles(event.eventType);
-              let relativeTime = '';
+              let formattedTime = '';
               try {
                 if (event.eventAt) {
-                  // SQLite returns string like 'YYYY-MM-DD HH:MM:SS', parse safely
-                  const dateStr = event.eventAt.includes('T') ? event.eventAt : event.eventAt.replace(' ', 'T') + 'Z';
-                  relativeTime = formatDistanceToNow(new Date(dateStr), { addSuffix: true });
+                  formattedTime = formatDateTime(event.eventAt);
                 }
               } catch (e) {
-                relativeTime = event.eventAt;
+                formattedTime = event.eventAt;
               }
 
               return (
@@ -99,7 +97,7 @@ export default function ActivityFeed({ history = [], loading = false }) {
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs text-secondary font-mono shrink-0 pt-0.5 self-end sm:self-auto">{relativeTime || 'Just now'}</span>
+                  <span className="text-xs text-secondary font-mono shrink-0 pt-0.5 self-end sm:self-auto">{formattedTime || 'N/A'}</span>
                 </div>
               );
             })}

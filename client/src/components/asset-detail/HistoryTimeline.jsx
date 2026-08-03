@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDateTime } from '../../utils/formatters';
 import { History, CheckCircle2, UserPlus, CornerDownLeft, Archive, Edit3, Trash2 } from 'lucide-react';
 
 export default function HistoryTimeline({ history = [], loading = false }) {
@@ -89,14 +89,13 @@ export default function HistoryTimeline({ history = [], loading = false }) {
         <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-raised">
           {safeHistory.map((event) => {
             const { title, color, dotColor, Icon } = getEventMeta(event.eventType);
-            let relativeTime = event.eventAt;
+            let formattedTime = event.eventAt;
             try {
               if (event.eventAt) {
-                const dateStr = event.eventAt.includes('T') ? event.eventAt : event.eventAt.replace(' ', 'T') + 'Z';
-                relativeTime = formatDistanceToNow(new Date(dateStr), { addSuffix: true });
+                formattedTime = formatDateTime(event.eventAt);
               }
             } catch (e) {
-              relativeTime = event.eventAt;
+              formattedTime = event.eventAt;
             }
 
             return (
@@ -119,7 +118,7 @@ export default function HistoryTimeline({ history = [], loading = false }) {
                       )}
                     </div>
                     <span className="text-xs font-mono text-secondary" title={event.eventAt}>
-                      {relativeTime}
+                      {formattedTime}
                     </span>
                   </div>
 

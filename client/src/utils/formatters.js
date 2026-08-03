@@ -45,10 +45,10 @@ export function formatDate(dateInput, patternStr = 'MMM dd, yyyy') {
 }
 
 /**
- * Formats a date with time (e.g. MMM dd, yyyy HH:mm).
+ * Formats a date with time as absolute format (e.g. 27/07/2026, 3:42 PM).
  */
 export function formatDateTime(dateInput) {
-  return formatDate(dateInput, 'MMM dd, yyyy HH:mm');
+  return formatDate(dateInput, 'dd/MM/yyyy, h:mm a');
 }
 
 /**

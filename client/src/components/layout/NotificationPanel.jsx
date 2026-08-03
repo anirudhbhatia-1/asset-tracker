@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Bell, X, CheckCircle2, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatDateTime } from '../../utils/formatters';
 
 const iconMap = {
   success: <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />,
@@ -90,7 +91,7 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
                 </div>
                 <p className="text-xs text-secondary mt-0.5 leading-relaxed">{n.message}</p>
                 <span className="text-[10px] text-secondary/50 mt-1 block">
-                  {new Date(n.createdAt).toLocaleString()}
+                  {formatDateTime(n.createdAt)}
                 </span>
               </div>
             </button>

@@ -3,7 +3,7 @@ import { X, Check, Loader2, Package, Search, ArrowRightLeft, History } from 'luc
 import { useAuth } from '../../context/AuthContext';
 import { getAssets } from '../../api/assetsApi';
 import { useTickets } from '../../hooks/useTickets';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDateTime } from '../../utils/formatters';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -205,7 +205,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 mb-1">
                         <span className="font-semibold text-primary capitalize">{event.event_type.replace('_', ' ')}</span>
                         <span className="text-xs text-secondary shrink-0" title={event.created_at}>
-                          {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
+                          {formatDateTime(event.created_at)}
                         </span>
                       </div>
                       {event.event_type === 'transferred' && (
