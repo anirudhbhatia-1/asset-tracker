@@ -164,7 +164,8 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
                 >
                   <option value="it">IT Admin</option>
                   <option value="hardware">Hardware Admin</option>
-                  <option value="hr">HR Admin</option>
+                  {/* HR raising a ticket would not target themselves */}
+                  {user?.role !== 'hr' && <option value="hr">HR Admin</option>}
                 </select>
               </div>
 

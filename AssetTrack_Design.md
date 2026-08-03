@@ -161,7 +161,7 @@ Per PRD §6.1. Top to bottom:
 
 1. **Metric grid** — 4 cards (Total Assets, In Use, Available, Retired), responsive `grid-cols-4 → 2 → 1`. Each card: big number (count-up animation on load), label, small week-over-week delta chip (▲ emerald / ▼ rose).
 2. **Two-column split** (stacks on mobile):
-   - **Left — Inventory Breakdown:** horizontal bar per category — badge, label, count, and a filled-track bar sized to % of total. Updates live as categories are added.
+   - **Left — Inventory Overview / Breakdown:** Interactive SVG Donut Chart and legend supporting four grouping dimensions: Category, Location, Status (Available / In Use / Retired), and Warranty (In Warranty / Expiring Soon / Expired / No Warranty Data). Features hover tooltips on donut segments, connected hover-sync between chart segments and legend rows, and click-through navigation into pre-filtered Inventory views.
    - **Right — Google Workspace Banner:** card with Google "G" mark, connection status pill (Connected/Not Configured), domain, synced-employee count, and a "Configure →" link into Settings.
 3. **Activity Feed** — reverse-chronological list, 20 items, each row: colored action-type tag (assignment=blue, google=green, status=amber, category=purple, retire=rose per PRD §6.1.4), description sentence, relative timestamp right-aligned. New items slide in from the bottom. "Load more" at the foot.
 

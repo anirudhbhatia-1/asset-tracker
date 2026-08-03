@@ -21,16 +21,23 @@ const StatusBadge = ({ status }) => {
 
 const Tickets = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'hr';
+  const isAdminOrHr = user?.role === 'admin' || user?.role === 'hr'; // has admin queue
+  const isHr = user?.role === 'hr';                                   // HR specifically
+  const isEmployee = user?.role === 'employee';                       // pure employee
+  const canRaiseTicket = isEmployee || isHr;                         // who can raise tickets
   const { tickets, loading, error, fetchTickets, createTicket, updateTicket } = useTickets();
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [filter, setFilter] = useState('all');
-  const [queueScope, setQueueScope] = useState('my_queue'); // 'my_queue' or 'all'
+  const [queueScope, setQueueScope] = useState('my_queue'); // 'my_queue' | 'all' | 'my_tickets'
 
   useEffect(() => {
-    fetchTickets({ scope: queueScope === 'all' ? 'all' : undefined });
+    let scope;
+    if (queueScope === 'all') scope = 'all';
+    else if (queueScope === 'my_tickets') scope = 'my_tickets';
+    else scope = undefined; // default: my_queue
+    fetchTickets({ scope });
   }, [fetchTickets, queueScope]);
 
   const filteredTickets = tickets.filter(t => {
@@ -51,14 +58,14 @@ const Tickets = () => {
             Support Tickets
           </h1>
           <p className="text-secondary text-sm mt-1">
-            {isAdmin ? 'Manage employee requests and issues.' : 'Track your IT support requests.'}
+            {isAdminOrHr && queueScope !== 'my_tickets' ? 'Manage employee requests and issues.' : 'Track your IT support requests.'}
           </p>
         </div>
         
-        {!isAdmin && (
+        {canRaiseTicket && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg font-medium shadow-sm transition-all"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg font-medium shadow-sm transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Raise Ticket
@@ -73,7 +80,7 @@ const Tickets = () => {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors cursor-pointer ${
                 filter === f ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
               }`}
             >
@@ -82,18 +89,24 @@ const Tickets = () => {
           ))}
         </div>
 
-        {isAdmin && (
+        {isAdminOrHr && (
           <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
-            <span className="px-2 text-xs font-medium uppercase tracking-wider text-secondary">Queue:</span>
-            {['my_queue', 'all'].map(scope => (
+            <span className="px-2 text-xs font-medium uppercase tracking-wider text-secondary">View:</span>
+            {[
+              { value: 'my_queue', label: `My Queue (${user.adminType === 'it' ? 'IT' : user.adminType === 'hardware' ? 'Hardware' : 'HR'})` },
+              { value: 'all', label: 'All Tickets' },
+              ...(isHr ? [{ value: 'my_tickets', label: 'My Raised Tickets' }] : []),
+            ].map(scope => (
               <button
-                key={scope}
-                onClick={() => setQueueScope(scope)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  queueScope === scope ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
+                key={scope.value}
+                onClick={() => setQueueScope(scope.value)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                  queueScope === scope.value
+                    ? 'bg-surface text-primary shadow-sm border border-border'
+                    : 'text-secondary hover:text-primary hover:bg-raised/50'
                 }`}
               >
-                {scope === 'my_queue' ? `My Queue (${user.adminType === 'it' ? 'IT' : user.adminType === 'hardware' ? 'Hardware' : 'HR'})` : 'All Tickets'}
+                {scope.label}
               </button>
             ))}
           </div>
@@ -121,7 +134,7 @@ const Tickets = () => {
                 <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Title</th>
                 <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Type</th>
                 <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
-                {isAdmin && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Employee</th>}
+                {isAdminOrHr && queueScope !== 'my_tickets' && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Employee</th>}
                 <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Date</th>
               </tr>
             </thead>
@@ -134,13 +147,13 @@ const Tickets = () => {
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-48"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-16"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-20"></div></td>
-                    {isAdmin && <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>}
+                    {isAdminOrHr && queueScope !== 'my_tickets' && <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>}
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>
                   </tr>
                 ))
               ) : filteredTickets.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center text-secondary">
+                  <td colSpan={isAdminOrHr && queueScope !== 'my_tickets' ? 6 : 5} className="px-6 py-12 text-center text-secondary">
                     No tickets found.
                   </td>
                 </tr>
@@ -160,8 +173,10 @@ const Tickets = () => {
                     </td>
                     <td className="px-6 py-4 capitalize text-secondary">{ticket.type}</td>
                     <td className="px-6 py-4"><StatusBadge status={ticket.status} /></td>
-                    {isAdmin && (
-                      <td className="px-6 py-4 text-secondary">Employee #{ticket.employee_id}</td>
+                    {isAdminOrHr && queueScope !== 'my_tickets' && (
+                      <td className="px-6 py-4 text-secondary">
+                        {ticket.employee_name || `Employee #${ticket.employee_id}`}
+                      </td>
                     )}
                     <td className="px-6 py-4 text-secondary">
                       {new Date(ticket.created_at).toLocaleDateString()}

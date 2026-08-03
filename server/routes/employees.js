@@ -43,6 +43,26 @@ router.get('/me', async (req, res, next) => {
   }
 });
 
+// PATCH /api/employees/me — update own profile (all authenticated roles)
+// Allowed fields: name only. Email, role, department, location changes require admin.
+router.patch('/me', [
+  body('name')
+    .notEmpty().withMessage('Name is required')
+    .trim()
+    .isLength({ max: 150 }).withMessage('Name must be 150 characters or less'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    // Only allow updating name — any other fields are silently ignored
+    const { name } = req.body;
+    const updated = await employeeService.updateEmployee(req.user.id, { name });
+    res.status(200).json({ data: updated, message: 'Profile updated successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
 // GET /api/employees/:id — get single employee
 router.get('/:id', [
   requireRole('admin', 'hr'),

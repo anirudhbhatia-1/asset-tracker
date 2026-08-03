@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getAssets } from '../api/assetsApi';
 import { getCategories } from '../api/categoriesApi';
 import { getEmployees } from '../api/employeesApi';
+import { getWarrantyStatus } from '../utils/formatters';
 
 export default function useMetrics() {
   const [data, setData] = useState({
@@ -51,10 +52,9 @@ export default function useMetrics() {
   const breakdown = useMemo(() => {
     const assets = Array.isArray(data.assets) ? data.assets : [];
     const categories = Array.isArray(data.categories) ? data.categories : [];
-    const total = assets.length || 1; // prevent div by zero
+    const total = assets.length || 1;
     const map = new Map();
 
-    // Initialize with all categories so even 0-count categories show or we sort neatly
     categories.forEach((cat) => {
       if (!cat) return;
       map.set(cat.id, {
@@ -62,6 +62,8 @@ export default function useMetrics() {
         name: cat.name || `Category #${cat.id}`,
         badgeChar: cat.badgeChar || (cat.name ? cat.name.charAt(0) : '?'),
         color: cat.color || '#6366F1',
+        filterKey: 'categoryId',
+        filterValue: String(cat.id),
         count: 0,
       });
     });
@@ -76,6 +78,8 @@ export default function useMetrics() {
           name: asset.categoryName || 'Other',
           badgeChar: asset.categoryBadgeChar || '?',
           color: asset.categoryColor || '#64748B',
+          filterKey: 'categoryId',
+          filterValue: String(catId),
           count: 1,
         });
       } else {
@@ -85,6 +89,8 @@ export default function useMetrics() {
             name: 'Uncategorized',
             badgeChar: 'U',
             color: '#64748B',
+            filterKey: 'categoryId',
+            filterValue: '0',
             count: 0,
           });
         }
@@ -93,6 +99,7 @@ export default function useMetrics() {
     });
 
     return Array.from(map.values())
+      .filter((item) => item.count > 0)
       .map((item) => ({
         ...item,
         percentage: Math.round((item.count / total) * 100),
@@ -104,6 +111,7 @@ export default function useMetrics() {
     const assets = Array.isArray(data.assets) ? data.assets : [];
     const total = assets.length || 1;
     const map = new Map();
+    const locationColors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#06B6D4', '#EC4899'];
 
     assets.forEach((asset) => {
       const loc = asset.location || 'Unassigned Location';
@@ -114,8 +122,13 @@ export default function useMetrics() {
     });
 
     return Array.from(map.values())
-      .map((item) => ({
-        ...item,
+      .map((item, index) => ({
+        id: item.name,
+        name: item.name,
+        color: locationColors[index % locationColors.length],
+        filterKey: 'location',
+        filterValue: item.name,
+        count: item.count,
         percentage: Math.round((item.count / total) * 100),
       }))
       .sort((a, b) => b.count - a.count);
@@ -124,21 +137,72 @@ export default function useMetrics() {
   const breakdownByStatus = useMemo(() => {
     const assets = Array.isArray(data.assets) ? data.assets : [];
     const total = assets.length || 1;
-    const map = new Map();
+
+    const statusConfig = [
+      { id: 'available', name: 'Available', color: '#10B981', filterKey: 'status', filterValue: 'available' },
+      { id: 'in-use', name: 'In Use', color: '#3B82F6', filterKey: 'status', filterValue: 'in-use' },
+      { id: 'retired', name: 'Retired', color: '#64748B', filterKey: 'status', filterValue: 'retired' },
+    ];
+
+    const counts = { 'available': 0, 'in-use': 0, 'retired': 0 };
 
     assets.forEach((asset) => {
-      const status = asset.status || 'unknown';
-      if (!map.has(status)) {
-        map.set(status, { name: status.charAt(0).toUpperCase() + status.slice(1), count: 0, raw: status });
-      }
-      map.get(status).count += 1;
+      const s = (asset.status || '').toLowerCase();
+      if (s === 'available') counts['available'] += 1;
+      else if (s === 'in-use' || s === 'in_use') counts['in-use'] += 1;
+      else if (s === 'retired') counts['retired'] += 1;
     });
 
-    return Array.from(map.values())
-      .map((item) => ({
-        ...item,
-        percentage: Math.round((item.count / total) * 100),
-      }))
+    return statusConfig
+      .map((config) => {
+        const count = counts[config.id] || 0;
+        return {
+          ...config,
+          count,
+          percentage: Math.round((count / total) * 100),
+        };
+      })
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [data.assets]);
+
+  const breakdownByWarranty = useMemo(() => {
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    const total = assets.length || 1;
+
+    const warrantyConfig = [
+      { id: 'in warranty', name: 'In Warranty', color: '#10B981', filterKey: 'warranty', filterValue: 'in-warranty' },
+      { id: 'expiring soon', name: 'Expiring Soon', color: '#F59E0B', filterKey: 'warranty', filterValue: 'expiring-soon' },
+      { id: 'expired', name: 'Expired', color: '#EF4444', filterKey: 'warranty', filterValue: 'expired' },
+      { id: 'no warranty data', name: 'No Warranty Data', color: '#64748B', filterKey: 'warranty', filterValue: 'no-warranty' },
+    ];
+
+    const counts = {
+      'in warranty': 0,
+      'expiring soon': 0,
+      'expired': 0,
+      'no warranty data': 0,
+    };
+
+    assets.forEach((asset) => {
+      const ws = getWarrantyStatus(asset.warrantyExpiryDate);
+      if (counts[ws] !== undefined) {
+        counts[ws] += 1;
+      } else {
+        counts['no warranty data'] += 1;
+      }
+    });
+
+    return warrantyConfig
+      .map((config) => {
+        const count = counts[config.id] || 0;
+        return {
+          ...config,
+          count,
+          percentage: Math.round((count / total) * 100),
+        };
+      })
+      .filter((item) => item.count > 0)
       .sort((a, b) => b.count - a.count);
   }, [data.assets]);
 
@@ -160,6 +224,7 @@ export default function useMetrics() {
     breakdown: Array.isArray(breakdown) ? breakdown : [],
     breakdownByLocation,
     breakdownByStatus,
+    breakdownByWarranty,
     lowStockCategories,
     categories: Array.isArray(data.categories) ? data.categories : [],
     employees: Array.isArray(data.employees) ? data.employees : [],
@@ -168,3 +233,4 @@ export default function useMetrics() {
     refresh: fetchMetrics,
   };
 }
+

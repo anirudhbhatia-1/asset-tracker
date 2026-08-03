@@ -40,7 +40,7 @@ router.get('/:id/history', requireRole('admin', 'employee', 'hr'), async (req, r
 
 // POST /api/tickets — employee creates a ticket
 router.post('/', [
-  requireRole('employee'),
+  requireRole('employee', 'hr'),
   body('type').isIn(['issue', 'request']).withMessage('Invalid ticket type'),
   body('title').notEmpty().withMessage('Title is required').trim().isLength({ max: 150 }),
   body('description').optional({ nullable: true, checkFalsy: true }).isString().trim(),
@@ -99,7 +99,7 @@ router.patch('/:id/transfer', [
 
 // PATCH /api/tickets/:id/confirm-close — employee confirms a resolved ticket
 router.patch('/:id/confirm-close', [
-  requireRole('employee'),
+  requireRole('employee', 'hr'),
   validateRequest
 ], async (req, res, next) => {
   try {
@@ -115,7 +115,7 @@ router.patch('/:id/confirm-close', [
 
 // PATCH /api/tickets/:id/reopen — employee reopens a resolved ticket
 router.patch('/:id/reopen', [
-  requireRole('employee'),
+  requireRole('employee', 'hr'),
   body('note').optional({ nullable: true }).isString().trim(),
   validateRequest
 ], async (req, res, next) => {

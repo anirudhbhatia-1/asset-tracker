@@ -166,9 +166,9 @@ const createEmployeeWithAccess = async (data) => {
   const bcrypt = require('bcrypt');
   const crypto = require('crypto');
   const { name, email, department, location, address, role } = data;
-  
+
   validateCorporateEmail(email);
-  
+
   // Check duplicate before starting transaction
   const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
   if (existing.rows.length > 0) {
@@ -176,25 +176,23 @@ const createEmployeeWithAccess = async (data) => {
     err.statusCode = 409;
     throw err;
   }
-  
+
   const temporaryPassword = crypto.randomBytes(6).toString('hex'); // 12 chars
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
-  
+
   const result = await pool.query(`
     INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, password_hash, role, created_at)
     VALUES ($1, $2, $3, $4, $5, NULL, NULL, 0, $6, $7, NOW())
     RETURNING id
   `, [name, email, department ?? null, location ?? null, address ?? null, passwordHash, role]);
-  
+
   const employee = await getEmployeeById(result.rows[0].id);
   return { employee, temporaryPassword };
 };
 
 const updateEmployee = async (id, data) => {
   const current = await getEmployeeById(id);
-  const { name, email, department, location, address, avatarUrl, role } = data;
-
-  const newRole = (role !== undefined && current.hasLogin) ? role : current.role;
+  const { name, email, department, location, address, avatarUrl } = data;
 
   if (email && email !== current.email) {
     const existing = await pool.query('SELECT id FROM employees WHERE email = $1 AND id != $2', [email, id]);
@@ -212,9 +210,8 @@ const updateEmployee = async (id, data) => {
         department = $3,
         location = $4,
         address = $5,
-        avatar_url = $6,
-        role = $7
-    WHERE id = $8
+        avatar_url = $6
+    WHERE id = $7
   `, [
     name !== undefined ? name : current.name,
     email !== undefined ? email : current.email,
@@ -222,7 +219,6 @@ const updateEmployee = async (id, data) => {
     location !== undefined ? location : current.location,
     address !== undefined ? address : current.address,
     avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
-    newRole,
     id
   ]);
 
@@ -231,7 +227,7 @@ const updateEmployee = async (id, data) => {
 
 const deleteEmployee = async (id) => {
   const current = await getEmployeeById(id);
-  
+
   if (current.deletedAt) {
     return { id: Number(id), deleted: true };
   }
@@ -254,20 +250,20 @@ const updateEmployeeRole = async (id, newRole) => {
 
 const grantEmployeeAccess = async (id, role, passwordHash) => {
   const current = await getEmployeeById(id);
-  
+
   validateCorporateEmail(current.email);
-  
+
   if (current.hasLogin) {
     const err = new Error('Employee already has a login account');
     err.statusCode = 400;
     throw err;
   }
-  
+
   await pool.query(
     'UPDATE employees SET password_hash = $1, role = $2 WHERE id = $3',
     [passwordHash, role, id]
   );
-  
+
   return getEmployeeById(id);
 };
 
@@ -279,9 +275,9 @@ const grantEmployeeAccess = async (id, role, passwordHash) => {
 const grantGoogleAccess = async (id) => {
   return withTransaction(async (client) => {
     const current = await getEmployeeById(id);
-    
+
     validateCorporateEmail(current.email);
-    
+
     if (current.hasLogin) {
       const err = new Error('Employee already has a login account');
       err.statusCode = 400;

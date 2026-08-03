@@ -22,7 +22,9 @@ const StatusBadge = ({ status }) => {
 
 const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'hr';
+  const isTicketOwner = user?.id === ticket?.employee_id;
+  const isHandlingAdmin = (user?.role === 'admin' || user?.role === 'hr') &&
+                          (!isTicketOwner || ticket?.current_admin_type === (user?.adminType || 'hr'));
   
   const [status, setStatus] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
@@ -52,11 +54,11 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
       
       loadHistory();
 
-      if (isAdmin && ticket.type === 'request' && ticket.status !== 'resolved') {
+      if (isHandlingAdmin && ticket.type === 'request' && ticket.status !== 'resolved') {
         loadAssets();
       }
     }
-  }, [isOpen, ticket, isAdmin]);
+  }, [isOpen, ticket, isHandlingAdmin]);
 
   const loadHistory = async () => {
     setLoadingHistory(true);
@@ -225,7 +227,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
           <hr className="border-border" />
 
           {/* Resolution / Transfer Area */}
-          {isAdmin ? (
+          {isHandlingAdmin ? (
             <form id="resolve-form" onSubmit={handleSubmit} className="space-y-4">
               
               {!showTransferMode ? (
@@ -236,7 +238,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                       <button 
                         type="button" 
                         onClick={() => setShowTransferMode(true)}
-                        className="text-xs font-medium text-accent hover:text-accent/80 flex items-center gap-1"
+                        className="text-xs font-medium text-accent hover:text-accent/80 flex items-center gap-1 cursor-pointer"
                       >
                         <ArrowRightLeft className="w-3 h-3" />
                         Transfer Ticket
@@ -298,7 +300,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                 <button 
                   type="button" 
                   onClick={() => setShowTransferMode(false)}
-                  className="text-xs font-medium text-secondary hover:text-primary"
+                  className="text-xs font-medium text-secondary hover:text-primary cursor-pointer"
                 >
                   Cancel Transfer
                 </button>
@@ -342,7 +344,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                   <p className="text-sm text-secondary italic">No notes provided.</p>
                 )}
                 
-                {ticket.status === 'resolved' && (
+                {ticket.status === 'resolved' && isTicketOwner && (
                   <div className="pt-4 border-t border-accent/10 flex items-center justify-end gap-3 mt-4">
                     <button
                       type="button"
@@ -356,7 +358,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                         }
                       }}
                       disabled={submitting}
-                      className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-base/50 rounded-lg transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-base/50 rounded-lg transition-colors cursor-pointer"
                     >
                       Reopen Ticket
                     </button>
@@ -372,7 +374,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                         }
                       }}
                       disabled={submitting}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors cursor-pointer"
                     >
                       {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                       Confirm Resolution
@@ -386,21 +388,21 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-base/50 shrink-0">
-          {isAdmin && (
+          {isHandlingAdmin && (
             <button
               form="resolve-form"
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (showTransferMode ? <ArrowRightLeft className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
               {showTransferMode ? 'Confirm Transfer' : 'Save Changes'}
             </button>
           )}
-          {!isAdmin && (
+          {!isHandlingAdmin && (
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               Close
             </button>

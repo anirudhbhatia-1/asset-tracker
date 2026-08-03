@@ -69,11 +69,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (updater) => {
+    setUser(prev => {
+      const nextUser = typeof updater === 'function' ? updater(prev) : updater;
+      if (nextUser) {
+        sessionStorage.setItem('user', JSON.stringify(nextUser));
+      } else {
+        sessionStorage.removeItem('user');
+      }
+      return nextUser;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, loginWithToken }}>
+    <AuthContext.Provider value={{ user, setUser: updateUser, loading, login, logout, loginWithToken }}>
       {!loading && children}
     </AuthContext.Provider>
   );
 };
+
 
 export const useAuth = () => useContext(AuthContext);

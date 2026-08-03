@@ -6,19 +6,38 @@ const getTickets = async (user, filters = {}) => {
     SELECT t.*, 
            c.name as category_name, 
            a.name as asset_name,
+           e.name as employee_name,
+           e.email as employee_email,
            'TK-' || LPAD(t.id::text, 4, '0') as human_readable_id
     FROM tickets t 
     LEFT JOIN categories c ON t.category_id = c.id 
     LEFT JOIN assets a ON t.asset_id = a.id
+    LEFT JOIN employees e ON t.employee_id = e.id
   `;
   let params = [];
   let conditions = [];
 
   if (user.role === 'employee') {
+    // Employees only ever see tickets they raised
     conditions.push(`t.employee_id = $${params.length + 1}`);
     params.push(user.id);
-  } else if ((user.role === 'admin' || user.role === 'hr') && filters.scope !== 'all') {
-    if (user.adminType) {
+  } else if (user.role === 'hr') {
+    if (filters.scope === 'all') {
+      // No filter — HR sees every ticket in the system
+    } else if (filters.scope === 'my_tickets') {
+      // HR sees ONLY the tickets they personally raised
+      conditions.push(`t.employee_id = $${params.length + 1}`);
+      params.push(user.id);
+    } else {
+      // Default (my_queue): tickets routed to the HR admin queue
+      conditions.push(`t.current_admin_type = $${params.length + 1}`);
+      params.push('hr');
+    }
+  } else if (user.role === 'admin') {
+    if (filters.scope === 'all') {
+      // No filter — admin sees everything
+    } else if (user.adminType) {
+      // Default: admin sees their own queue only
       conditions.push(`t.current_admin_type = $${params.length + 1}`);
       params.push(user.adminType);
     }

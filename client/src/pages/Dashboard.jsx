@@ -10,7 +10,7 @@ import { PackageCheck, Users, AlertCircle, Archive, RefreshCw, AlertTriangle, Pl
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { metrics, breakdown, breakdownByLocation, lowStockCategories, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
+  const { metrics, breakdown, breakdownByLocation, breakdownByStatus, breakdownByWarranty, lowStockCategories, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
   const { tickets, loading: ticketsLoading, error: ticketsError, fetchTickets } = useTickets();
 
   useEffect(() => {
@@ -204,6 +204,8 @@ export default function Dashboard() {
         <InventoryBreakdown 
           breakdown={breakdown} 
           breakdownByLocation={breakdownByLocation}
+          breakdownByStatus={breakdownByStatus}
+          breakdownByWarranty={breakdownByWarranty}
           loading={metricsLoading} 
         />
       </div>
