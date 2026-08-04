@@ -577,14 +577,42 @@ CREATE TABLE IF NOT EXISTS assets (
   status          TEXT    NOT NULL DEFAULT 'available'
                           CHECK(status IN ('available','in-use','retired')),
   location        TEXT,
+  address         TEXT,
+  asset_type      TEXT    NOT NULL DEFAULT 'company' CHECK(asset_type IN ('company','client')),
   cost_cents      INTEGER DEFAULT 0,
   purchase_date   TEXT,
   notes           TEXT,
   warranty_expiry_date TEXT,
   assigned_to     INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   assigned_date   TEXT,
+  parent_id       INTEGER REFERENCES assets(id) ON DELETE SET NULL,
+  brand           TEXT,
+  vendor          TEXT,
+  processor       TEXT,
+  ram             TEXT,
+  storage         TEXT,
+  screen_size     TEXT,
+  graphics_card   TEXT,
+  os              TEXT,
+  ms_office       TEXT,
+  anti_virus      TEXT,
+  warranty_plan   TEXT,
+  warranty_upgrade TEXT,
+  color           TEXT,
+  hardware_type   TEXT,
+  client_name     TEXT,
+  return_date     TEXT,
+  received_on     TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Locations
+CREATE TABLE IF NOT EXISTS locations (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT    UNIQUE NOT NULL,
+  address     TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Audit / History Log
@@ -595,6 +623,7 @@ CREATE TABLE IF NOT EXISTS asset_history (
                        CHECK(event_type IN
                          ('created','assigned','returned','retired','deleted','updated')),
   performed_by TEXT,
+  actor_id     INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   employee_id  INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   note         TEXT,
   event_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()

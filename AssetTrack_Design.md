@@ -186,17 +186,21 @@ The landing page exclusively for HR Partner roles. Genuinely separate component 
 Per PRD §6.2.
 
 - Sticky search bar at top (300ms debounce, per PRD §6.2.1).
-- Filter toolbar directly beneath: scrollable category chips + status dropdown (+ location dropdown, flagged v1.1 in PRD but designed now to slot in without layout change).
-- Data table columns exactly as PRD §6.2.3: Category badge · Asset Name (link) · Serial (mono) · Status pill · Location · Assigned To · Assignment Date · Actions.
+- Filter toolbar directly beneath: scrollable category chips + status dropdown + location dropdown + warranty filter.
+- **Import / Export Header Action Bar**:
+  - **Import Excel** button: opens `.xlsx` file selector, triggers streaming ingestion with progress spinner, and displays an import result banner (imported count + list of skipped duplicates with reasons).
+  - **Export Excel** button: downloads a multi-sheet `.xlsx` file formatted across 4 worksheets (*Laptops*, *Headphones*, *Keyboard Mouse*, *Client Laptops*).
+- Data table columns: Category badge · Asset Name (link) · Serial (mono) · Status pill · Location · Assigned To · Assignment Date · Actions.
 - Empty state: friendly line-art "empty box" illustration + "No assets found" + "Clear filters" CTA.
 
 ### 5.3 Asset Detail (`/inventory/:id`)
 
 Per PRD §6.3. Two-column layout on desktop, stacked on mobile:
 
-- **Left:** Specs Profile card — name, category badge, model, serial (with copy-to-clipboard icon button), cost (`$X,XXX.00`), purchase date, location, inline-editable notes field, status pill.
-- **Right:** Assignee Card (if `in-use`) — employee name/email/department, "Google Synced ✓" badge, assignment date — followed by Lifecycle action buttons (Assign/Reassign, Return to Stock, Retire, Delete), with Retire/Delete rendered in the `danger` button variant and gated by a confirmation modal.
-- **Below both:** Audit History Timeline — vertical line with a colored dot + icon per event type (Created/Assigned/Returned/Retired), newest first, "Load more" for long histories.
+- **Left:** Specs Profile card — name, category badge, model, serial (with copy-to-clipboard icon button and **QR Tag** generator button), cost (`$X,XXX.00`), purchase date, location, warranty expiry date with **Warranty Days Left countdown string** (color-coded remaining days), inline-editable notes field, status pill.
+- **Right:** Assignee Card (if `in-use`) — employee name/email/department, "Google Synced ✓" badge, assignment date — followed by Lifecycle action buttons (Assign/Reassign, Return to Stock, Retire, Delete).
+- **Linked Accessories Card**: Displays sub-assets (e.g. Adaptors, Chargers, Bags) linked via `parent_id` with serial number, category badge, and status. Direct assign/return buttons are disabled on sub-assets to enforce parent device cascading lifecycle.
+- **Below both:** Audit History Timeline — vertical line with a colored dot + icon per event type (Created/Assigned/Returned/Retired/Updated), formatted in absolute date/time (`DD/MM/YYYY, H:MM AM/PM`), newest first.
 
 ### 5.4 Scanner (`/scanner`)
 
@@ -212,15 +216,24 @@ Per PRD §6.5. Responsive card grid (`grid-cols-4 → 2 → 1`): avatar (photo o
 - **System Accounts**: System accounts (e.g. admin@company.com, hardwareadmin@company.com) are distinguished with a "Service Account" badge instead of standard roles.
 - **Location Field**: The location field is always a constrained short-label office selector (e.g., 'Mumbai', 'Bangalore'), never a free-text full address. Any full address is displayed only via tooltip.
 - **Missing Data Fallback**: The card footer maintains alignment with subtle "No Dept" or "No Location" fallbacks when data is absent.
+- **Assign Hardware Action**: Includes an "Assign Hardware" button on cards/rows opening the **Bulk Asset Assignment Modal** (`BulkAssignModal.jsx`) for selecting and assigning multiple available assets in one step.
 - Search bar filters by name/email/department. Clicking a card opens the **Employee Asset Drawer** (slide-in panel from the right) listing every asset currently assigned, or an empty state if none.
 
 ### 5.6 Categories (`/categories`)
 
 Per PRD §6.6. Card grid: each card shows the badge, name, description, total-assets count, in-use count, and a "View items →" button that deep-links to a pre-filtered Inventory view. A "+ Add Category" card (dashed border, indigo `+` icon) sits at the grid's end and opens the Category Builder modal with a **live badge preview** that updates as the admin types the shortcode and picks a color swatch.
 
-### 5.7 Add Asset (`/add-asset`)
+### 5.7 Add / Edit Asset (`/inventory/new`, `/inventory/:id/edit`)
 
-Per PRD §6.7. Single-column form, generous spacing, required fields marked with a red `*` (Rules §8.6): Name, Category (dropdown), Model, Location (dropdown), Cost, Purchase Date (with `YYYY-MM-DD` placeholder), Notes, Serial Number with an inline **"Auto-gen" wand-icon button** that fills the field with a generated `SN-XXX###` code (still editable). A collapsible "Assign to Employee" section at the bottom lets the admin optionally allocate immediately at registration. Submit button disables during submission and the form never clears on a validation error.
+Per PRD §6.7. Single-column form, generous spacing, required fields marked with a red `*` (Rules §8.6): Name, Category (dropdown), Asset Type (Company vs. Client), Model, Location (dropdown), Cost, Purchase Date (with `YYYY-MM-DD` placeholder), Notes, Serial Number with an inline **"Auto-gen" wand-icon button** or **Barcode/QR Scanner modal** for filling the serial number.
+
+- **Dynamic Extended Specifications Section**: Appears below *Financial & Operational Details* based on the selected category and asset ownership type:
+  - **Laptops**: Displays Processor, RAM, Storage (HDD/SSD), Screen Size, Graphics Card, OS, MS Office Version, Anti-Virus, Warranty Upgrade, and Warranty Plan.
+  - **Headphones**: Displays Color, Hardware/Device Type, and Warranty Plan.
+  - **Keyboard / Mouse**: Displays Hardware/Device Type and Warranty Plan.
+  - **Company Owned**: Displays Vendor/Supplier.
+  - **Client Provided**: Displays Client Name and Received On date picker.
+- A collapsible "Assign to Employee" section at the bottom lets the admin optionally allocate immediately at registration. Submit button disables during submission.
 
 ### 5.8 Settings (`/settings`)
 

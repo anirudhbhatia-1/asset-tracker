@@ -100,28 +100,35 @@ The system provides a single source of truth for hardware lifecycle management, 
 
 ## 5. Scope & Out of Scope
 
-### In Scope (v1.0)
+### In Scope (v1.0 — Implemented)
 - Full inventory CRUD (Create, Read, Update, Delete) for all asset types.
-- Multi-office location tagging (Bangalore, Mumbai, Delhi, Hyderabad).
+- Multi-office location tagging with dynamic DB-driven location management (`locations` table).
+- Extended asset schema with 17 specialized hardware fields (brand, vendor, processor, ram, storage, screenSize, graphicsCard, os, msOffice, antiVirus, warrantyPlan, warrantyUpgrade, color, hardwareType, clientName, returnDate, receivedOn).
+- Dynamic Category-Specific Form Rendering in Add/Edit Asset form (Laptop vs. Headphone vs. Keyboard/Mouse vs. Client assets).
+- Parent-Child Sub-Asset linking (Adaptors, chargers, bags linked to primary laptops with cascading assignment/return).
+- Bulk Asset Assignment portal for single-step employee hardware provisioning.
+- Full Excel Import & Export engine (.xlsx multi-sheet generation, streaming upload, Excel date conversion, serial deduplication, sub-asset auto-linking).
+- Printable QR Tag generator modal for physical asset label printing.
+- Warranty days remaining countdown indicator.
 - Asset status lifecycle: **Available → In Use → Retired**.
-- Barcode/serial scanner via browser webcam (live + simulated).
+- Barcode/serial scanner via browser webcam (live ZXing + simulated viewfinder).
+- Role-based access control (RBAC) with 3 roles: **Admin**, **Employee**, and **HR**.
+- Employee Ticketing Portal for hardware requests and issue resolution with resolution confirmation & reopening workflows.
+- HR Onboarding Portal for pre-allocating physical hardware to incoming new hires.
 - Google Workspace OAuth 2.0 login and Directory sync.
-- Employee-to-asset assignment with custom date picker.
-- Complete audit/history log per asset.
-- Category management with visual themes.
-- Dashboard with metrics, inventory breakdown, and activity feed.
-- Settings for OAuth configuration and category creation.
-- Supabase Postgres database (server-side, via Node.js backend).
+- Employee-to-asset assignment with custom date picker and full session actor identity tracking.
+- Complete, immutable audit/history log per asset with absolute timestamps (`DD/MM/YYYY, H:MM AM/PM`).
+- Category management with visual themes and badge customization.
+- Interactive Dashboard with 4-way Inventory Breakdown donut chart (Category, Location, Status, Warranty) and click-through filtering.
+- Supabase Postgres database (server-side, via Node.js backend with parameterized SQL).
 
-### Out of Scope (v1.0 — Considered for v2+)
+### Out of Scope (Considered for v2+)
 - Mobile native app (iOS/Android).
 - Automated depreciation calculations / financial reporting.
 - Integration with procurement/ERP systems (e.g., SAP, Zoho).
 - RFID/NFC hardware integration.
-- Role-based access control (RBAC) with multiple admin tiers.
-- Email/Slack notification system on asset events.
-- Export to CSV/PDF reports.
-- Software license tracking.
+- Automated email/Slack push notifications on lifecycle events (webhooks).
+- Software license seat tracking.
 
 ---
 
@@ -436,9 +443,56 @@ Consolidates all administrative configuration under one Settings view with at mi
 2. **Categories** — Category management grid + custom builder (see §6.6).
 
 Additional future settings tabs (v1.1+):
-- Office Locations management.
 - Admin user management.
 - Audit log export.
+
+---
+
+### 6.10 Excel Import & Export Engine
+
+**Priority:** P0 (Must Have — Implemented)
+
+- **Export (.xlsx)**: Generates a 4-worksheet spreadsheet (*Laptops*, *Headphones*, *Keyboard Mouse*, *Client Laptops*) capturing all 17 extended attributes, calculated remaining warranty days, assigned employees, and linked adaptor serial numbers.
+- **Import (.xlsx)**: Accepts uploaded `.xlsx` files, parses date strings / Excel serial numbers via `excelDateToISO`, resolves employees by name, matches categories, rejects duplicate serials, and automatically creates linked adaptor sub-assets under parent laptops.
+- **Safety & Transactional Integrity**: All writes wrapped in Postgres transactions (`withTransaction`), temporary files safely unlinked from `server/tmp/`, and history events logged for imported items.
+
+---
+
+### 6.11 Extended Asset Attributes & Dynamic Category Fields
+
+**Priority:** P0 (Must Have — Implemented)
+
+- Adds 17 specialized columns to the database schema: `brand`, `vendor`, `processor`, `ram`, `storage`, `screen_size`, `graphics_card`, `os`, `ms_office`, `anti_virus`, `warranty_plan`, `warranty_upgrade`, `color`, `hardware_type`, `client_name`, `return_date`, `received_on`.
+- **Add/Edit Asset Form**: Dynamically shows/hides inputs based on category (`isLaptop`, `isHeadphone`, `isKbMouse`) and ownership status (`isClient`).
+
+---
+
+### 6.12 Asset QR Tag Generator & Printable Label Sticker
+
+**Priority:** P0 (Must Have — Implemented)
+
+- Renders an SVG QR code encoding the asset's exact `serialNumber` using `qrcode.react`.
+- Accessible directly from the Asset Detail header (*QR Tag* button).
+- Includes a **Print Tag** option triggering a browser print popup pre-formatted as a physical sticker label.
+
+---
+
+### 6.13 Parent-Child Sub-Asset Linking
+
+**Priority:** P0 (Must Have — Implemented)
+
+- Supports linking secondary hardware accessories (adaptors, chargers, bags) to primary devices (laptops) via `parent_id` foreign key.
+- Renders `LinkedAccessoriesCard.jsx` on the parent asset detail page.
+- Direct assign/return lifecycle actions are disabled on sub-assets to enforce cascading assignment when the parent device is assigned or returned.
+
+---
+
+### 6.14 Bulk Asset Assignment Modal
+
+**Priority:** P0 (Must Have — Implemented)
+
+- Allows IT Admins and HR Partners to select multiple available assets across categories and assign them to an employee in a single step (`BulkAssignModal.jsx`).
+- Features real-time search and category filter chips.
 
 ---
 

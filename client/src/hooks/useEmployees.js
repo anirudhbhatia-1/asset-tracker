@@ -74,12 +74,11 @@ export default function useEmployees() {
   const changeRole = async (id, role) => {
     try {
       const res = await updateEmployeeRole(id, role);
-      const updatedEmp = res.data?.data || res.data;
-      setEmployees((prev) => prev.map((e) => (e.id === id ? updatedEmp : e)));
+      await fetchEmployeesData();
       toast.success('Employee role updated');
-      return updatedEmp;
+      return res.data?.data || res.data;
     } catch (err) {
-      toast.error(err.message || 'Failed to update role');
+      toast.error(err.response?.data?.message || err.message || 'Failed to update role');
       throw err;
     }
   };
@@ -87,12 +86,11 @@ export default function useEmployees() {
   const grantAccess = async (id, role) => {
     try {
       const res = await grantEmployeeAccess(id, role);
-      const updatedEmp = res.data?.data || res.data;
-      setEmployees((prev) => prev.map((e) => (e.id === id ? updatedEmp : e)));
+      await fetchEmployeesData();
       toast.success('Login access granted');
       return res.data; // Return the full response to access temporaryPassword
     } catch (err) {
-      toast.error(err.message || 'Failed to grant access');
+      toast.error(err.response?.data?.message || err.message || 'Failed to grant access');
       throw err;
     }
   };
@@ -101,8 +99,7 @@ export default function useEmployees() {
   const grantGoogleAccess = async (id) => {
     try {
       const res = await grantEmployeeGoogleAccess(id);
-      const updatedEmp = res.data?.data || res.data;
-      setEmployees((prev) => prev.map((e) => (e.id === id ? updatedEmp : e)));
+      await fetchEmployeesData();
       toast.success('Google login access granted');
       return res.data;
     } catch (err) {

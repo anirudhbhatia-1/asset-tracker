@@ -4,9 +4,9 @@ import { ShieldCheck, User, Key, ChevronDown } from 'lucide-react';
 const ROLES = ['admin', 'hr', 'employee'];
 
 const roleStyles = {
-  admin: 'bg-danger/10 text-danger border-danger/30',
-  hr: 'bg-warning/10 text-warning border-warning/30',
-  employee: 'bg-info-blue/10 text-info-blue border-info-blue/30',
+  admin: 'bg-red-500/10 text-red-500 border-red-500/30',
+  hr:    'bg-amber-500/10 text-amber-500 border-amber-500/30',
+  employee: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
 };
 
 export default function RoleManagementPanel({ employees = [], onRoleChange }) {

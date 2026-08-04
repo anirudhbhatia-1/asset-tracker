@@ -15,7 +15,7 @@ const mapEmployee = (row) => {
     createdAt: row.created_at,
     assignedAssetsCount: row.assigned_assets_count !== undefined ? Number(row.assigned_assets_count) : undefined,
     role: row.role || null,
-    hasLogin: row.role ? true : false,
+    hasLogin: row.has_login !== undefined ? Boolean(row.has_login) : (row.password_hash != null || row.google_id != null || Boolean(row.role)),
   };
 };
 
@@ -192,7 +192,7 @@ const createEmployeeWithAccess = async (data) => {
 
 const updateEmployee = async (id, data) => {
   const current = await getEmployeeById(id);
-  const { name, email, department, location, address, avatarUrl } = data;
+  const { name, email, department, location, address, avatarUrl, role } = data;
 
   if (email && email !== current.email) {
     const existing = await pool.query('SELECT id FROM employees WHERE email = $1 AND id != $2', [email, id]);
@@ -210,8 +210,9 @@ const updateEmployee = async (id, data) => {
         department = $3,
         location = $4,
         address = $5,
-        avatar_url = $6
-    WHERE id = $7
+        avatar_url = $6,
+        role = $7
+    WHERE id = $8
   `, [
     name !== undefined ? name : current.name,
     email !== undefined ? email : current.email,
@@ -219,6 +220,7 @@ const updateEmployee = async (id, data) => {
     location !== undefined ? location : current.location,
     address !== undefined ? address : current.address,
     avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
+    role !== undefined ? role : current.role,
     id
   ]);
 
@@ -237,15 +239,21 @@ const deleteEmployee = async (id) => {
   return { id: Number(id), deleted: true };
 };
 
-const updateEmployeeRole = async (id, newRole) => {
-  const current = await getEmployeeById(id);
-  if (!current.hasLogin) {
-    const err = new Error('Cannot change role: Employee does not have a login account');
-    err.statusCode = 400;
-    throw err;
-  }
-  await pool.query('UPDATE employees SET role = $1 WHERE id = $2', [newRole, id]);
-  return getEmployeeById(id);
+const updateEmployeeRole = async (id, role) => {
+  await pool.query(
+    'UPDATE employees SET role = $1, updated_at = NOW() WHERE id = $2',
+    [role, id]
+  );
+  // Return the full employee object, same as getEmployeeById
+  const result = await pool.query(
+    `SELECT e.*,
+            (e.password_hash IS NOT NULL OR e.google_id IS NOT NULL OR e.role IS NOT NULL) AS has_login
+     FROM employees e
+     WHERE e.id = $1 AND e.deleted_at IS NULL`,
+    [id]
+  );
+  if (result.rows.length === 0) throw Object.assign(new Error('Employee not found'), { statusCode: 404 });
+  return mapEmployee(result.rows[0]);
 };
 
 const grantEmployeeAccess = async (id, role, passwordHash) => {

@@ -605,23 +605,26 @@
 
 ---
 
-### Candidate Features (Prioritised by Expected Value)
+### Completed & Candidate Features
 
-| Priority | Feature | Description | Effort |
+| Priority | Feature | Description | Status |
 |---|---|---|---|
-| P0 | **CSV Import** | Bulk-import existing assets from a spreadsheet (name, serial, category, location, cost) | Medium |
-| P0 | **CSV/PDF Export** | Export full inventory or filtered view to CSV for Finance | Small |
-| P1 | **Email Notifications** | Send email on asset assignment, return, or retirement using Nodemailer + SMTP | Medium |
-| P1 | **Office Location Management** | Admin UI to add/edit/remove office locations (not hardcoded) | Small |
-| P1 | **Asset QR Code Generation** | Generate printable QR code stickers for new assets from the detail page | Small |
-| P2 | **Slack Notifications** | Post messages to a Slack webhook on lifecycle events | Small |
-| P2 | **Multi-Admin RBAC** | Role-based access: Super Admin, IT Admin, Read-Only. Login via Google OAuth per role. | Large |
-| P2 | **Depreciation Tracker** | Calculate current asset value based on purchase date, cost, and depreciation schedule | Medium |
-| P2 | **Software License Category** | Track software licenses as a special category type with seat counts | Medium |
-| P3 | **Warranty Tracking** | Record warranty expiry dates; dashboard alert for expiring warranties | Small |
-| P3 | **Asset Photo Upload** | Attach a photo to an asset record (stored as file path or base64) | Small |
-| P3 | **PostgreSQL Migration** | Migrate from SQLite to PostgreSQL for multi-process/high-scale deployments | Large |
-| P3 | **RFID/NFC Exploration** | Research feasibility of NFC tag scanning via Web NFC API on Android | Research |
+| P0 | **Excel Import** | Multi-sheet `.xlsx` import with date conversion, sub-asset auto-linking, serial deduplication | ✅ Completed |
+| P0 | **Excel Export** | Export full inventory across 4 sheets (*Laptops*, *Headphones*, *Keyboard Mouse*, *Client*) | ✅ Completed |
+| P1 | **Office Location Management** | Dynamic DB-driven locations table and settings UI | ✅ Completed |
+| P1 | **Asset QR Code Generation** | SVG QR code generator (`qrcode.react`) with printable sticker popup | ✅ Completed |
+| P1 | **Extended Asset Schema** | 17 new DB columns + dynamic form rendering for Laptops, Headphones, Keyboards, Client assets | ✅ Completed |
+| P1 | **Sub-Asset Accessories** | Parent-child linking (`parent_id`) for adaptors/chargers with cascading assignment/return | ✅ Completed |
+| P1 | **Bulk Asset Assignment** | One-step multi-asset employee assignment modal | ✅ Completed |
+| P2 | **Multi-Role RBAC** | Role-based access control (`admin`, `employee`, `hr`) with JWT session invalidation | ✅ Completed |
+| P3 | **PostgreSQL Migration** | Migrated database engine from SQLite to Supabase Postgres (using `pg` driver) | ✅ Completed |
+| P3 | **Warranty Tracking Countdown**| `getWarrantyDaysLeft` utility with visual countdown display on SpecsProfile | ✅ Completed |
+| P1 | **Email Notifications** | Send email on asset assignment, return, or retirement using Nodemailer + SMTP | ⬜ Candidate (v2) |
+| P2 | **Slack Notifications** | Post messages to a Slack webhook on lifecycle events | ⬜ Candidate (v2) |
+| P2 | **Depreciation Tracker** | Calculate current asset value based on purchase date, cost, and depreciation schedule | ⬜ Candidate (v2) |
+| P2 | **Software License Category** | Track software licenses as a special category type with seat counts | ⬜ Candidate (v2) |
+| P3 | **Asset Photo Upload** | Attach a photo to an asset record (stored as file path or base64) | ⬜ Candidate (v2) |
+| P3 | **RFID/NFC Exploration** | Research feasibility of NFC tag scanning via Web NFC API on Android | ⬜ Candidate (v2) |
 
 ### Phase 4 Process
 1. Collect user feedback in the first 2 weeks post-launch (Google Form or Slack channel).
