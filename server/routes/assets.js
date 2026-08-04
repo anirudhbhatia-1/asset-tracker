@@ -3,8 +3,23 @@ const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const assetService = require('../services/assetService');
 const historyService = require('../services/historyService');
-
 const { validateSession, requireRole } = require('../middleware/validateSession');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { exportAssetsToExcel, importAssetsFromExcel } = require('../services/importExportService');
+
+const upload = multer({
+  dest: path.join(__dirname, '../tmp/'),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.originalname.endsWith('.xlsx')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .xlsx files are accepted'));
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -21,6 +36,41 @@ router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+});
+
+// GET /api/assets/export — download all assets as .xlsx
+router.get('/export', requireRole('admin', 'hr'), async (req, res, next) => {
+  try {
+    const workbook = await exportAssetsToExcel();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=AssetTrack_Export_${new Date().toISOString().substring(0,10)}.xlsx`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/assets/import — upload .xlsx and import rows
+router.post('/import', requireRole('admin', 'hr'), upload.single('file'), async (req, res, next) => {
+  const filePath = req.file?.path;
+  try {
+    if (!filePath) {
+      return res.status(400).json({ error: true, message: 'No file uploaded' });
+    }
+    const results = await importAssetsFromExcel(filePath, req.user);
+    res.status(200).json({
+      data: results,
+      message: `Import complete: ${results.imported} imported, ${results.skipped.length} skipped`
+    });
+  } catch (err) {
+    next(err);
+  } finally {
+    // Always delete the temp file
+    if (filePath) {
+      fs.unlink(filePath, () => {});
+    }
   }
 });
 

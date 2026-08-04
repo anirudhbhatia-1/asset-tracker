@@ -14,3 +14,13 @@ export const bulkAssignAssets = (employeeId, assetIds, note) =>
 export const scanSerial = (serial) => api.get(`/serial/scan/${encodeURIComponent(serial)}`);
 export const getChildAssets = (parentId) => api.get('/assets', { params: { parentId } });
 
+export const exportAssetsExcel = () =>
+  api.get('/assets/export', { responseType: 'blob' }); // blob for file download
+
+export const importAssetsExcel = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/assets/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};

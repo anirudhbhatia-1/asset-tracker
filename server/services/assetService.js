@@ -38,6 +38,23 @@ const mapAsset = (row) => {
     parentId: row.parent_id || null,
     parentAssetName: row.parent_asset_name || null,
     parentSerialNumber: row.parent_serial_number || null,
+    brand:           row.brand || null,
+    vendor:          row.vendor || null,
+    processor:       row.processor || null,
+    ram:             row.ram || null,
+    storage:         row.storage || null,
+    screenSize:      row.screen_size || null,
+    graphicsCard:    row.graphics_card || null,
+    os:              row.os || null,
+    msOffice:        row.ms_office || null,
+    antiVirus:       row.anti_virus || null,
+    warrantyPlan:    row.warranty_plan || null,
+    warrantyUpgrade: row.warranty_upgrade || null,
+    color:           row.color || null,
+    hardwareType:    row.hardware_type || null,
+    clientName:      row.client_name || null,
+    returnDate:      row.return_date || null,
+    receivedOn:      row.received_on || null,
   };
 };
 
@@ -156,7 +173,11 @@ const createAsset = async (data, actorUser = null) => {
   const {
     name, categoryId, model, serialNumber, status = 'available', assetType = 'company',
     location, address, costCents = 0, purchaseDate, notes, warrantyExpiryDate, assignedTo, assignedDate,
-    parentId, subAssets
+    parentId, subAssets,
+    // NEW FIELDS:
+    brand, vendor, processor, ram, storage, screenSize, graphicsCard,
+    os, msOffice, antiVirus, warrantyPlan, warrantyUpgrade,
+    color, hardwareType, clientName, returnDate, receivedOn,
   } = data;
 
   const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1', [serialNumber]);
@@ -193,13 +214,29 @@ const createAsset = async (data, actorUser = null) => {
 
   const newAssetId = await withTransaction(async (client) => {
     const result = await client.query(`
-      INSERT INTO assets (name, category_id, model, serial_number, status, asset_type, location, address, cost_cents, purchase_date, notes, warranty_expiry_date, assigned_to, assigned_date, parent_id, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+      INSERT INTO assets (
+        name, category_id, model, serial_number, status, asset_type,
+        location, address, cost_cents, purchase_date, notes, warranty_expiry_date,
+        assigned_to, assigned_date, parent_id,
+        brand, vendor, processor, ram, storage, screen_size, graphics_card,
+        os, ms_office, anti_virus, warranty_plan, warranty_upgrade,
+        color, hardware_type, client_name, return_date, received_on,
+        created_at, updated_at
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+              $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,
+              $28,$29,$30,$31,$32,NOW(),NOW())
       RETURNING id
     `, [
       name, categoryId || null, model || null, serialNumber, status, assetType,
-      location || null, address || null, Number(costCents), purchaseDate || null, notes || null,
-      warrantyExpiryDate || null, finalAssignedTo, finalAssignedDate, parentId || null
+      location || null, address || null, Number(costCents), purchaseDate || null,
+      notes || null, warrantyExpiryDate || null, finalAssignedTo, finalAssignedDate,
+      parentId || null,
+      brand || null, vendor || null, processor || null, ram || null,
+      storage || null, screenSize || null, graphicsCard || null,
+      os || null, msOffice || null, antiVirus || null, warrantyPlan || null,
+      warrantyUpgrade || null, color || null, hardwareType || null,
+      clientName || null, returnDate || null, receivedOn || null,
     ]);
 
     const id = result.rows[0].id;
@@ -254,7 +291,10 @@ const updateAsset = async (id, data, actorUser = null) => {
   }
 
   const {
-    name, categoryId, model, serialNumber, assetType, location, address, costCents, purchaseDate, notes, warrantyExpiryDate
+    name, categoryId, model, serialNumber, assetType, location, address, costCents, purchaseDate, notes, warrantyExpiryDate,
+    brand, vendor, processor, ram, storage, screenSize, graphicsCard,
+    os, msOffice, antiVirus, warrantyPlan, warrantyUpgrade,
+    color, hardwareType, clientName, returnDate, receivedOn
   } = data;
 
   if (serialNumber && serialNumber !== current.serialNumber) {
@@ -280,8 +320,25 @@ const updateAsset = async (id, data, actorUser = null) => {
           purchase_date = $9,
           notes = $10,
           warranty_expiry_date = $11,
+          brand = $12,
+          vendor = $13,
+          processor = $14,
+          ram = $15,
+          storage = $16,
+          screen_size = $17,
+          graphics_card = $18,
+          os = $19,
+          ms_office = $20,
+          anti_virus = $21,
+          warranty_plan = $22,
+          warranty_upgrade = $23,
+          color = $24,
+          hardware_type = $25,
+          client_name = $26,
+          return_date = $27,
+          received_on = $28,
           updated_at = NOW()
-      WHERE id = $12
+      WHERE id = $29
     `, [
       name !== undefined ? name : current.name,
       categoryId !== undefined ? (categoryId ? Number(categoryId) : null) : current.categoryId,
@@ -294,6 +351,23 @@ const updateAsset = async (id, data, actorUser = null) => {
       purchaseDate !== undefined ? purchaseDate : current.purchaseDate,
       notes !== undefined ? notes : current.notes,
       warrantyExpiryDate !== undefined ? warrantyExpiryDate : current.warrantyExpiryDate,
+      brand !== undefined ? brand : current.brand,
+      vendor !== undefined ? vendor : current.vendor,
+      processor !== undefined ? processor : current.processor,
+      ram !== undefined ? ram : current.ram,
+      storage !== undefined ? storage : current.storage,
+      screenSize !== undefined ? screenSize : current.screenSize,
+      graphicsCard !== undefined ? graphicsCard : current.graphicsCard,
+      os !== undefined ? os : current.os,
+      msOffice !== undefined ? msOffice : current.msOffice,
+      antiVirus !== undefined ? antiVirus : current.antiVirus,
+      warrantyPlan !== undefined ? warrantyPlan : current.warrantyPlan,
+      warrantyUpgrade !== undefined ? warrantyUpgrade : current.warrantyUpgrade,
+      color !== undefined ? color : current.color,
+      hardwareType !== undefined ? hardwareType : current.hardwareType,
+      clientName !== undefined ? clientName : current.clientName,
+      returnDate !== undefined ? returnDate : current.returnDate,
+      receivedOn !== undefined ? receivedOn : current.receivedOn,
       id
     ]);
 

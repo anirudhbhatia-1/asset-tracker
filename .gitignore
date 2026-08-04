@@ -18,3 +18,4 @@ client/dist/
 # Logs & OS files
 *.log
 .DS_Store
+server/tmp/

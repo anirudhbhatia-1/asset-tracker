@@ -1,0 +1,19 @@
+-- Extended asset fields for full Excel import/export compatibility
+-- All columns are nullable so existing data is unaffected
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS brand            TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS vendor           TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS processor        TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS ram              TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS storage          TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS screen_size      TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS graphics_card    TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS os               TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS ms_office        TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS anti_virus       TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS warranty_plan    TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS warranty_upgrade TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS color            TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS hardware_type    TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS client_name      TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS return_date      TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS received_on      TEXT;

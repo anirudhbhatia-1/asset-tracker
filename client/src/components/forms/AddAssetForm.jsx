@@ -12,7 +12,7 @@ import WebcamFeed from '../scanner/WebcamFeed';
 import LaserViewfinder from '../scanner/LaserViewfinder';
 import SerialSimulator from '../scanner/SerialSimulator';
 import { scanSerial } from '../../api/assetsApi';
-import { Wand2, Plus, ArrowLeft, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode } from 'lucide-react';
+import { Wand2, Plus, ArrowLeft, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode, Cpu } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AddAssetForm({ initialData, isEdit = false, onSaveSuccess }) {
@@ -35,6 +35,25 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [warrantyExpiryDate, setWarrantyExpiryDate] = useState(initialData?.warrantyExpiryDate || '');
   const [serialNumber, setSerialNumber] = useState(initialData?.serialNumber || '');
   const [notes, setNotes] = useState(initialData?.notes || '');
+
+  // Extended Category-Specific Fields
+  const [brand, setBrand] = useState(initialData?.brand || '');
+  const [vendor, setVendor] = useState(initialData?.vendor || '');
+  const [processor, setProcessor] = useState(initialData?.processor || '');
+  const [ram, setRam] = useState(initialData?.ram || '');
+  const [storage, setStorage] = useState(initialData?.storage || '');
+  const [screenSize, setScreenSize] = useState(initialData?.screenSize || '');
+  const [graphicsCard, setGraphicsCard] = useState(initialData?.graphicsCard || '');
+  const [os, setOs] = useState(initialData?.os || '');
+  const [msOffice, setMsOffice] = useState(initialData?.msOffice || '');
+  const [antiVirus, setAntiVirus] = useState(initialData?.antiVirus || '');
+  const [warrantyPlan, setWarrantyPlan] = useState(initialData?.warrantyPlan || '');
+  const [warrantyUpgrade, setWarrantyUpgrade] = useState(initialData?.warrantyUpgrade || '');
+  const [hardwareType, setHardwareType] = useState(initialData?.hardwareType || '');
+  const [color, setColor] = useState(initialData?.color || '');
+  const [clientName, setClientName] = useState(initialData?.clientName || '');
+  const [receivedOn, setReceivedOn] = useState(initialData?.receivedOn || '');
+  const [returnDate, setReturnDate] = useState(initialData?.returnDate || '');
 
   // Optional Immediate Allocation (Only for new registrations)
   const [assignImmediately, setAssignImmediately] = useState(false);
@@ -210,6 +229,25 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         serialNumber: serialNumber.trim(),
         notes: notes.trim() || null,
         subAssets: subAssets.filter(s => s.serialNumber && s.serialNumber.trim()),
+
+        // NEW FIELDS:
+        brand: brand.trim() || undefined,
+        vendor: vendor.trim() || undefined,
+        processor: processor.trim() || undefined,
+        ram: ram.trim() || undefined,
+        storage: storage.trim() || undefined,
+        screenSize: screenSize.trim() || undefined,
+        graphicsCard: graphicsCard.trim() || undefined,
+        os: os.trim() || undefined,
+        msOffice: msOffice.trim() || undefined,
+        antiVirus: antiVirus.trim() || undefined,
+        warrantyPlan: warrantyPlan.trim() || undefined,
+        warrantyUpgrade: warrantyUpgrade.trim() || undefined,
+        hardwareType: hardwareType.trim() || undefined,
+        color: color.trim() || undefined,
+        clientName: clientName.trim() || undefined,
+        receivedOn: receivedOn || undefined,
+        returnDate: returnDate || undefined,
       };
 
       if (isEdit && initialData?.id) {
@@ -245,6 +283,13 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
   const safeCategories = Array.isArray(categories) ? categories : [];
   const safeEmployees = Array.isArray(employees) ? employees : [];
+
+  const selectedCategory = safeCategories.find(c => c.id === Number(categoryId));
+  const catName = selectedCategory?.name?.toLowerCase() || '';
+  const isLaptop = catName.includes('laptop');
+  const isHeadphone = catName.includes('headphone');
+  const isKbMouse = catName.includes('keyboard') || catName.includes('mouse');
+  const isClient = assetType === 'client';
 
   const filteredEmployees = safeEmployees.filter((emp) => {
     if (!employeeSearch.trim()) return true;
@@ -592,6 +637,107 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
           </div>
         </div>
       </div>
+
+      {/* Form Section: Dynamic Extended Specifications */}
+      {categoryId && (
+        <div className="space-y-6 pt-4 border-t border-border/60">
+          <div className="border-b border-border/60 pb-3">
+            <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+              <Cpu className="w-5 h-5 text-accent" />
+              <span>Extended Specifications</span>
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            
+            {/* BRAND & VENDOR (Always show if category selected) */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Brand</label>
+              <input type="text" value={brand} onChange={e => setBrand(e.target.value)} placeholder="e.g. Lenovo, Dell, Apple" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+            </div>
+            {!isClient && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Vendor / Supplier</label>
+                <input type="text" value={vendor} onChange={e => setVendor(e.target.value)} placeholder="e.g. Swastik Electronics" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+              </div>
+            )}
+            {/* ── LAPTOP ONLY FIELDS ── */}
+            {isLaptop && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Processor</label>
+                  <input type="text" value={processor} onChange={e => setProcessor(e.target.value)} placeholder="e.g. 11th Gen Intel Core i5" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">RAM</label>
+                  <input type="text" value={ram} onChange={e => setRam(e.target.value)} placeholder="e.g. 16 GB DDR4" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Storage (HDD/SSD)</label>
+                  <input type="text" value={storage} onChange={e => setStorage(e.target.value)} placeholder="e.g. 512GB SSD" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Screen Size</label>
+                  <input type="text" value={screenSize} onChange={e => setScreenSize(e.target.value)} placeholder="e.g. 15.6" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Graphics Card</label>
+                  <input type="text" value={graphicsCard} onChange={e => setGraphicsCard(e.target.value)} placeholder="e.g. Intel Iris Xe" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">OS</label>
+                  <input type="text" value={os} onChange={e => setOs(e.target.value)} placeholder="e.g. Windows 11 Home" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">MS Office Version</label>
+                  <input type="text" value={msOffice} onChange={e => setMsOffice(e.target.value)} placeholder="e.g. Office Home & Student 2021" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Anti-Virus</label>
+                  <input type="text" value={antiVirus} onChange={e => setAntiVirus(e.target.value)} placeholder="e.g. QuickHeal" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Warranty Upgrade</label>
+                  <input type="text" value={warrantyUpgrade} onChange={e => setWarrantyUpgrade(e.target.value)} placeholder="e.g. Extended 1 Year" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+              </>
+            )}
+            {/* ── HEADPHONES ONLY FIELDS ── */}
+            {isHeadphone && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Color</label>
+                <input type="text" value={color} onChange={e => setColor(e.target.value)} placeholder="e.g. Black, Silver" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+              </div>
+            )}
+            {/* ── SHARED BY MULTIPLE CATEGORIES ── */}
+            {(isLaptop || isHeadphone || isKbMouse) && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Service / Warranty Plan</label>
+                <input type="text" value={warrantyPlan} onChange={e => setWarrantyPlan(e.target.value)} placeholder="e.g. 3 Year ADP" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+              </div>
+            )}
+            
+            {(isHeadphone || isKbMouse || isClient) && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Hardware / Device Type</label>
+                <input type="text" value={hardwareType} onChange={e => setHardwareType(e.target.value)} placeholder="e.g. Wireless, Over-Ear" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+              </div>
+            )}
+            {/* ── CLIENT ONLY FIELDS ── */}
+            {isClient && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Client Name</label>
+                  <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Infosys, TCS" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Received On</label>
+                  <input type="date" value={receivedOn} onChange={e => setReceivedOn(e.target.value)} className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer" />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Form Section 3: Optional Immediate Allocation per PRD 6.7.3 */}
       {!isEdit && (

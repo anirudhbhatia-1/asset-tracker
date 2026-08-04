@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import useAssets from '../hooks/useAssets';
 import useCategories from '../hooks/useCategories';
+import { useAuth } from '../context/AuthContext';
+import { exportAssetsExcel, importAssetsExcel } from '../api/assetsApi';
+import toast from 'react-hot-toast';
 import SearchBar from '../components/inventory/SearchBar';
 import FilterToolbar from '../components/inventory/FilterToolbar';
 import AssetTable from '../components/inventory/AssetTable';
 import AssetGrid from '../components/inventory/AssetGrid';
-import { Plus, RefreshCw, List, LayoutGrid } from 'lucide-react';
+import { Plus, RefreshCw, List, LayoutGrid, Download, Upload, Loader2 } from 'lucide-react';
 
 export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +20,12 @@ export default function Inventory() {
   const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || 'all');
   const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || 'all');
   const [selectedWarranty, setSelectedWarranty] = useState(searchParams.get('warranty') || 'all');
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'hr';
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const fileInputRef = useRef(null);
 
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('inventoryViewMode') || 'list';
@@ -94,6 +103,44 @@ export default function Inventory() {
     setSearchParams({}, { replace: true });
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await exportAssetsExcel();
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `AssetTrack_${new Date().toISOString().substring(0,10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Export downloaded successfully');
+    } catch {
+      toast.error('Export failed');
+    }
+  };
+
+  const handleImportClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await importAssetsExcel(file);
+      const result = res.data?.data;
+      setImportResult(result);
+      toast.success(`Imported ${result.imported} assets`);
+      refresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Import failed');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -138,6 +185,38 @@ export default function Inventory() {
             <RefreshCw className={`w-3.5 h-3.5 ${assetsLoading ? 'animate-spin text-accent' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
+
+          {isAdmin && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={handleImportClick}
+                disabled={importing}
+                className="inline-flex items-center gap-2 px-3 py-2.5 text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-sm"
+              >
+                {importing
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                  : <Upload className="w-3.5 h-3.5 text-secondary" />}
+                <span className="hidden sm:inline">{importing ? 'Importing...' : 'Import Excel'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                className="inline-flex items-center gap-2 px-3 py-2.5 text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border rounded-xl transition-colors cursor-pointer shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5 text-secondary" />
+                <span className="hidden sm:inline">Export Excel</span>
+              </button>
+            </>
+          )}
+
           <Link
             to="/inventory/new"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-white transition-colors shadow-md shadow-accent/20 shrink-0"
@@ -147,6 +226,27 @@ export default function Inventory() {
           </Link>
         </div>
       </div>
+
+      {importResult && (
+        <div className="bg-success/10 border border-success/20 text-success rounded-xl p-3.5 text-sm flex items-center justify-between shadow-sm">
+          <div>
+            <span>✅ <strong>{importResult.imported}</strong> assets imported successfully.</span>
+            {importResult.skipped?.length > 0 && (
+              <span className="text-warning ml-3">
+                ⚠️ {importResult.skipped.length} skipped: {importResult.skipped.slice(0, 3).join(', ')}
+                {importResult.skipped.length > 3 && ` +${importResult.skipped.length - 3} more`}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setImportResult(null)}
+            className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-lg hover:bg-surface transition-colors cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Error banner if fetching failed */}
       {error && (
