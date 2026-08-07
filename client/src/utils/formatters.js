@@ -4,19 +4,19 @@ import { format, parseISO, isValid } from 'date-fns';
  * Formats a numeric value into a localized currency string (e.g. $1,250.00).
  * Falls back to $0.00 for invalid inputs.
  */
-export function formatCurrency(amount, currency = 'USD') {
+export function formatCurrency(amount, currency = 'INR') {
   if (amount === null || amount === undefined || isNaN(Number(amount))) {
-    return '$0.00';
+    return '₹0.00';
   }
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(Number(amount));
   } catch (e) {
-    return `$${Number(amount).toFixed(2)}`;
+    return `₹${Number(amount).toFixed(2)}`;
   }
 }
 

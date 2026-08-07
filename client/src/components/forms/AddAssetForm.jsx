@@ -569,13 +569,13 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* Purchase Cost (in Dollars) */}
+          {/* Purchase Cost (in Rupees) */}
           <div>
             <label htmlFor="costString" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
-              Purchase Cost (USD $)
+              Purchase Cost (INR ₹)
             </label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary font-medium">$</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary font-medium">₹</span>
               <input
                 id="costString"
                 type="number"
@@ -587,7 +587,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 className="w-full rounded-xl bg-base border border-border pl-8 pr-4 py-2.5 text-sm font-mono text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
-            <span className="text-[11px] text-secondary mt-1 block">Stored precisely as cents in database</span>
+            <span className="text-[11px] text-secondary mt-1 block">Stored precisely as paise in database</span>
           </div>
 
           {/* Purchase Date */}

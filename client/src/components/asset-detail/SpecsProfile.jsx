@@ -359,8 +359,8 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
 }
 
 function formatCostCents(cents = 0) {
-  if (cents === null || cents === undefined || isNaN(cents)) return '$0.00';
-  const dollars = cents / 100;
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(dollars);
+  if (cents === null || cents === undefined || isNaN(cents)) return '₹0.00';
+  const rupees = cents / 100;
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(rupees);
 }
 

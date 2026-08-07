@@ -3,20 +3,20 @@ import { formatCurrency, formatDate, formatDateTime } from './formatters';
 
 describe('formatters Unit Tests', () => {
   describe('formatCurrency', () => {
-    it('should format numbers to USD currency string correctly', () => {
-      expect(formatCurrency(1250.5)).toBe('$1,250.50');
-      expect(formatCurrency(99)).toBe('$99.00');
-      expect(formatCurrency(0)).toBe('$0.00');
+    it('should format numbers to INR currency string correctly', () => {
+      expect(formatCurrency(1250.5)).toMatch(/₹\s?1,250\.50/);
+      expect(formatCurrency(99)).toMatch(/₹\s?99\.00/);
+      expect(formatCurrency(0)).toMatch(/₹\s?0\.00/);
     });
 
     it('should handle string numeric values gracefully', () => {
-      expect(formatCurrency('2499.99')).toBe('$2,499.99');
+      expect(formatCurrency('2499.99')).toMatch(/₹\s?2,499\.99/);
     });
 
-    it('should fallback to $0.00 for null, undefined, or non-numeric strings', () => {
-      expect(formatCurrency(null)).toBe('$0.00');
-      expect(formatCurrency(undefined)).toBe('$0.00');
-      expect(formatCurrency('invalid')).toBe('$0.00');
+    it('should fallback to ₹0.00 for null, undefined, or non-numeric strings', () => {
+      expect(formatCurrency(null)).toBe('₹0.00');
+      expect(formatCurrency(undefined)).toBe('₹0.00');
+      expect(formatCurrency('invalid')).toBe('₹0.00');
     });
   });
 
@@ -43,8 +43,8 @@ describe('formatters Unit Tests', () => {
   describe('formatDateTime', () => {
     it('should format date with hours and minutes', () => {
       const formatted = formatDateTime('2026-07-22 14:30:00');
-      expect(formatted).toContain('Jul 22, 2026');
-      expect(formatted).toContain('14:30');
+      expect(formatted).toContain('22/07/2026');
+      expect(formatted).toContain('2:30 PM');
     });
   });
 });
