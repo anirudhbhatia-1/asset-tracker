@@ -19,6 +19,10 @@ router.post('/login', [
   }
 });
 
+router.get('/me', validateSession, async (req, res) => {
+  res.status(200).json({ data: req.user, message: 'OK' });
+});
+
 router.post('/logout', async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;

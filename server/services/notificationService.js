@@ -1,4 +1,5 @@
 const { pool } = require('../db');
+const { hasPermission } = require('../middleware/validateSession');
 
 /**
  * Returns notifications for an employee role user.
@@ -224,19 +225,37 @@ const getHrNotifications = async (employeeId) => {
 };
 
 /**
- * Main entry point — routes to correct function by role.
+ * Main entry point — routes to correct function by permissions.
  */
 const getNotifications = async (user) => {
-  if (user.role === 'employee') {
-    return getEmployeeNotifications(user.id);
+  let allNotifications = [];
+  const isDirector = user.role === 'director' || user.isDirector;
+
+  // Director sees all queues combined
+  if (isDirector) {
+    const [adminNotifs, hrNotifs, empNotifs] = await Promise.all([
+      getAdminNotifications(user),
+      getHrNotifications(user.id),
+      getEmployeeNotifications(user.id),
+    ]);
+    allNotifications = [...adminNotifs, ...hrNotifs, ...empNotifs];
+  } else {
+    if (hasPermission(user, 'onboarding:fulfill')) {
+      const adminNotifs = await getAdminNotifications(user);
+      allNotifications = allNotifications.concat(adminNotifs);
+    }
+    if (hasPermission(user, 'onboarding:create') && !hasPermission(user, 'onboarding:fulfill')) {
+      const hrNotifs = await getHrNotifications(user.id);
+      allNotifications = allNotifications.concat(hrNotifs);
+    }
+    // All users get their own employee notifications (own tickets, own assets)
+    const empNotifs = await getEmployeeNotifications(user.id);
+    allNotifications = allNotifications.concat(empNotifs);
   }
-  if (user.role === 'admin') {
-    return getAdminNotifications(user);
-  }
-  if (user.role === 'hr') {
-    return getHrNotifications(user.id);
-  }
-  return [];
+
+  // Deduplicate by ID
+  const unique = Array.from(new Map(allNotifications.map(item => [item.id, item])).values());
+  return unique.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 };
 
 module.exports = { getNotifications };

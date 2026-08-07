@@ -7,7 +7,7 @@ import useLocations from '../../hooks/useLocations';
 const DEPARTMENTS = ['Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing', 'Sales'];
 
 export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
-  const { locations } = useLocations();
+  const { locations } = useLocations(isOpen);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [department, setDepartment] = useState('');

@@ -1,15 +1,15 @@
 const express = require('express');
 const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
-const { validateSession, requireRole } = require('../middleware/validateSession');
+const { validateSession, requireRole, requirePermission } = require('../middleware/validateSession');
 const onboardingService = require('../services/onboardingService');
 
 const router = express.Router();
 
 router.use(validateSession);
 
-// GET /api/onboarding — admin and hr can view all
-router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
+// GET /api/onboarding — view all onboarding requests
+router.get('/', requirePermission('onboarding:read'), async (req, res, next) => {
   try {
     const requests = await onboardingService.getRequests();
     res.status(200).json({
@@ -23,7 +23,7 @@ router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
 });
 
 // GET /api/onboarding/hr-metrics
-router.get('/hr-metrics', requireRole('hr'), async (req, res, next) => {
+router.get('/hr-metrics', requirePermission('onboarding:read'), async (req, res, next) => {
   try {
     const metrics = await onboardingService.getHrMetrics();
     res.status(200).json({
@@ -37,7 +37,7 @@ router.get('/hr-metrics', requireRole('hr'), async (req, res, next) => {
 
 // GET /api/onboarding/:id
 router.get('/:id', [
-  requireRole('admin', 'hr'),
+  requirePermission('onboarding:read'),
   param('id').isInt({ min: 1 }),
   validateRequest
 ], async (req, res, next) => {
@@ -55,9 +55,9 @@ router.get('/:id', [
   }
 });
 
-// POST /api/onboarding — hr creates request
+// POST /api/onboarding — create request
 router.post('/', [
-  requireRole('hr'),
+  requirePermission('onboarding:create'),
   body('newHireName').notEmpty().withMessage('Name is required').trim(),
   body('newHireEmail').optional({ nullable: true, checkFalsy: true }).isEmail(),
   body('department').optional({ nullable: true, checkFalsy: true }).isString(),
@@ -82,9 +82,9 @@ router.post('/', [
   }
 });
 
-// PUT /api/onboarding/:id — update existing pending request
+// PUT /api/onboarding/:id — update existing request
 router.put('/:id', [
-  requireRole('admin', 'hr'),
+  requirePermission('onboarding:update'),
   param('id').isInt({ min: 1 }),
   body('newHireName').notEmpty().withMessage('Name is required').trim(),
   body('newHireEmail').optional({ nullable: true, checkFalsy: true }).isEmail(),
@@ -118,9 +118,9 @@ router.put('/:id', [
   }
 });
 
-// PUT /api/onboarding/:id/status — admin updates status
+// PUT /api/onboarding/:id/status — update status
 router.put('/:id/status', [
-  requireRole('admin'),
+  requirePermission('onboarding:update'),
   param('id').isInt({ min: 1 }),
   body('status').isIn(['pending', 'in_progress', 'arranged', 'completed', 'cancelled']),
   validateRequest
@@ -139,9 +139,9 @@ router.put('/:id/status', [
   }
 });
 
-// PATCH /api/onboarding/:id/items/:itemId/fulfill — admin links an asset to a requested item
+// PATCH /api/onboarding/:id/items/:itemId/fulfill — fulfill item
 router.patch('/:id/items/:itemId/fulfill', [
-  requireRole('admin'),
+  requirePermission('onboarding:fulfill'),
   param('id').isInt({ min: 1 }),
   param('itemId').isInt({ min: 1 }),
   body('assetId').optional({ nullable: true }).isInt({ min: 1 }),
@@ -152,7 +152,6 @@ router.patch('/:id/items/:itemId/fulfill', [
     if (!item) {
       return res.status(404).json({ error: true, message: 'Item not found in this request', code: 404 });
     }
-    // Return updated full request for convenience
     const request = await onboardingService.getRequestById(req.params.id);
     res.status(200).json({
       data: request,

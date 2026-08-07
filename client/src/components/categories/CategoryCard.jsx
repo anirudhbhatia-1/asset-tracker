@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import { Edit2, Trash2, Box, ArrowRight } from 'lucide-react';
 
-export default function CategoryCard({ category, onEdit, onDelete }) {
+export default function CategoryCard({ category, onEdit, onDelete, canManage = true }) {
   const assetCount = category.assetCount || 0;
 
   return (
@@ -21,22 +21,24 @@ export default function CategoryCard({ category, onEdit, onDelete }) {
               <p className="text-xs text-secondary font-mono mt-0.5">ID: {category.id}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onEdit(category)}
-              className="p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-raised transition-colors"
-              title="Edit Category"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onDelete(category)}
-              className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised transition-colors"
-              title="Delete Category"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+          {canManage && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onEdit(category)}
+                className="p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-raised transition-colors"
+                title="Edit Category"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onDelete(category)}
+                className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised transition-colors"
+                title="Delete Category"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-sm text-secondary line-clamp-2 min-h-[40px] mb-5">

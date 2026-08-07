@@ -21,7 +21,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const Onboarding = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { requests, loading, error, fetchRequests, createRequest, updateStatus, fulfillItem, getRequestDetails } = useOnboarding();
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -50,11 +50,11 @@ const Onboarding = () => {
             HR Onboarding
           </h1>
           <p className="text-secondary text-sm mt-1">
-            {user?.role === 'admin' ? 'Manage IT setup for incoming employees.' : 'Submit and track hardware requests for new hires.'}
+            {hasPermission('onboarding:fulfill') ? 'Manage IT setup for incoming employees.' : 'Submit and track hardware requests for new hires.'}
           </p>
         </div>
         
-        {user?.role === 'hr' && (
+        {hasPermission('onboarding:create') && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg font-medium shadow-sm transition-all"
@@ -103,7 +103,7 @@ const Onboarding = () => {
                   <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Role / Dept</th>
                   <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Joining Date</th>
                   <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
-                  {user?.role === 'admin' && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Requested By</th>}
+                  {hasPermission('onboarding:fulfill') && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Requested By</th>}
                   <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Submitted</th>
                 </tr>
               </thead>
@@ -116,13 +116,13 @@ const Onboarding = () => {
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-20"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-16"></div></td>
-                    {user?.role === 'admin' && <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-32"></div></td>}
+                    {hasPermission('onboarding:fulfill') && <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-32"></div></td>}
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>
                   </tr>
                 ))
               ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={user?.role === 'admin' ? 6 : 5} className="px-6 py-12 text-center text-secondary">
+                  <td colSpan={hasPermission('onboarding:fulfill') ? 6 : 5} className="px-6 py-12 text-center text-secondary">
                     No onboarding requests found.
                   </td>
                 </tr>
@@ -153,7 +153,7 @@ const Onboarding = () => {
                       {new Date(req.joining_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
-                    {user?.role === 'admin' && (
+                    {hasPermission('onboarding:fulfill') && (
                       <td className="px-6 py-4 text-secondary">{req.requested_by_email}</td>
                     )}
                     <td className="px-6 py-4 text-secondary">

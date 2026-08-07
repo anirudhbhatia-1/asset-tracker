@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
-const { validateSession, requireRole } = require('../middleware/validateSession');
+const { validateSession, requirePermission } = require('../middleware/validateSession');
 const locationService = require('../services/locationService');
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(validateSession);
 
 // GET /api/locations
-router.get('/', async (req, res, next) => {
+router.get('/', requirePermission('locations:read'), async (req, res, next) => {
   try {
     const locations = await locationService.getLocations();
     res.status(200).json({
@@ -23,7 +23,7 @@ router.get('/', async (req, res, next) => {
 
 // POST /api/locations
 router.post('/', [
-  requireRole('admin'),
+  requirePermission('locations:manage'),
   body('name').notEmpty().withMessage('Location name is required').trim(),
   validateRequest
 ], async (req, res, next) => {
@@ -43,7 +43,7 @@ router.post('/', [
 
 // PUT /api/locations/:id/addresses
 router.put('/:id/addresses', [
-  requireRole('admin', 'hr'),
+  requirePermission('locations:manage'),
   param('id').isInt({ min: 1 }),
   body('addresses').isArray().withMessage('Addresses must be an array'),
   body('addresses.*').isString().trim(),

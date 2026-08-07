@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/axiosInstance';
 import toast from 'react-hot-toast';
 
@@ -10,18 +9,27 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
     const checkAuth = async () => {
       const token = sessionStorage.getItem('token');
       const storedUser = sessionStorage.getItem('user');
       
-      if (token && storedUser) {
+      if (token) {
+        if (storedUser) {
+          try {
+            setUser(JSON.parse(storedUser));
+          } catch (err) {
+            console.error("Failed to parse stored user", err);
+          }
+        }
         try {
-          setUser(JSON.parse(storedUser));
+          const res = await api.get('/auth/me');
+          const freshUser = res.data?.data;
+          if (freshUser) {
+            setUser(freshUser);
+            sessionStorage.setItem('user', JSON.stringify(freshUser));
+          }
         } catch (err) {
-          console.error("Failed to parse stored user", err);
-          sessionStorage.removeItem('token');
-          sessionStorage.removeItem('user');
+          console.error("Failed to refresh session via /auth/me", err);
         }
       }
       setLoading(false);
@@ -29,11 +37,20 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+  const hasPermission = useCallback((permissionKey) => {
+    if (!user) return false;
+    if (user.role === 'director' || user.isDirector || (user.permissions && user.permissions.includes('*'))) {
+      return true;
+    }
+    if (!user.permissions || !Array.isArray(user.permissions)) {
+      return false;
+    }
+    return user.permissions.includes(permissionKey);
+  }, [user]);
+
   const login = async (email, password) => {
     try {
       const res = await api.post('/auth/login', { email, password });
-      
-      // Backend returns { data: { token, user }, message: '...' }
       const { token, user: userData } = res.data.data;
       
       sessionStorage.setItem('token', token);
@@ -47,8 +64,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // loginWithToken — used by the Google testing flow.
-  // WHEN GOING TO PRODUCTION: Keep this helper, it is generic enough.
   const loginWithToken = (token, userData) => {
     sessionStorage.setItem('token', token);
     sessionStorage.setItem('user', JSON.stringify(userData));
@@ -82,11 +97,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser: updateUser, loading, login, logout, loginWithToken }}>
+    <AuthContext.Provider value={{ user, setUser: updateUser, loading, login, logout, loginWithToken, hasPermission }}>
       {!loading && children}
     </AuthContext.Provider>
   );
 };
-
 
 export const useAuth = () => useContext(AuthContext);

@@ -21,9 +21,9 @@ const StatusBadge = ({ status }) => {
 };
 
 const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const isTicketOwner = user?.id === ticket?.employee_id;
-  const isHandlingAdmin = (user?.role === 'admin' || user?.role === 'hr') &&
+  const isHandlingAdmin = (hasPermission('tickets:update') || hasPermission('tickets:resolve')) &&
                           (!isTicketOwner || ticket?.current_admin_type === (user?.adminType || 'hr'));
   
   const [status, setStatus] = useState('');

@@ -33,6 +33,7 @@ app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/onboarding', require('./routes/onboarding'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/locations', require('./routes/locations'));
+app.use('/api/roles', require('./routes/roles'));
 
 // 404 Handler for unmatched routes
 app.use((req, res, next) => {

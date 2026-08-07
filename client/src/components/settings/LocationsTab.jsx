@@ -9,18 +9,16 @@ import toast from 'react-hot-toast';
 
 export default function LocationsTab() {
   const { locations, loading, refresh } = useLocations();
-  const { user } = useAuth();
-  
+  const { hasPermission } = useAuth();
+  const canManageLocations = hasPermission('locations:manage');
+  const canEditLocations = canManageLocations || hasPermission('locations:read');
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  
   const [newLocationName, setNewLocationName] = useState('');
   const [editingLocation, setEditingLocation] = useState(null);
   const [editAddresses, setEditAddresses] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-
-  const isAdmin = user?.role === 'admin';
-  const isHrOrAdmin = user?.role === 'admin' || user?.role === 'hr';
 
   const handleAddLocation = async (e) => {
     e.preventDefault();
@@ -100,7 +98,7 @@ export default function LocationsTab() {
             Manage global office locations and their addresses.
           </p>
         </div>
-        {isAdmin && (
+        {canManageLocations && (
           <Button onClick={() => setIsAddOpen(true)} variant="primary" size="sm">
             <Plus className="w-4 h-4 mr-1" />
             Add Location
@@ -129,7 +127,7 @@ export default function LocationsTab() {
                 </div>
               </div>
               
-              {isHrOrAdmin && (
+              {canEditLocations && (
                 <div className="mt-4 pt-4 border-t border-border/60 flex justify-end">
                   <Button 
                     onClick={() => openEditModal(loc)} 

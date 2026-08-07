@@ -3,6 +3,7 @@ import { X, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getEmployeeAssets } from '../../api/employeesApi';
 import { getCategories } from '../../api/categoriesApi';
+import toast from 'react-hot-toast';
 
 const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', initialAssetId = '' }) => {
   const { user } = useAuth();
@@ -26,15 +27,22 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
       const fetchData = async () => {
         setLoadingContext(true);
         try {
-          const catRes = await getCategories();
-          setCategories(catRes.data?.data || catRes.data || []);
-          
-          if (user?.id) {
-            const assetRes = await getEmployeeAssets(user.id);
-            setMyAssets(assetRes.data?.data || assetRes.data || []);
-          }
-        } catch (err) {
-          console.error('Failed to load contextual data for ticket', err);
+          const catPromise = getCategories()
+            .then(res => setCategories(res.data?.data || res.data || []))
+            .catch(err => {
+              console.error('Failed to load categories for ticket form:', err);
+              if (err.response?.status !== 403) {
+                toast.error('Failed to load categories');
+              }
+            });
+
+          const assetPromise = user?.id
+            ? getEmployeeAssets(user.id)
+                .then(res => setMyAssets(res.data?.data || res.data || []))
+                .catch(err => console.error('Failed to load employee assets for ticket form:', err))
+            : Promise.resolve();
+
+          await Promise.allSettled([catPromise, assetPromise]);
         } finally {
           setLoadingContext(false);
         }

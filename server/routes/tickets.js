@@ -1,15 +1,15 @@
 const express = require('express');
 const { body } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
-const { validateSession, requireRole } = require('../middleware/validateSession');
+const { validateSession, requireRole, requirePermission } = require('../middleware/validateSession');
 const ticketService = require('../services/ticketService');
 
 const router = express.Router();
 
 router.use(validateSession);
 
-// GET /api/tickets — admin sees all, employee sees their own
-router.get('/', requireRole('admin', 'employee', 'hr'), async (req, res, next) => {
+// GET /api/tickets — list support tickets
+router.get('/', requirePermission('tickets:read'), async (req, res, next) => {
   try {
     const filters = {
       scope: req.query.scope
@@ -26,9 +26,9 @@ router.get('/', requireRole('admin', 'employee', 'hr'), async (req, res, next) =
 });
 
 // GET /api/tickets/:id/history — admin and owner can see
-router.get('/:id/history', requireRole('admin', 'employee', 'hr'), async (req, res, next) => {
+router.get('/:id/history', requirePermission('tickets:read'), async (req, res, next) => {
   try {
-    const history = await ticketService.getTicketHistory(req.params.id);
+    const history = await ticketService.getTicketHistory(req.params.id, req.user);
     res.status(200).json({
       data: history,
       message: 'OK'
@@ -38,9 +38,9 @@ router.get('/:id/history', requireRole('admin', 'employee', 'hr'), async (req, r
   }
 });
 
-// POST /api/tickets — employee creates a ticket
+// POST /api/tickets — create a ticket
 router.post('/', [
-  requireRole('employee', 'hr'),
+  requirePermission('tickets:create'),
   body('type').isIn(['issue', 'request']).withMessage('Invalid ticket type'),
   body('title').notEmpty().withMessage('Title is required').trim().isLength({ max: 150 }),
   body('description').optional({ nullable: true, checkFalsy: true }).isString().trim(),
@@ -60,9 +60,9 @@ router.post('/', [
   }
 });
 
-// PATCH /api/tickets/:id — admin updates a ticket
+// PATCH /api/tickets/:id — update a ticket
 router.patch('/:id', [
-  requireRole('admin', 'hr'),
+  requirePermission('tickets:update'),
   body('status').optional().isIn(['open', 'in_progress', 'resolved', 'rejected']).withMessage('Invalid status'),
   body('resolutionNotes').optional({ nullable: true }).isString().trim(),
   body('resolvedAssetId').optional({ nullable: true }).isInt({ min: 1 }),
@@ -79,9 +79,9 @@ router.patch('/:id', [
   }
 });
 
-// PATCH /api/tickets/:id/transfer — admin transfers ticket to another admin queue
+// PATCH /api/tickets/:id/transfer — transfer ticket to another admin queue
 router.patch('/:id/transfer', [
-  requireRole('admin', 'hr'),
+  requirePermission('tickets:resolve'),
   body('targetAdminType').isIn(['it', 'hardware', 'hr']).withMessage('Invalid target admin type'),
   body('note').optional({ nullable: true }).isString().trim(),
   validateRequest
@@ -99,7 +99,7 @@ router.patch('/:id/transfer', [
 
 // PATCH /api/tickets/:id/confirm-close — employee confirms a resolved ticket
 router.patch('/:id/confirm-close', [
-  requireRole('employee', 'hr'),
+  requirePermission('tickets:read'),
   validateRequest
 ], async (req, res, next) => {
   try {
@@ -115,7 +115,7 @@ router.patch('/:id/confirm-close', [
 
 // PATCH /api/tickets/:id/reopen — employee reopens a resolved ticket
 router.patch('/:id/reopen', [
-  requireRole('employee', 'hr'),
+  requirePermission('tickets:read'),
   body('note').optional({ nullable: true }).isString().trim(),
   validateRequest
 ], async (req, res, next) => {

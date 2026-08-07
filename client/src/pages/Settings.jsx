@@ -1,17 +1,26 @@
 import React from 'react';
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
-import { Settings as SettingsIcon, Tags, Globe, MapPin } from 'lucide-react';
+import { Settings as SettingsIcon, Tags, Globe, MapPin, ShieldCheck } from 'lucide-react';
 import CategoriesTab from '../components/categories/CategoriesTab';
 import LocationsTab from '../components/settings/LocationsTab';
+import RolesTab from '../components/settings/RolesTab';
+import { useAuth } from '../context/AuthContext';
 
 const Settings = () => {
   const location = useLocation();
+  const { hasPermission } = useAuth();
 
   const tabs = [
-    { name: 'Google Workspace', path: '/settings/google', icon: Globe },
-    { name: 'Categories', path: '/settings/categories', icon: Tags },
-    { name: 'Locations', path: '/settings/locations', icon: MapPin },
+    { name: 'Google Workspace', path: '/settings/google', icon: Globe, permissionKey: null },
+    { name: 'Roles & Permissions', path: '/settings/roles', icon: ShieldCheck, permissionKey: 'roles:read' },
+    { name: 'Categories', path: '/settings/categories', icon: Tags, permissionKey: 'categories:manage' },
+    { name: 'Locations', path: '/settings/locations', icon: MapPin, permissionKey: 'locations:manage' },
   ];
+
+  const visibleTabs = tabs.filter(tab => {
+    if (!tab.permissionKey) return true;
+    return hasPermission(tab.permissionKey);
+  });
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
@@ -21,14 +30,14 @@ const Settings = () => {
           System Settings
         </h2>
         <p className="text-sm text-secondary mt-1">
-          Manage integrations, categories, locations, and application preferences.
+          Manage roles, permissions matrix, categories, locations, and application preferences.
         </p>
       </div>
 
       {/* Tabs Navigation */}
       <div className="border-b border-border/60">
         <nav className="flex space-x-2 sm:space-x-6 overflow-x-auto" aria-label="Tabs">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = location.pathname.startsWith(tab.path);
             return (
@@ -61,6 +70,7 @@ const Settings = () => {
               </p>
             </div>
           } />
+          <Route path="roles" element={<RolesTab />} />
           <Route path="categories" element={<CategoriesTab />} />
           <Route path="locations" element={<LocationsTab />} />
           <Route path="*" element={<Navigate to="google" replace />} />

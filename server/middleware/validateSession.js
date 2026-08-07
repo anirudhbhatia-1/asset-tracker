@@ -1,5 +1,47 @@
 const { pool } = require('../db');
 
+// This is only used for employees with role_id IS NULL (pre-role-assignment). It is NOT a live mirror of the role_permissions table — do not treat it as authoritative once a Director has customized a system role via the Role Matrix.
+const DEFAULT_ROLE_PERMISSIONS = {
+  director: ['*'],
+  admin: [
+    'roles:read', 'roles:manage', 'history:read',
+    'assets:read', 'assets:create', 'assets:update', 'assets:assign', 'assets:delete', 'assets:export', 'assets:import',
+    'categories:read', 'categories:manage',
+    'employees:read', 'employees:create', 'employees:manage', 'employees:delete', 'employees:grant-access', 'employees:assign-assets',
+    'onboarding:read', 'onboarding:fulfill',
+    'tickets:read', 'tickets:create', 'tickets:update', 'tickets:resolve',
+    'locations:read', 'locations:manage',
+    'scanner:read', 'settings:read', 'settings:manage'
+  ],
+  hr: [
+    'categories:read',
+    'employees:read', 'employees:create', 'employees:manage',
+    'onboarding:read', 'onboarding:create',
+    'tickets:read', 'tickets:create', 'tickets:update',
+    'locations:read'
+  ],
+  employee: [
+    'categories:read',
+    'tickets:read', 'tickets:create',
+    'locations:read'
+  ]
+};
+
+const getDefaultPermissionsForRole = (role) => DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.employee;
+
+const hasPermission = (user, permissionKey) => {
+  if (!user) return false;
+  if (user.role === 'director' || user.isDirector || (user.permissions && user.permissions.includes('*'))) {
+    return true;
+  }
+  if (!user.permissions || !Array.isArray(user.permissions) || user.permissions.length === 0) {
+    const fallback = DEFAULT_ROLE_PERMISSIONS[user.role] || [];
+    if (fallback.includes('*')) return true;
+    return fallback.includes(permissionKey);
+  }
+  return user.permissions.includes(permissionKey);
+};
+
 const validateSession = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -8,29 +50,38 @@ const validateSession = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
-    const { rows } = await pool.query(
-      `SELECT s.employee_id, e.role, e.admin_type, s.expires_at 
-       FROM sessions s 
-       JOIN employees e ON s.employee_id = e.id 
-       WHERE s.token = $1`,
-      [token]
-    );
+    const result = await pool.query(`
+      SELECT s.employee_id, e.name, e.email, e.role, e.role_id, e.admin_type, s.expires_at,
+             r.name as role_name, r.is_director,
+             ARRAY_AGG(p.key) FILTER (WHERE p.key IS NOT NULL) as permissions
+      FROM sessions s
+      JOIN employees e ON s.employee_id = e.id
+      LEFT JOIN roles r ON e.role_id = r.id
+      LEFT JOIN role_permissions rp ON r.id = rp.role_id
+      LEFT JOIN permissions p ON rp.permission_id = p.id
+      WHERE s.token = $1 AND s.expires_at > NOW() AND e.deleted_at IS NULL
+      GROUP BY s.employee_id, e.id, r.id, s.expires_at
+    `, [token]);
 
-    if (rows.length === 0) {
-      return res.status(401).json({ error: true, message: 'Unauthorized - Invalid token', code: 401 });
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: true, message: 'Unauthorized - Invalid or expired session token', code: 401 });
     }
 
-    const session = rows[0];
-    if (new Date(session.expires_at) < new Date()) {
-      await pool.query('DELETE FROM sessions WHERE token = $1', [token]);
-      return res.status(401).json({ error: true, message: 'Unauthorized - Token expired', code: 401 });
-    }
+    const sessionUser = result.rows[0];
+    const userPermissions = sessionUser.permissions && sessionUser.permissions[0] !== null
+      ? sessionUser.permissions
+      : getDefaultPermissionsForRole(sessionUser.role);
 
     req.user = {
-      id: session.employee_id,
-      role: session.role,
-      adminType: session.admin_type
+      id: sessionUser.employee_id,
+      name: sessionUser.name,
+      email: sessionUser.email,
+      role: sessionUser.role,
+      roleId: sessionUser.role_id,
+      roleName: sessionUser.role_name,
+      isDirector: sessionUser.is_director || sessionUser.role === 'director',
+      adminType: sessionUser.admin_type,
+      permissions: userPermissions
     };
 
     next();
@@ -44,11 +95,35 @@ const requireRole = (...roles) => {
     if (!req.user) {
       return res.status(401).json({ error: true, message: 'Unauthorized', code: 401 });
     }
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: true, message: 'Forbidden - Insufficient permissions', code: 403 });
+    if (
+      req.user.role === 'director' ||
+      req.user.isDirector ||
+      req.user.permissions?.includes('*') ||
+      roles.includes(req.user.role)
+    ) {
+      return next();
+    }
+    return res.status(403).json({ error: true, message: 'Forbidden - Insufficient permissions', code: 403 });
+  };
+};
+
+const requirePermission = (permissionKey) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: true, message: 'Unauthorized', code: 401 });
+    }
+    if (!hasPermission(req.user, permissionKey)) {
+      return res.status(403).json({ error: true, message: `Forbidden - Requires '${permissionKey}' permission`, code: 403 });
     }
     next();
   };
 };
 
-module.exports = { validateSession, requireRole };
+module.exports = {
+  validateSession,
+  requireRole,
+  requirePermission,
+  hasPermission,
+  DEFAULT_ROLE_PERMISSIONS,
+  getDefaultPermissionsForRole
+};

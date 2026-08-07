@@ -1,5 +1,6 @@
 const db = require('../db');
 const assetService = require('./assetService');
+const { hasPermission } = require('../middleware/validateSession');
 
 const getTickets = async (user, filters = {}) => {
   let query = `
@@ -17,29 +18,30 @@ const getTickets = async (user, filters = {}) => {
   let params = [];
   let conditions = [];
 
-  if (user.role === 'employee') {
-    // Employees only ever see tickets they raised
+  const canResolve = hasPermission(user, 'tickets:resolve');
+  const isDirector = user.role === 'director' || user.isDirector;
+
+  if (!canResolve && !isDirector) {
+    // Non-admin / standard employees only see tickets they created
     conditions.push(`t.employee_id = $${params.length + 1}`);
     params.push(user.id);
-  } else if (user.role === 'hr') {
-    if (filters.scope === 'all') {
-      // No filter — HR sees every ticket in the system
+  } else {
+    // Administrative view (Director, Admin, HR with tickets:resolve permission)
+    if (filters.scope === 'all' || isDirector) {
+      // Director or explicit scope=all sees everything
     } else if (filters.scope === 'my_tickets') {
-      // HR sees ONLY the tickets they personally raised
       conditions.push(`t.employee_id = $${params.length + 1}`);
       params.push(user.id);
     } else {
-      // Default (my_queue): tickets routed to the HR admin queue
-      conditions.push(`t.current_admin_type = $${params.length + 1}`);
-      params.push('hr');
-    }
-  } else if (user.role === 'admin') {
-    if (filters.scope === 'all') {
-      // No filter — admin sees everything
-    } else if (user.adminType) {
-      // Default: admin sees their own queue only
-      conditions.push(`t.current_admin_type = $${params.length + 1}`);
-      params.push(user.adminType);
+      // Default (my_queue): filter by user's admin_type from employees table
+      if (user.adminType) {
+        conditions.push(`t.current_admin_type = $${params.length + 1}`);
+        params.push(user.adminType);
+      } else {
+        // No admin_type assigned to this admin — they have no queue.
+        // Show nothing rather than silently falling through to "all tickets."
+        conditions.push('1 = 0');
+      }
     }
   }
 
@@ -98,44 +100,73 @@ const updateTicket = async (id, payload, adminUser) => {
   const newAssetId = resolvedAssetId !== undefined ? resolvedAssetId : current.resolved_asset_id;
   
   let resolvedBy = current.resolved_by;
-  if (newStatus === 'resolved' || newStatus === 'rejected') {
+  let resolvedAt = current.resolved_at;
+  
+  if (newStatus === 'resolved' && current.status !== 'resolved') {
     resolvedBy = adminUser.id;
-  }
-
-  // Cross-feature synchronization:
-  // If the ticket is resolved, and an asset was linked that wasn't linked before, assign it!
-  if (newStatus === 'resolved' && newAssetId && newAssetId !== current.resolved_asset_id) {
-    await assetService.assignAsset(
-      newAssetId, 
-      current.employee_id, 
-      null, // today
-      `Fulfilled via Ticket #${id}`, 
-      adminUser.email
-    );
+    resolvedAt = new Date().toISOString();
   }
   
   const { rows } = await db.pool.query(
     `UPDATE tickets 
-     SET status = $1, resolution_notes = $2, resolved_asset_id = $3, resolved_by = $4, updated_at = NOW()
-     WHERE id = $5 RETURNING *`,
-    [newStatus, newNotes, newAssetId, resolvedBy, id]
+     SET status = $1, 
+         resolution_notes = $2, 
+         resolved_asset_id = $3, 
+         resolved_by = $4, 
+         resolved_at = $5,
+         updated_at = NOW() 
+     WHERE id = $6 RETURNING *`,
+    [newStatus, newNotes, newAssetId, resolvedBy, resolvedAt, id]
   );
   
-  if (newStatus !== current.status) {
-    let eventType = 'status_changed';
-    if (newStatus === 'resolved') eventType = 'resolved';
-    if (newStatus === 'rejected') eventType = 'rejected';
+  const updatedTicket = rows[0];
 
+  // Cross-feature synchronization:
+  // If the ticket was just resolved and an asset was linked, assign it to the employee in inventory.
+  if (newStatus === 'resolved' && current.status !== 'resolved' && newAssetId && newAssetId !== current.resolved_asset_id) {
+    try {
+      await assetService.assignAsset(
+        newAssetId,
+        current.employee_id,
+        null, // use today
+        `Fulfilled via Ticket #${id}`,
+        adminUser.email
+      );
+    } catch (assignErr) {
+      // Log but don't block the ticket update if asset assignment fails
+      console.error(`[ticketService] Failed to auto-assign asset ${newAssetId} for ticket ${id}:`, assignErr.message);
+    }
+  }
+
+  if (newStatus !== current.status) {
     await db.pool.query(
-      `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note) VALUES ($1, $2, $3, $4)`,
-      [id, eventType, adminUser.id, newNotes || null]
+      `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note) 
+       VALUES ($1, $2, $3, $4)`,
+      [id, newStatus, adminUser.id, newNotes || `Status updated to ${newStatus}`]
     );
   }
   
-  return rows[0];
+  return updatedTicket;
 };
 
-const getTicketHistory = async (id) => {
+const getTicketHistory = async (id, user) => {
+  const { rows: ticketRows } = await db.pool.query('SELECT employee_id FROM tickets WHERE id = $1', [id]);
+  if (ticketRows.length === 0) {
+    const err = new Error('Ticket not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const isDirector = user.role === 'director' || user.isDirector;
+  const canResolve = hasPermission(user, 'tickets:resolve');
+
+  // Non-admins/non-HR can only view history for tickets they created
+  if (!isDirector && !canResolve && ticketRows[0].employee_id !== user.id) {
+    const err = new Error('Forbidden - You can only view history for your own tickets');
+    err.statusCode = 403;
+    throw err;
+  }
+
   const { rows } = await db.pool.query(
     `SELECT th.*, e.name as performed_by_name, e.email as performed_by_email 
      FROM ticket_history th 
@@ -156,11 +187,16 @@ const transferTicket = async (id, targetAdminType, note, adminUser) => {
   }
   
   const current = currentRows[0];
+  const isDirector = adminUser.role === 'director' || adminUser.isDirector;
   
-  if (adminUser.adminType !== current.current_admin_type) {
-    const err = new Error('You can only transfer tickets that are currently in your queue.');
-    err.statusCode = 403;
-    throw err;
+  // Director can transfer any ticket. Other admins can only transfer from their own queue.
+  // If an admin has no adminType assigned, they cannot transfer at all.
+  if (!isDirector) {
+    if (!adminUser.adminType || adminUser.adminType !== current.current_admin_type) {
+      const err = new Error('You can only transfer tickets that are currently in your queue.');
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
   if (targetAdminType === current.current_admin_type) {
@@ -192,8 +228,10 @@ const confirmTicket = async (id, employeeUser, action, note) => {
   }
   
   const current = currentRows[0];
+  const isDirector = employeeUser.role === 'director' || employeeUser.isDirector;
+  const canResolve = hasPermission(employeeUser, 'tickets:resolve');
   
-  if (current.employee_id !== employeeUser.id) {
+  if (!isDirector && !canResolve && current.employee_id !== employeeUser.id) {
     const err = new Error('You do not have permission to confirm this ticket.');
     err.statusCode = 403;
     throw err;

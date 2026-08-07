@@ -9,7 +9,7 @@ import useLocations from '../../hooks/useLocations';
 import QrTagModal from './QrTagModal';
 
 export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
-  const { locations } = useLocations();
+  const { locations } = useLocations(isEditing);
   const [isEditing, setIsEditing] = useState(false);
   const [assetType, setAssetType] = useState(asset?.assetType || 'company');
   const [locationName, setLocationName] = useState(asset?.location || '');

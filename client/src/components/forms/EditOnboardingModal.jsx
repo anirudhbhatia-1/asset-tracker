@@ -5,7 +5,7 @@ import { getDepartments } from '../../api/employeesApi';
 import useLocations from '../../hooks/useLocations';
 
 const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
-  const { locations } = useLocations();
+  const { locations } = useLocations(isOpen);
   const [newHireName, setNewHireName] = useState('');
   const [newHireEmail, setNewHireEmail] = useState('');
   const [department, setDepartment] = useState('');

@@ -1,23 +1,40 @@
-import React, { useState } from 'react';
-import { ShieldCheck, User, Key, ChevronDown } from 'lucide-react';
-
-const ROLES = ['admin', 'hr', 'employee'];
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, User, Key } from 'lucide-react';
+import api from '../../api/axiosInstance';
 
 const roleStyles = {
+  director: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
   admin: 'bg-red-500/10 text-red-500 border-red-500/30',
   hr:    'bg-amber-500/10 text-amber-500 border-amber-500/30',
   employee: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
 };
 
 export default function RoleManagementPanel({ employees = [], onRoleChange }) {
-  // Only show employees who have a login account
   const loginUsers = employees.filter(emp => emp.hasLogin && !emp.deletedAt);
   const [savingId, setSavingId] = useState(null);
+  const [roles, setRoles] = useState([
+    { id: 1, name: 'Director' },
+    { id: 2, name: 'Admin' },
+    { id: 3, name: 'HR' },
+    { id: 4, name: 'Employee' }
+  ]);
 
-  const handleRoleChange = async (emp, newRole) => {
-    if (emp.role === newRole) return;
+  useEffect(() => {
+    api.get('/roles')
+      .then(res => {
+        if (Array.isArray(res.data?.data)) {
+          setRoles(res.data.data);
+        }
+      })
+      .catch((err) => {
+        console.error('[RoleManagementPanel] Failed to fetch roles from /api/roles:', err.message);
+      });
+  }, []);
+
+  const handleRoleChange = async (emp, targetRole) => {
+    if (emp.role === targetRole || String(emp.roleId) === String(targetRole)) return;
     setSavingId(emp.id);
-    await onRoleChange(emp.id, newRole);
+    await onRoleChange(emp.id, targetRole);
     setSavingId(null);
   };
 
@@ -67,7 +84,7 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
                   <td className="px-5 py-3">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize ${roleStyles[emp.role] || 'bg-base text-secondary border-border'}`}>
                       <Key className="w-2.5 h-2.5" />
-                      {emp.role}
+                      {emp.customRoleName || emp.roleName || emp.role}
                     </span>
                   </td>
                   <td className="px-5 py-3">
@@ -75,12 +92,14 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
                       <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <select
-                        value={emp.role}
+                        value={emp.roleId || emp.role}
                         onChange={(e) => handleRoleChange(emp, e.target.value)}
                         className="text-xs bg-base border border-border rounded-lg px-2 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                       >
-                        {ROLES.map(r => (
-                          <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                        {roles.map(r => (
+                          <option key={r.id || r.name} value={r.id || r.name.toLowerCase()}>
+                            {r.name}
+                          </option>
                         ))}
                       </select>
                     )}

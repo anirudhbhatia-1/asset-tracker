@@ -20,11 +20,11 @@ const StatusBadge = ({ status }) => {
 };
 
 const Tickets = () => {
-  const { user } = useAuth();
-  const isAdminOrHr = user?.role === 'admin' || user?.role === 'hr'; // has admin queue
-  const isHr = user?.role === 'hr';                                   // HR specifically
-  const isEmployee = user?.role === 'employee';                       // pure employee
-  const canRaiseTicket = isEmployee || isHr;                         // who can raise tickets
+  const { user, hasPermission } = useAuth();
+  const isDirector = user?.role === 'director' || user?.isDirector;
+  const isHr = user?.role === 'hr';
+  const isAdminOrHr = isDirector || hasPermission('tickets:resolve') || hasPermission('tickets:update');
+  const canRaiseTicket = hasPermission('tickets:create');
   const { tickets, loading, error, fetchTickets, createTicket, updateTicket } = useTickets();
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

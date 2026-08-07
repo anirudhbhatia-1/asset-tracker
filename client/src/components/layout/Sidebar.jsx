@@ -7,26 +7,28 @@ import {
   QrCode, 
   Users, 
   Settings, 
-  ShieldCheck,
   Ticket,
   UserPlus
 } from 'lucide-react';
 
 const allNavItems = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['admin', 'employee', 'hr'] },
-  { name: 'Inventory', path: '/inventory', icon: Package, roles: ['admin'] },
-  { name: 'Tickets', path: '/tickets', icon: Ticket, roles: ['admin', 'employee', 'hr'] },
-  { name: 'Onboarding', path: '/onboarding', icon: UserPlus, roles: ['admin', 'hr'] },
-  { name: 'Scanner', path: '/scanner', icon: QrCode, roles: ['admin'] },
-  { name: 'Employees', path: '/employees', icon: Users, roles: ['admin', 'hr'] },
-  { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
+  { name: 'Dashboard', path: '/', icon: LayoutDashboard, permissionKey: null },
+  { name: 'Inventory', path: '/inventory', icon: Package, permissionKey: 'assets:read' },
+  { name: 'Tickets', path: '/tickets', icon: Ticket, permissionKey: 'tickets:read' },
+  { name: 'Onboarding', path: '/onboarding', icon: UserPlus, permissionKey: 'onboarding:read' },
+  { name: 'Scanner', path: '/scanner', icon: QrCode, permissionKey: 'scanner:read' },
+  { name: 'Employees', path: '/employees', icon: Users, permissionKey: 'employees:read' },
+  { name: 'Settings', path: '/settings', icon: Settings, permissionKey: 'settings:read' },
 ];
 
 const Sidebar = ({ isOpen = true }) => {
-  const { user } = useAuth();
-  const role = user?.role || 'employee';
+  const { user, hasPermission } = useAuth();
 
-  const visibleNavItems = allNavItems.filter(item => item.roles.includes(role));
+  const visibleNavItems = allNavItems.filter(item => {
+    if (!item.permissionKey) return true;
+    return hasPermission(item.permissionKey);
+  });
+
   const mobileNavItems = visibleNavItems.slice(0, 5);
 
   return (
@@ -74,7 +76,6 @@ const Sidebar = ({ isOpen = true }) => {
         {/* Navigation Links */}
         <nav className="flex flex-1 md:flex-col md:py-6 md:px-3 md:space-y-1 md:overflow-y-auto w-full h-full md:h-auto items-center justify-around md:justify-start">
           
-          {/* We map visible items */}
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isMobileHidden = !mobileNavItems.some(m => m.name === item.name);
@@ -107,7 +108,7 @@ const Sidebar = ({ isOpen = true }) => {
           })}
         </nav>
 
-        {/* Sidebar Footer — System Status (Hidden on mobile and tablet) */}
+        {/* Sidebar Footer — System Status */}
         {isOpen && (
           <div className="hidden md:block p-4 m-3 rounded-xl bg-base border border-border shrink-0">
             <div className="flex items-center justify-between text-secondary font-medium text-xs mb-2">

@@ -3,14 +3,14 @@ const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const categoryService = require('../services/categoryService');
 
-const { validateSession, requireRole } = require('../middleware/validateSession');
+const { validateSession, requirePermission } = require('../middleware/validateSession');
 
 const router = express.Router();
 
 router.use(validateSession);
 
 // GET /api/categories — list all categories
-router.get('/', async (req, res, next) => {
+router.get('/', requirePermission('categories:read'), async (req, res, next) => {
   try {
     const categories = await categoryService.getCategories();
     res.status(200).json({
@@ -25,6 +25,7 @@ router.get('/', async (req, res, next) => {
 
 // GET /api/categories/:id — get single category
 router.get('/:id', [
+  requirePermission('categories:read'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -41,7 +42,7 @@ router.get('/:id', [
 
 // POST /api/categories — create category
 router.post('/', [
-  requireRole('admin'),
+  requirePermission('categories:manage'),
   body('name').notEmpty().withMessage('Category name is required').trim().isLength({ max: 100 }),
   body('description').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
   body('badgeChar').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 1 }).withMessage('badgeChar must be at most 1 character'),
@@ -61,7 +62,7 @@ router.post('/', [
 
 // PUT /api/categories/:id — update category
 router.put('/:id', [
-  requireRole('admin'),
+  requirePermission('categories:manage'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('name').optional({ nullable: true, checkFalsy: true }).notEmpty().trim().isLength({ max: 100 }),
   body('description').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
@@ -82,7 +83,7 @@ router.put('/:id', [
 
 // DELETE /api/categories/:id — delete category with conflict check
 router.delete('/:id', [
-  requireRole('admin'),
+  requirePermission('categories:manage'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {

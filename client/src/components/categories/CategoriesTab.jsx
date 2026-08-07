@@ -4,13 +4,15 @@ import toast from 'react-hot-toast';
 import { getCategories, createCategory, updateCategory, deleteCategoryApi } from '../../api/categoriesApi';
 import CategoryCard from './CategoryCard';
 import CategoryBuilder from './CategoryBuilder';
-import EmptyState from '../ui/EmptyState';
+import { useAuth } from '../../context/AuthContext';
 
 export default function CategoriesTab() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
+  const { hasPermission } = useAuth();
+  const canManageCategories = hasPermission('categories:manage');
 
   const fetchCategories = async () => {
     try {
@@ -85,13 +87,15 @@ export default function CategoriesTab() {
             Organize your inventory with custom tags and colors.
           </p>
         </div>
-        <button
-          onClick={() => handleOpenBuilder()}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent text-white text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-accent/20"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Add Category</span>
-        </button>
+        {canManageCategories && (
+          <button
+            onClick={() => handleOpenBuilder()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent text-white text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-accent/20"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Add Category</span>
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -105,8 +109,8 @@ export default function CategoriesTab() {
           icon={Tags}
           title="No Categories Found"
           description="Get started by creating your first category."
-          actionText="Create Category"
-          onAction={() => handleOpenBuilder()}
+          actionText={canManageCategories ? "Create Category" : undefined}
+          onAction={canManageCategories ? () => handleOpenBuilder() : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -116,6 +120,7 @@ export default function CategoriesTab() {
               category={category} 
               onEdit={handleOpenBuilder}
               onDelete={handleDeleteCategory}
+              canManage={canManageCategories}
             />
           ))}
         </div>

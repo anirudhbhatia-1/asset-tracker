@@ -26,8 +26,8 @@ export default function AssetDetail() {
     deleteAsset,
   } = useAsset(id);
   
-  const { user } = useAuth();
-  const isReadOnly = user?.role !== 'admin';
+  const { user, hasPermission } = useAuth();
+  const isReadOnly = !hasPermission('assets:update');
 
   const [childAssets, setChildAssets] = useState([]);
 

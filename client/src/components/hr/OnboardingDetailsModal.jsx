@@ -19,8 +19,8 @@ const StatusBadge = ({ status }) => {
 };
 
 const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, onUpdateStatus, onFulfillItem }) => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { user, hasPermission } = useAuth();
+  const isAdmin = hasPermission('onboarding:fulfill') || hasPermission('onboarding:update');
   
   const [fullData, setFullData] = useState(null);
   const [loading, setLoading] = useState(false);

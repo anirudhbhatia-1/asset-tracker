@@ -15,8 +15,8 @@ const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operatio
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
 
 export default function Employees() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { user, hasPermission } = useAuth();
+  const isAdmin = hasPermission('employees:grant-access') || hasPermission('roles:manage');
   const { employees, loading, error, refresh, addEmployee, updateEmployee, deleteEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline } = useEmployees();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'roles'
   const [searchTerm, setSearchTerm] = useState('');

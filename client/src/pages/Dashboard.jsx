@@ -8,18 +8,25 @@ import GoogleBanner from '../components/dashboard/GoogleBanner';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import { PackageCheck, Users, AlertCircle, Archive, RefreshCw, AlertTriangle, Plus, CheckCircle2, ArrowRight } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const { metrics, breakdown, breakdownByLocation, breakdownByStatus, breakdownByWarranty, lowStockCategories, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
   const { tickets, loading: ticketsLoading, error: ticketsError, fetchTickets } = useTickets();
 
   useEffect(() => {
-    fetchTickets({ scope: 'all' });
-  }, [fetchTickets]);
+    if (hasPermission('tickets:read')) {
+      fetchTickets({ scope: 'all' });
+    }
+  }, [fetchTickets, hasPermission]);
 
   const handleRefresh = () => {
     refreshMetrics();
-    fetchTickets({ scope: 'all' });
+    if (hasPermission('tickets:read')) {
+      fetchTickets({ scope: 'all' });
+    }
   };
 
   const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in_progress');
@@ -46,14 +53,16 @@ export default function Dashboard() {
             <RefreshCw className={`w-3.5 h-3.5 ${metricsLoading || ticketsLoading ? 'animate-spin text-accent' : ''}`} />
             <span>Refresh Data</span>
           </button>
-          <button
-            type="button"
-            onClick={() => navigate('/inventory/new')}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-accent hover:bg-accent/90 text-white border border-transparent transition-colors shadow-sm cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Asset</span>
-          </button>
+          {hasPermission('assets:create') && (
+            <button
+              type="button"
+              onClick={() => navigate('/inventory/new')}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-accent hover:bg-accent/90 text-white border border-transparent transition-colors shadow-sm cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Asset</span>
+            </button>
+          )}
         </div>
       </div>
 

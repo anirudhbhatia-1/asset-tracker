@@ -21,8 +21,8 @@ export default function Inventory() {
   const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || 'all');
   const [selectedWarranty, setSelectedWarranty] = useState(searchParams.get('warranty') || 'all');
 
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'hr';
+  const { user, hasPermission } = useAuth();
+  const isAdmin = hasPermission('assets:create') || hasPermission('assets:update') || hasPermission('assets:delete');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);

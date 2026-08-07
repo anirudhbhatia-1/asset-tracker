@@ -16,6 +16,7 @@ const Employees = lazy(() => import('./pages/Employees'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const Tickets = lazy(() => import('./pages/Tickets'));
+const DirectorDashboard = lazy(() => import('./pages/DirectorDashboard'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const HrDashboard = lazy(() => import('./pages/HrDashboard'));
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
@@ -23,9 +24,12 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 import { useAuth } from './context/AuthContext';
 
 const RoleBasedDashboard = () => {
-  const { user } = useAuth();
-  if (user?.role === 'admin') return <Dashboard />;
-  if (user?.role === 'hr') return <HrDashboard />;
+  const { user, hasPermission } = useAuth();
+  // Director check must come first and must be an explicit role check, not a permission check,
+  // because admin also has roles:manage.
+  if (user?.role === 'director' || user?.isDirector) return <DirectorDashboard />;
+  if (hasPermission('assets:read')) return <Dashboard />;
+  if (hasPermission('onboarding:read')) return <HrDashboard />;
   return <EmployeeDashboard />;
 };
 
@@ -61,34 +65,46 @@ const App = () => {
                   <Route index element={<RoleBasedDashboard />} />
                   
                   {/* Profile — accessible to all authenticated users */}
-                  <Route element={<ProtectedRoute allowedRoles={['admin', 'hr', 'employee']} />}>
-                    <Route path="profile" element={<ProfilePage />} />
-                  </Route>
+                  <Route path="profile" element={<ProfilePage />} />
 
-                  <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                  {/* Settings Routes */}
+                  <Route element={<ProtectedRoute requiredPermission="settings:read" />}>
                     <Route path="settings/*" element={<Settings />} />
                   </Route>
 
-                  {/* Admin Only Routes */}
-                  <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                    <Route path="inventory" element={<Inventory />} />
+                  {/* Inventory & Asset Routes — Static routes FIRST */}
+                  <Route element={<ProtectedRoute requiredPermission="assets:create" />}>
                     <Route path="inventory/new" element={<AddEditAsset />} />
-                    <Route path="inventory/:id" element={<AssetDetail />} />
-                    <Route path="inventory/:id/edit" element={<AddEditAsset />} />
-                    <Route path="scanner" element={<Scanner />} />
                   </Route>
 
-                  {/* Admin + Employee + HR Routes */}
-                  <Route element={<ProtectedRoute allowedRoles={['admin', 'employee', 'hr']} />}>
-                    <Route path="tickets" element={<Tickets />} />
+                  <Route element={<ProtectedRoute requiredPermission="assets:read" />}>
+                    <Route path="inventory" element={<Inventory />} />
+                    <Route path="inventory/:id" element={<AssetDetail />} />
                     <Route path="assets/:id" element={<AssetDetail />} />
                   </Route>
 
-                  {/* Admin + HR Routes */}
-                  <Route element={<ProtectedRoute allowedRoles={['admin', 'hr']} />}>
+                  <Route element={<ProtectedRoute requiredPermission="assets:update" />}>
+                    <Route path="inventory/:id/edit" element={<AddEditAsset />} />
+                  </Route>
+
+                  <Route element={<ProtectedRoute requiredPermission="scanner:read" />}>
+                    <Route path="scanner" element={<Scanner />} />
+                  </Route>
+
+                  {/* Tickets Route */}
+                  <Route element={<ProtectedRoute requiredPermission="tickets:read" />}>
+                    <Route path="tickets" element={<Tickets />} />
+                  </Route>
+
+                  {/* Employees & Onboarding Routes */}
+                  <Route element={<ProtectedRoute requiredPermission="employees:read" />}>
                     <Route path="employees" element={<Employees />} />
+                  </Route>
+
+                  <Route element={<ProtectedRoute requiredPermission="onboarding:read" />}>
                     <Route path="onboarding" element={<Onboarding />} />
                   </Route>
+
                   {/* Catch-all Route for 404s */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>

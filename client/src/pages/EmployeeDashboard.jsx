@@ -10,7 +10,7 @@ import CreateTicketModal from '../components/forms/CreateTicketModal';
 import TicketDetailsModal from '../components/tickets/TicketDetailsModal';
 
 export default function EmployeeDashboard() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [assets, setAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
   
@@ -31,8 +31,10 @@ export default function EmployeeDashboard() {
   }, [user]);
 
   useEffect(() => {
-    fetchTickets();
-  }, [fetchTickets]);
+    if (hasPermission('tickets:read')) {
+      fetchTickets();
+    }
+  }, [fetchTickets, hasPermission]);
 
   const recentTickets = tickets.slice(0, 5); // show most recent 5 on dashboard
   const safeAssets = Array.isArray(assets) ? assets : [];
@@ -40,7 +42,7 @@ export default function EmployeeDashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-primary tracking-tight">Welcome, {user?.name || 'Employee'}</h1>
+        <h1 className="text-2xl font-bold text-primary tracking-tight">Welcome, {user?.name || user?.roleName || 'Employee'}</h1>
         <p className="text-sm text-secondary mt-1">
           View your assigned hardware and manage support requests.
         </p>
@@ -114,15 +116,17 @@ export default function EmployeeDashboard() {
               <TicketIcon className="w-4 h-4 text-accent" />
               My Tickets
             </h2>
-            <button
-              onClick={() => {
-                setTicketInitialParams({ type: 'issue', assetId: '' });
-                setIsCreateModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" /> Raise Ticket
-            </button>
+            {hasPermission('tickets:create') && (
+              <button
+                onClick={() => {
+                  setTicketInitialParams({ type: 'issue', assetId: '' });
+                  setIsCreateModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> Raise Ticket
+              </button>
+            )}
           </div>
           <div className="p-4 flex-1 max-h-[500px] overflow-y-auto">
              {ticketsLoading ? (

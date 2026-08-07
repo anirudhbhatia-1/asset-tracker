@@ -19,3 +19,7 @@ client/dist/
 *.log
 .DS_Store
 server/tmp/
+
+# Playwright artifacts
+test-results/
+playwright-report/

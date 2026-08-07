@@ -17,7 +17,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const { notifications, loading: notifLoading, hasUnread, refresh, markAsRead } = useNotifications();
 
   // Close user menu on outside click
@@ -132,8 +132,8 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
               <Search className="w-5 h-5" />
             </button>
 
-            {/* Only Admins can add assets */}
-            {user?.role === 'admin' && (
+            {/* Only Users with assets:create permission can add assets */}
+            {hasPermission('assets:create') && (
               <Link
                 to="/inventory/new"
                 className="bg-accent hover:bg-accent/90 text-white p-2 md:px-4 md:py-2 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
@@ -144,7 +144,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
               </Link>
             )}
 
-            {user?.role === 'admin' && (
+            {hasPermission('assets:create') && (
               <div className="hidden sm:block h-6 w-[1px] bg-raised mx-1" />
             )}
 
@@ -199,7 +199,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
                     {user?.email || 'User'}
                   </span>
                   <span className="block text-[11px] text-secondary mt-0.5 capitalize">
-                    {user?.role || 'Guest'}
+                    {user?.roleName || user?.role || 'Guest'}
                   </span>
                 </div>
                 <ChevronDown className="hidden sm:block w-4 h-4 text-secondary shrink-0" />
@@ -214,7 +214,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
                       {user?.email || 'User'}
                     </p>
                     <p className="text-xs text-secondary mt-1 capitalize font-medium">
-                      Role: {user?.role || 'Guest'}
+                      Role: {user?.roleName || user?.role || 'Guest'}
                     </p>
                   </div>
 

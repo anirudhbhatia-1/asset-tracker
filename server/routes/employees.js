@@ -6,14 +6,14 @@ const assetService = require('../services/assetService');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
-const { validateSession, requireRole } = require('../middleware/validateSession');
+const { validateSession, requireRole, requirePermission, hasPermission } = require('../middleware/validateSession');
 
 const router = express.Router();
 
 router.use(validateSession);
 
 // GET /api/employees — list all employees
-router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
+router.get('/', requirePermission('employees:read'), async (req, res, next) => {
   try {
     const employees = await employeeService.getEmployees(req.query);
     res.status(200).json({
@@ -27,7 +27,7 @@ router.get('/', requireRole('admin', 'hr'), async (req, res, next) => {
 });
 
 // GET /api/employees/departments — list distinct departments
-router.get('/departments', requireRole('admin', 'hr'), async (req, res, next) => {
+router.get('/departments', requirePermission('employees:read'), async (req, res, next) => {
   try {
     const departments = await employeeService.getDepartments();
     res.status(200).json({ data: departments, message: 'OK' });
@@ -47,7 +47,6 @@ router.get('/me', async (req, res, next) => {
 });
 
 // PATCH /api/employees/me — update own profile (all authenticated roles)
-// Allowed fields: name only. Email, role, department, location changes require admin.
 router.patch('/me', [
   body('name')
     .notEmpty().withMessage('Name is required')
@@ -56,19 +55,17 @@ router.patch('/me', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    // Only allow updating name — any other fields are silently ignored
     const { name } = req.body;
-    const updated = await employeeService.updateEmployee(req.user.id, { name });
+    const updated = await employeeService.updateEmployee(req.user.id, { name }, req.user);
     res.status(200).json({ data: updated, message: 'Profile updated successfully' });
   } catch (err) {
     next(err);
   }
 });
 
-
 // GET /api/employees/:id — get single employee
 router.get('/:id', [
-  requireRole('admin', 'hr'),
+  requirePermission('employees:read'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -90,7 +87,7 @@ router.get('/:id/assets', [
 ], async (req, res, next) => {
   try {
     const requestedId = Number(req.params.id);
-    if (req.user.role !== 'admin' && req.user.id !== requestedId) {
+    if (!hasPermission(req.user, 'employees:read') && req.user.id !== requestedId) {
       return res.status(403).json({ error: true, message: 'Forbidden - Can only view own assets', code: 403 });
     }
     const assets = await employeeService.getEmployeeAssets(requestedId);
@@ -106,31 +103,28 @@ router.get('/:id/assets', [
 
 // POST /api/employees — create employee
 router.post('/', [
-  requireRole('admin', 'hr'),
+  requirePermission('employees:create'),
   body('name').notEmpty().withMessage('Employee name is required').trim().isLength({ max: 150 }),
   body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Must be a valid email').normalizeEmail(),
   body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('address').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
   body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL().withMessage('Must be a valid URL'),
-  // Optional: grant login access at creation time
   body('grantAccess').optional().isBoolean(),
-  body('role').optional().isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
+  body('role').optional().isString().trim(),
+  body('roleId').optional().isInt({ min: 1 }),
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const { grantAccess, role, ...employeeData } = req.body;
+    const { grantAccess, role, roleId, ...employeeData } = req.body;
     
-    // HR can only create employees, not admins or other HRs
-    let effectiveRole = role || 'employee';
-    if (req.user.role === 'hr' && effectiveRole !== 'employee') {
-      effectiveRole = 'employee'; // Force to employee role
-    }
+    let effectiveRoleOrId = roleId || role || 'employee';
 
     if (grantAccess) {
       const { employee, temporaryPassword } = await employeeService.createEmployeeWithAccess({
         ...employeeData,
-        role: effectiveRole,
+        roleId: typeof effectiveRoleOrId === 'number' ? effectiveRoleOrId : null,
+        role: typeof effectiveRoleOrId === 'string' ? effectiveRoleOrId : null,
       });
       return res.status(201).json({ data: employee, temporaryPassword, message: 'Employee created with login access' });
     }
@@ -142,10 +136,9 @@ router.post('/', [
   }
 });
 
-
 // DELETE /api/employees/:id — soft delete employee
 router.delete('/:id', [
-  requireRole('admin'),
+  requirePermission('employees:delete'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -162,13 +155,18 @@ router.delete('/:id', [
 
 // PATCH /api/employees/:id/role — change user role
 router.patch('/:id/role', [
-  requireRole('admin'),
+  requirePermission('roles:manage'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
-  body('role').isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
+  body('role').optional().isString().trim(),
+  body('roleId').optional().isInt({ min: 1 }),
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const updated = await employeeService.updateEmployeeRole(Number(req.params.id), req.body.role);
+    const roleOrId = req.body.roleId || req.body.role;
+    if (!roleOrId) {
+      return res.status(400).json({ error: true, message: 'role or roleId is required' });
+    }
+    const updated = await employeeService.updateEmployeeRole(Number(req.params.id), roleOrId);
     res.status(200).json({
       data: updated,
       message: 'Employee role updated successfully',
@@ -180,17 +178,18 @@ router.patch('/:id/role', [
 
 // POST /api/employees/:id/grant-access — create login account for employee
 router.post('/:id/grant-access', [
-  requireRole('admin'),
+  requirePermission('employees:grant-access'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
-  body('role').isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
+  body('role').optional().isString().trim(),
+  body('roleId').optional().isInt({ min: 1 }),
   validateRequest,
 ], async (req, res, next) => {
   try {
-    // Generate a secure temporary password
-    const temporaryPassword = crypto.randomBytes(6).toString('hex'); // 12 chars
+    const roleOrId = req.body.roleId || req.body.role || 'employee';
+    const temporaryPassword = crypto.randomBytes(6).toString('hex');
     const passwordHash = await bcrypt.hash(temporaryPassword, 10);
     
-    const updated = await employeeService.grantEmployeeAccess(Number(req.params.id), req.body.role, passwordHash);
+    const updated = await employeeService.grantEmployeeAccess(Number(req.params.id), roleOrId, passwordHash);
     
     res.status(200).json({
       data: updated,
@@ -201,13 +200,16 @@ router.post('/:id/grant-access', [
     next(err);
   }
 });
+
 // POST /api/employees/:id/grant-google-access — Grant Google-only login (TESTING ONLY)
-// WHEN GOING TO PRODUCTION: Remove this route.
 router.post('/:id/grant-google-access', [
-  requireRole('admin'),
+  requirePermission('employees:grant-access'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: true, message: 'Granting testing Google access is disabled in production environment.' });
+  }
   try {
     const updated = await employeeService.grantGoogleAccess(Number(req.params.id));
     res.status(200).json({
@@ -218,23 +220,20 @@ router.post('/:id/grant-google-access', [
     next(err);
   }
 });
-// PATCH /api/employees/:id — update employee details (admin only)
+
+// PATCH /api/employees/:id — update employee details
 router.patch('/:id', [
-  requireRole('admin', 'hr'),
+  requirePermission('employees:manage'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
   body('email').optional().isEmail().withMessage('Invalid email format'),
   body('department').optional().trim(),
   body('location').optional().trim(),
   body('address').optional().trim(),
-  body('role').optional().isIn(['admin', 'employee', 'hr']).withMessage('Invalid role'),
   validateRequest,
 ], async (req, res, next) => {
   try {
-    if (req.user.role === 'hr') {
-      delete req.body.role;
-    }
-    const updated = await employeeService.updateEmployee(Number(req.params.id), req.body);
+    const updated = await employeeService.updateEmployee(Number(req.params.id), req.body, req.user);
     res.status(200).json({ data: updated, message: 'Employee updated successfully' });
   } catch (err) {
     next(err);
@@ -243,7 +242,7 @@ router.patch('/:id', [
 
 // POST /api/employees/:id/assign-assets — bulk assign available assets to employee
 router.post('/:id/assign-assets', [
-  requireRole('admin', 'hr'),
+  requirePermission('employees:assign-assets'),
   param('id').isInt({ min: 1 }).withMessage('Employee ID must be a positive integer'),
   body('assetIds').isArray({ min: 1 }).withMessage('assetIds must be a non-empty array'),
   body('assetIds.*').isInt({ min: 1 }).withMessage('Each assetId must be a positive integer'),

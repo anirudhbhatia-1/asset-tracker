@@ -194,6 +194,9 @@ return (
 );
 ```
 
+#### UI Permission Rendering Rule
+Any new UI element (button, tab, link, or action card) that performs a permissioned action MUST be wrapped in `hasPermission(key)` at the point of render, not just at the route level. Route guards stop navigation, but they do not stop a visible button from promising an action the user cannot complete.
+
 #### Keep JSX Returns Under 100 Lines
 If a component's JSX return exceeds 100 lines, split it into sub-components.
 
