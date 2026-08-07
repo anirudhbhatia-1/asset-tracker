@@ -130,11 +130,10 @@ const updateTicket = async (id, payload, adminUser) => {
         current.employee_id,
         null, // use today
         `Fulfilled via Ticket #${id}`,
-        adminUser.email
+        adminUser
       );
     } catch (assignErr) {
-      // Log but don't block the ticket update if asset assignment fails
-      console.error(`[ticketService] Failed to auto-assign asset ${newAssetId} for ticket ${id}:`, assignErr.message);
+      // Don't block the ticket update if asset assignment fails
     }
   }
 
@@ -229,9 +228,8 @@ const confirmTicket = async (id, employeeUser, action, note) => {
   
   const current = currentRows[0];
   const isDirector = employeeUser.role === 'director' || employeeUser.isDirector;
-  const canResolve = hasPermission(employeeUser, 'tickets:resolve');
   
-  if (!isDirector && !canResolve && current.employee_id !== employeeUser.id) {
+  if (!isDirector && current.employee_id !== employeeUser.id) {
     const err = new Error('You do not have permission to confirm this ticket.');
     err.statusCode = 403;
     throw err;

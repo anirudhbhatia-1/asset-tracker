@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 import MainLayout from './components/layout/MainLayout';
@@ -21,7 +21,6 @@ const Onboarding = lazy(() => import('./pages/Onboarding'));
 const HrDashboard = lazy(() => import('./pages/HrDashboard'));
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-import { useAuth } from './context/AuthContext';
 
 const RoleBasedDashboard = () => {
   const { user, hasPermission } = useAuth();

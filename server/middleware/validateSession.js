@@ -8,7 +8,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'assets:read', 'assets:create', 'assets:update', 'assets:assign', 'assets:delete', 'assets:export', 'assets:import',
     'categories:read', 'categories:manage',
     'employees:read', 'employees:create', 'employees:manage', 'employees:delete', 'employees:grant-access', 'employees:assign-assets',
-    'onboarding:read', 'onboarding:fulfill',
+    'onboarding:read', 'onboarding:create', 'onboarding:update', 'onboarding:fulfill',
     'tickets:read', 'tickets:create', 'tickets:update', 'tickets:resolve',
     'locations:read', 'locations:manage',
     'scanner:read', 'settings:read', 'settings:manage'
@@ -16,7 +16,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   hr: [
     'categories:read',
     'employees:read', 'employees:create', 'employees:manage',
-    'onboarding:read', 'onboarding:create',
+    'onboarding:read', 'onboarding:create', 'onboarding:update',
     'tickets:read', 'tickets:create', 'tickets:update',
     'locations:read'
   ],
