@@ -29,6 +29,45 @@ const DEFAULT_ROLE_PERMISSIONS = {
 
 const getDefaultPermissionsForRole = (role) => DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.employee;
 
+// Write-oriented permissions are not useful without the corresponding page
+// and read endpoint. Treat the read permission as an effective dependency so
+// custom roles behave consistently in the API, router, and UI.
+const PERMISSION_DEPENDENCIES = {
+  'assets:create': ['assets:read'],
+  'assets:update': ['assets:read'],
+  'assets:assign': ['assets:read'],
+  'assets:delete': ['assets:read'],
+  'assets:export': ['assets:read'],
+  'assets:import': ['assets:read'],
+  'categories:manage': ['categories:read'],
+  'locations:manage': ['locations:read'],
+  'roles:manage': ['roles:read'],
+  'settings:manage': ['settings:read'],
+  'employees:create': ['employees:read'],
+  'employees:manage': ['employees:read'],
+  'employees:delete': ['employees:read'],
+  'employees:grant-access': ['employees:read'],
+  'employees:assign-assets': ['employees:read'],
+  'onboarding:create': ['onboarding:read'],
+  'onboarding:update': ['onboarding:read'],
+  // Fulfillment presents the available-asset selector, whose endpoint is
+  // protected by assets:read.
+  'onboarding:fulfill': ['onboarding:read', 'assets:read'],
+  'tickets:create': ['tickets:read'],
+  'tickets:update': ['tickets:read'],
+  'tickets:resolve': ['tickets:read'],
+};
+
+const expandPermissions = (permissions = []) => {
+  const effective = new Set(permissions);
+  for (const permission of permissions) {
+    for (const dependency of PERMISSION_DEPENDENCIES[permission] || []) {
+      effective.add(dependency);
+    }
+  }
+  return Array.from(effective);
+};
+
 const hasPermission = (user, permissionKey) => {
   if (!user) return false;
   if (user.role === 'director' || user.isDirector || (user.permissions && user.permissions.includes('*'))) {
@@ -37,9 +76,9 @@ const hasPermission = (user, permissionKey) => {
   if (!user.permissions || !Array.isArray(user.permissions) || user.permissions.length === 0) {
     const fallback = DEFAULT_ROLE_PERMISSIONS[user.role] || [];
     if (fallback.includes('*')) return true;
-    return fallback.includes(permissionKey);
+    return expandPermissions(fallback).includes(permissionKey);
   }
-  return user.permissions.includes(permissionKey);
+  return expandPermissions(user.permissions).includes(permissionKey);
 };
 
 const validateSession = async (req, res, next) => {
@@ -81,7 +120,7 @@ const validateSession = async (req, res, next) => {
       roleName: sessionUser.role_name,
       isDirector: sessionUser.is_director || sessionUser.role === 'director',
       adminType: sessionUser.admin_type,
-      permissions: userPermissions
+      permissions: expandPermissions(userPermissions)
     };
 
     next();
@@ -125,5 +164,6 @@ module.exports = {
   requirePermission,
   hasPermission,
   DEFAULT_ROLE_PERMISSIONS,
+  expandPermissions,
   getDefaultPermissionsForRole
 };

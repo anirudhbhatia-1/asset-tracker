@@ -26,7 +26,9 @@ const OnboardingStatusBadge = ({ status }) => {
 };
 
 export default function HrDashboard() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canCreateOnboarding = hasPermission('onboarding:create');
+  const canUpdateOnboarding = hasPermission('onboarding:update');
   const [assets, setAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
   
@@ -67,16 +69,17 @@ export default function HrDashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-primary tracking-tight">Welcome, {user?.name || 'HR Partner'}</h1>
-        <p className="text-sm text-secondary mt-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-1.5">People operations</p>
+        <h1 className="text-2xl sm:text-[1.7rem] font-bold text-primary tracking-[-0.035em]">Welcome, {user?.name || 'HR Partner'}</h1>
+        <p className="text-sm text-secondary mt-1.5">
           Manage onboarding hardware requests and view your assigned assets.
         </p>
       </div>
 
       {/* HR Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-surface rounded-xl p-5 border border-border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center text-warning shrink-0">
+        <div className="bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-warning/10 border border-warning/15 flex items-center justify-center text-warning shrink-0">
             <Users className="w-6 h-6" />
           </div>
           <div>
@@ -84,8 +87,8 @@ export default function HrDashboard() {
             <div className="text-xs font-semibold text-secondary uppercase tracking-wider mt-0.5">Pending Onboardings</div>
           </div>
         </div>
-        <div className="bg-surface rounded-xl p-5 border border-border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success shrink-0">
+        <div className="bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-success/10 border border-success/15 flex items-center justify-center text-success shrink-0">
             <Target className="w-6 h-6" />
           </div>
           <div>
@@ -93,8 +96,8 @@ export default function HrDashboard() {
             <div className="text-xs font-semibold text-secondary uppercase tracking-wider mt-0.5">Arranged This Month</div>
           </div>
         </div>
-        <div className="bg-surface rounded-xl p-5 border border-border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-info-blue/10 flex items-center justify-center text-info-blue shrink-0">
+        <div className="bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-info-blue/10 border border-info-blue/15 flex items-center justify-center text-info-blue shrink-0">
             <Laptop className="w-6 h-6" />
           </div>
           <div>
@@ -112,12 +115,14 @@ export default function HrDashboard() {
               <Users className="w-4 h-4 text-accent" />
               My Onboarding Requests
             </h2>
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" /> New Hire
-            </button>
+            {canCreateOnboarding && (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> New Hire
+              </button>
+            )}
           </div>
           <div className="px-4 pt-3 flex gap-2">
             {['All', 'Pending', 'Completed'].map(f => (
@@ -163,7 +168,7 @@ export default function HrDashboard() {
                          >
                            View Items
                          </button>
-                         {['pending', 'in_progress'].includes(req.status) && (
+                         {canUpdateOnboarding && ['pending', 'in_progress'].includes(req.status) && (
                            <button 
                              onClick={() => {
                                setRequestToEdit(req);

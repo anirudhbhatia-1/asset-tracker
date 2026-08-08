@@ -22,6 +22,9 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
+  // The Google endpoint is intentionally a development-only test flow. Do not
+  // advertise it from a production bundle where the API rejects the request.
+  const isTestGoogleLoginEnabled = import.meta.env.DEV;
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -124,6 +127,7 @@ const Login = () => {
             WHEN GOING TO PRODUCTION: Remove everything below
             this comment down to the closing </div> of this block.
             ====================================================== */}
+        {isTestGoogleLoginEnabled && (
         <div className="mt-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-px bg-border" />
@@ -150,6 +154,7 @@ const Login = () => {
             Only works if your admin has pre-approved your Google account.
           </p>
         </div>
+        )}
       </div>
     </div>
   );

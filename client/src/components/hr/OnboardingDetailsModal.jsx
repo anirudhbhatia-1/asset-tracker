@@ -19,8 +19,9 @@ const StatusBadge = ({ status }) => {
 };
 
 const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, onUpdateStatus, onFulfillItem }) => {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = hasPermission('onboarding:fulfill') || hasPermission('onboarding:update');
+  const { hasPermission } = useAuth();
+  const canUpdateStatus = hasPermission('onboarding:update');
+  const canFulfillItems = hasPermission('onboarding:fulfill');
   
   const [fullData, setFullData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -38,14 +39,14 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
       loadFullDetails();
       setStatus(request.status);
       
-      if (isAdmin) {
+      if (canFulfillItems) {
         loadAvailableAssets();
       }
     } else {
       setFullData(null);
       setFulfillingItemId(null);
     }
-  }, [isOpen, request, isAdmin]);
+  }, [isOpen, request, canFulfillItems]);
 
   const loadFullDetails = async () => {
     setLoading(true);
@@ -181,7 +182,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                               <CheckCircle2 className="w-4 h-4" />
                               Arranged: {item.fulfilled_asset_name}
                             </div>
-                          ) : isAdmin ? (
+                          ) : canFulfillItems ? (
                             fulfillingItemId === item.id ? (
                               <div className="flex items-center gap-2 w-full sm:w-max">
                                 <select
@@ -233,7 +234,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
         {/* Footer (Admin Status Update) */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-border bg-base/50 shrink-0">
           
-          {isAdmin ? (
+          {canUpdateStatus ? (
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <span className="text-sm font-medium text-primary whitespace-nowrap">Update Status:</span>
               <select

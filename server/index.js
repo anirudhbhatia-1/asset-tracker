@@ -17,8 +17,13 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', version: '1.0.0', database: 'connected' });
+app.get('/api/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.status(200).json({ status: 'ok', version: '1.0.0', database: 'connected' });
+  } catch (err) {
+    res.status(503).json({ status: 'error', version: '1.0.0', database: 'unavailable' });
+  }
 });
 
 // Route Mounting

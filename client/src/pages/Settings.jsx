@@ -5,17 +5,26 @@ import CategoriesTab from '../components/categories/CategoriesTab';
 import LocationsTab from '../components/settings/LocationsTab';
 import RolesTab from '../components/settings/RolesTab';
 import { useAuth } from '../context/AuthContext';
+import ProtectedRoute from '../components/layout/ProtectedRoute';
 
 const Settings = () => {
   const location = useLocation();
   const { hasPermission } = useAuth();
 
   const tabs = [
-    { name: 'Google Workspace', path: '/settings/google', icon: Globe, permissionKey: null },
+    { name: 'Google Workspace', path: '/settings/google', icon: Globe, permissionKey: 'settings:read' },
     { name: 'Roles & Permissions', path: '/settings/roles', icon: ShieldCheck, permissionKey: 'roles:read' },
-    { name: 'Categories', path: '/settings/categories', icon: Tags, permissionKey: 'categories:manage' },
-    { name: 'Locations', path: '/settings/locations', icon: MapPin, permissionKey: 'locations:manage' },
+    { name: 'Categories', path: '/settings/categories', icon: Tags, permissionKey: 'categories:read' },
+    { name: 'Locations', path: '/settings/locations', icon: MapPin, permissionKey: 'locations:read' },
   ];
+
+  const defaultSettingsPath = hasPermission('settings:read')
+    ? 'google'
+    : hasPermission('roles:read')
+      ? 'roles'
+      : hasPermission('categories:read')
+        ? 'categories'
+        : 'locations';
 
   const visibleTabs = tabs.filter(tab => {
     if (!tab.permissionKey) return true;
@@ -61,19 +70,27 @@ const Settings = () => {
       {/* Tab Content */}
       <div className="mt-6">
         <Routes>
-          <Route path="google" element={
-            <div className="bg-surface border border-border rounded-xl p-8 text-center text-secondary animate-fadeIn">
-              <Globe className="w-12 h-12 text-secondary mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-primary">Google Workspace Sync</h3>
-              <p className="text-sm text-secondary mt-1 max-w-md mx-auto">
-                OAuth configuration and manual/cron sync controls are disabled in this phase.
-              </p>
-            </div>
-          } />
-          <Route path="roles" element={<RolesTab />} />
-          <Route path="categories" element={<CategoriesTab />} />
-          <Route path="locations" element={<LocationsTab />} />
-          <Route path="*" element={<Navigate to="google" replace />} />
+          <Route element={<ProtectedRoute requiredPermission="settings:read" />}>
+            <Route path="google" element={
+              <div className="bg-surface border border-border rounded-xl p-8 text-center text-secondary animate-fadeIn">
+                <Globe className="w-12 h-12 text-secondary mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-primary">Google Workspace Sync</h3>
+                <p className="text-sm text-secondary mt-1 max-w-md mx-auto">
+                  OAuth configuration and manual/cron sync controls are disabled in this phase.
+                </p>
+              </div>
+            } />
+          </Route>
+          <Route element={<ProtectedRoute requiredPermission="roles:read" />}>
+            <Route path="roles" element={<RolesTab />} />
+          </Route>
+          <Route element={<ProtectedRoute requiredPermission="categories:read" />}>
+            <Route path="categories" element={<CategoriesTab />} />
+          </Route>
+          <Route element={<ProtectedRoute requiredPermission="locations:read" />}>
+            <Route path="locations" element={<LocationsTab />} />
+          </Route>
+          <Route path="*" element={<Navigate to={defaultSettingsPath} replace />} />
         </Routes>
       </div>
     </div>

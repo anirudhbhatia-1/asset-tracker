@@ -27,8 +27,17 @@ const RoleBasedDashboard = () => {
   // Director check must come first and must be an explicit role check, not a permission check,
   // because admin also has roles:manage.
   if (user?.role === 'director' || user?.isDirector) return <DirectorDashboard />;
+  // HR users can legitimately receive assets:read (for example to fulfill an
+  // onboarding item). Their workspace is still the HR dashboard, not IT
+  // inventory. Check the role/queue identity before capability-based fallbacks.
+  if (user?.role === 'hr' || user?.adminType === 'hr') return <HrDashboard />;
   if (hasPermission('assets:read')) return <Dashboard />;
   if (hasPermission('onboarding:read')) return <HrDashboard />;
+  if (hasPermission('tickets:read')) return <EmployeeDashboard />;
+  if (hasPermission('roles:read')) return <Navigate to="/settings/roles" replace />;
+  if (hasPermission('categories:read')) return <Navigate to="/settings/categories" replace />;
+  if (hasPermission('locations:read')) return <Navigate to="/settings/locations" replace />;
+  if (hasPermission('settings:read')) return <Navigate to="/settings/google" replace />;
   return <EmployeeDashboard />;
 };
 
@@ -67,7 +76,7 @@ const App = () => {
                   <Route path="profile" element={<ProfilePage />} />
 
                   {/* Settings Routes */}
-                  <Route element={<ProtectedRoute requiredPermission="settings:read" />}>
+                  <Route element={<ProtectedRoute requiredAnyPermission={['settings:read', 'roles:read', 'categories:read', 'locations:read']} />}>
                     <Route path="settings/*" element={<Settings />} />
                   </Route>
 

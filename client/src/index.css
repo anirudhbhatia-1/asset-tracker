@@ -20,39 +20,49 @@
 /* Base resets for dynamic theme system */
 @layer base {
   :root {
-    --theme-base: #F1F5F9;
+    --theme-base: #F5F7FB;
     --theme-surface: #FFFFFF;
-    --theme-raised: #FFFFFF;
-    --theme-border: #E2E8F0;
-    --theme-text-primary: #0F172A;
-    --theme-text-secondary: #64748B;
-    --theme-accent: #6366F1;
-    --theme-accent-hover: #4F46E5;
-    --theme-success: #059669;
-    --theme-warning: #D97706;
-    --theme-danger: #E11D48;
-    --theme-info-blue: #2563EB;
-    --theme-info-purple: #7C3AED;
+    --theme-raised: #F8FAFD;
+    --theme-border: #DEE5F0;
+    --theme-text-primary: #14213A;
+    --theme-text-secondary: #62718A;
+    --theme-accent: #4F6EF7;
+    --theme-accent-hover: #3E5DE8;
+    --theme-success: #0F9F7A;
+    --theme-warning: #D88218;
+    --theme-danger: #D9485F;
+    --theme-info-blue: #3478F6;
+    --theme-info-purple: #7759D8;
   }
   
   :root.dark {
-    --theme-base: #0F172A;
-    --theme-surface: #1E293B;
-    --theme-raised: #27354A;
-    --theme-border: #334155;
-    --theme-text-primary: #F1F5F9;
-    --theme-text-secondary: #94A3B8;
-    --theme-accent: #6366F1;
-    --theme-accent-hover: #818CF8;
-    --theme-success: #10B981;
-    --theme-warning: #F59E0B;
-    --theme-danger: #F43F5E;
-    --theme-info-blue: #3B82F6;
-    --theme-info-purple: #8B5CF6;
+    --theme-base: #0E1728;
+    --theme-surface: #162238;
+    --theme-raised: #1C2A43;
+    --theme-border: #2B3B56;
+    --theme-text-primary: #F4F7FD;
+    --theme-text-secondary: #9BAAC1;
+    --theme-accent: #7892FF;
+    --theme-accent-hover: #95A9FF;
+    --theme-success: #26B890;
+    --theme-warning: #F2A43B;
+    --theme-danger: #F06C80;
+    --theme-info-blue: #62A0FF;
+    --theme-info-purple: #A88BFF;
   }
 
   body {
     @apply bg-base text-primary font-sans antialiased selection:bg-accent selection:text-white transition-colors duration-200;
+    background-image:
+      radial-gradient(circle at 88% -12%, color-mix(in srgb, var(--theme-accent) 9%, transparent), transparent 29rem),
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 38%, transparent), transparent 18rem);
+  }
+
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--theme-accent) 38%, transparent);
+    outline-offset: 2px;
   }
 }
 
@@ -62,14 +72,14 @@
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: var(--theme-base);
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: color-mix(in srgb, var(--theme-text-secondary) 38%, transparent);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: color-mix(in srgb, var(--theme-text-secondary) 58%, transparent);
 }
 
 @keyframes fadeIn {

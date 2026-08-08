@@ -36,19 +36,19 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
     <Wrapper
       onClick={onClick}
       type={onClick ? 'button' : undefined}
-      className={`bg-surface rounded-xl p-5 border border-border/60 shadow-sm transition-all duration-200 flex flex-col justify-between text-left w-full
-        ${onClick ? 'hover:border-accent/50 hover:shadow-md hover:bg-raised/30 cursor-pointer active:scale-[0.99]' : 'hover:border-border'}`}
+      className={`bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] transition-all duration-200 flex flex-col justify-between text-left w-full
+        ${onClick ? 'hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_10px_24px_rgba(20,33,58,0.08)] hover:bg-raised/70 cursor-pointer active:translate-y-0' : 'hover:border-border'}`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-secondary">{title}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.11em] text-secondary">{title}</span>
         {Icon && (
-          <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${colorClass}`}>
+          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${colorClass}`}>
             <Icon className="w-4.5 h-4.5" />
           </div>
         )}
       </div>
       <div className="mt-4 flex items-baseline justify-between">
-        <span className="text-3xl font-bold text-primary tracking-tight">{displayCount}</span>
+        <span className="text-[2rem] leading-none font-bold text-primary tracking-[-0.04em]">{displayCount}</span>
         {delta && (
           <span
             className={`text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 ${
@@ -63,7 +63,7 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
         )}
       </div>
       {subtitle && (
-        <div className="mt-1 text-xs text-secondary">{subtitle}</div>
+        <div className="mt-2 text-xs text-secondary">{subtitle}</div>
       )}
     </Wrapper>
   );

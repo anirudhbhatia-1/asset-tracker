@@ -26,8 +26,11 @@ export default function AssetDetail() {
     deleteAsset,
   } = useAsset(id);
   
-  const { user, hasPermission } = useAuth();
-  const isReadOnly = !hasPermission('assets:update');
+  const { hasPermission } = useAuth();
+  const canUpdateAsset = hasPermission('assets:update');
+  const canAssignAsset = hasPermission('assets:assign');
+  const canDeleteAsset = hasPermission('assets:delete');
+  const isReadOnly = !canUpdateAsset;
 
   const [childAssets, setChildAssets] = useState([]);
 
@@ -121,13 +124,15 @@ export default function AssetDetail() {
           )}
 
           {/* 3. Lifecycle & Operational Controls */}
-          {!isReadOnly && (
+          {(canAssignAsset || canDeleteAsset) && (
             <LifecycleActions
               asset={asset}
-              onAssign={assignToEmployee}
-              onReturn={returnToStock}
-              onRetire={retireAsset}
-              onDelete={deleteAsset}
+              canAssign={canAssignAsset}
+              canDelete={canDeleteAsset}
+              onAssign={canAssignAsset ? assignToEmployee : undefined}
+              onReturn={canAssignAsset ? returnToStock : undefined}
+              onRetire={canDeleteAsset ? retireAsset : undefined}
+              onDelete={canDeleteAsset ? deleteAsset : undefined}
             />
           )}
         </div>

@@ -11,7 +11,7 @@ export default function LocationsTab() {
   const { locations, loading, refresh } = useLocations();
   const { hasPermission } = useAuth();
   const canManageLocations = hasPermission('locations:manage');
-  const canEditLocations = canManageLocations || (hasPermission('onboarding:read') && hasPermission('locations:read'));
+  const canEditLocations = canManageLocations;
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);

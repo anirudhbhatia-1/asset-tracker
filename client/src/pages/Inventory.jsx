@@ -21,8 +21,10 @@ export default function Inventory() {
   const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || 'all');
   const [selectedWarranty, setSelectedWarranty] = useState(searchParams.get('warranty') || 'all');
 
-  const { user, hasPermission } = useAuth();
-  const isAdmin = hasPermission('assets:create') || hasPermission('assets:update') || hasPermission('assets:delete');
+  const { hasPermission } = useAuth();
+  const canCreateAssets = hasPermission('assets:create');
+  const canImportAssets = hasPermission('assets:import');
+  const canExportAssets = hasPermission('assets:export');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
@@ -186,7 +188,7 @@ export default function Inventory() {
             <span className="hidden sm:inline">Refresh</span>
           </button>
 
-          {isAdmin && (
+          {canImportAssets && (
             <>
               <input
                 ref={fileInputRef}
@@ -206,24 +208,29 @@ export default function Inventory() {
                   : <Upload className="w-3.5 h-3.5 text-secondary" />}
                 <span className="hidden sm:inline">{importing ? 'Importing...' : 'Import Excel'}</span>
               </button>
-              <button
-                type="button"
-                onClick={handleExport}
-                className="inline-flex items-center gap-2 px-3 py-2.5 text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border rounded-xl transition-colors cursor-pointer shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5 text-secondary" />
-                <span className="hidden sm:inline">Export Excel</span>
-              </button>
             </>
           )}
 
-          <Link
-            to="/inventory/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-white transition-colors shadow-md shadow-accent/20 shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Add Asset</span>
-          </Link>
+          {canExportAssets && (
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex items-center gap-2 px-3 py-2.5 text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border rounded-xl transition-colors cursor-pointer shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5 text-secondary" />
+              <span className="hidden sm:inline">Export Excel</span>
+            </button>
+          )}
+
+          {canCreateAssets && (
+            <Link
+              to="/inventory/new"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-white transition-colors shadow-md shadow-accent/20 shrink-0"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Add Asset</span>
+            </Link>
+          )}
         </div>
       </div>
 

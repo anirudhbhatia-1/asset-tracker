@@ -5,7 +5,7 @@ import Modal from '../ui/Modal';
 import AssignmentModal from '../forms/AssignmentModal';
 import { UserPlus, CornerDownLeft, Archive, Trash2, ShieldAlert, AlertTriangle } from 'lucide-react';
 
-export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, onDelete }) {
+export default function LifecycleActions({ asset, canAssign = false, canDelete = false, onAssign, onReturn, onRetire, onDelete }) {
   const navigate = useNavigate();
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -86,7 +86,7 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
 
       <div className="flex flex-wrap items-center gap-3">
         {/* Assign / Reassign Button */}
-        {!isRetired && (
+        {canAssign && !isRetired && (
           <Button
             variant="primary"
             onClick={() => setIsAssignModalOpen(true)}
@@ -100,7 +100,7 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
         )}
 
         {/* Return to Stock Button */}
-        {asset.status === 'in-use' && !isRetired && (
+        {canAssign && asset.status === 'in-use' && !isRetired && (
           <Button
             variant="secondary"
             onClick={() => setIsReturnModalOpen(true)}
@@ -114,7 +114,7 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
         )}
 
         {/* Retire Asset Button */}
-        {!isRetired && (
+        {canDelete && !isRetired && (
           <Button
             variant="danger"
             onClick={() => setIsRetireModalOpen(true)}
@@ -126,27 +126,31 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
         )}
 
         {/* Delete Asset Button (Always available to Admin) */}
-        <Button
-          variant="danger"
-          onClick={() => setIsDeleteModalOpen(true)}
-          className="flex-1 sm:flex-initial ml-auto"
-          title="Permanently remove asset record"
-        >
-          <Trash2 className="w-4 h-4" />
-          <span>Delete</span>
-        </Button>
+        {canDelete && (
+          <Button
+            variant="danger"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="flex-1 sm:flex-initial ml-auto"
+            title="Permanently remove asset record"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete</span>
+          </Button>
+        )}
       </div>
 
       {/* 1. Assignment Modal */}
-      <AssignmentModal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        onAssign={onAssign}
-        asset={asset}
-      />
+      {canAssign && (
+        <AssignmentModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          onAssign={onAssign}
+          asset={asset}
+        />
+      )}
 
       {/* 2. Return to Stock Confirmation Modal */}
-      <Modal
+      {canAssign && <Modal
         isOpen={isReturnModalOpen}
         onClose={() => !submittingAction && setIsReturnModalOpen(false)}
         title="Confirm Return to Stock"
@@ -179,10 +183,10 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
             </Button>
           </div>
         </div>
-      </Modal>
+      </Modal>}
 
       {/* 3. Retire Asset Confirmation Modal */}
-      <Modal
+      {canDelete && <Modal
         isOpen={isRetireModalOpen}
         onClose={() => !submittingAction && setIsRetireModalOpen(false)}
         title="Confirm Decommission & Retirement"
@@ -226,10 +230,10 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
             </Button>
           </div>
         </div>
-      </Modal>
+      </Modal>}
 
       {/* 4. Delete Asset Confirmation Modal */}
-      <Modal
+      {canDelete && <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => !submittingAction && setIsDeleteModalOpen(false)}
         title="Confirm Permanent Deletion"
@@ -273,7 +277,7 @@ export default function LifecycleActions({ asset, onAssign, onReturn, onRetire, 
             </Button>
           </div>
         </form>
-      </Modal>
+      </Modal>}
     </div>
   );
 }

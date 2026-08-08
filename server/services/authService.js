@@ -1,19 +1,69 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const db = require('../db');
-const { getDefaultPermissionsForRole } = require('../middleware/validateSession');
+const { expandPermissions, getDefaultPermissionsForRole } = require('../middleware/validateSession');
 
-const login = async (email, password) => {
+const buildSessionUser = (user) => {
+  const isDirector = user.role === 'director' || Boolean(user.is_director);
+  const permissions = isDirector
+    ? ['*']
+    : (Array.isArray(user.permissions) && user.permissions.length > 0 && user.permissions[0] !== null
+        ? user.permissions
+        : getDefaultPermissionsForRole(user.role));
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    roleId: user.role_id,
+    roleName: user.role_name || user.role,
+    isDirector,
+    permissions: expandPermissions(permissions),
+    adminType: user.admin_type,
+  };
+};
+
+const getSessionUser = async (employeeId) => {
   const { rows } = await db.pool.query(`
-    SELECT e.id, e.name, e.email, e.password_hash, e.role, e.role_id, e.admin_type,
+    SELECT e.id, e.name, e.email, e.role, e.role_id, e.admin_type,
            r.name as role_name, r.is_director,
            ARRAY_AGG(p.key) FILTER (WHERE p.key IS NOT NULL) as permissions
     FROM employees e
     LEFT JOIN roles r ON e.role_id = r.id
     LEFT JOIN role_permissions rp ON r.id = rp.role_id
     LEFT JOIN permissions p ON rp.permission_id = p.id
-    WHERE e.email = $1 AND e.password_hash IS NOT NULL AND e.deleted_at IS NULL
+    WHERE e.id = $1 AND e.deleted_at IS NULL
     GROUP BY e.id, r.id
+  `, [employeeId]);
+
+  if (rows.length === 0) {
+    const err = new Error('User not found or inactive');
+    err.statusCode = 401;
+    throw err;
+  }
+
+  return buildSessionUser(rows[0]);
+};
+
+const createSessionForEmployee = async (employeeId) => {
+  const user = await getSessionUser(employeeId);
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+
+  await db.pool.query(
+    'INSERT INTO sessions (token, employee_id, expires_at) VALUES ($1, $2, $3)',
+    [token, user.id, expiresAt]
+  );
+
+  return { token, user };
+};
+
+const login = async (email, password) => {
+  const { rows } = await db.pool.query(`
+    SELECT e.id, e.password_hash
+    FROM employees e
+    WHERE e.email = $1 AND e.password_hash IS NOT NULL AND e.deleted_at IS NULL
   `, [email]);
 
   if (rows.length === 0) {
@@ -21,41 +71,14 @@ const login = async (email, password) => {
     err.statusCode = 401;
     throw err;
   }
-  const user = rows[0];
-  const match = await bcrypt.compare(password, user.password_hash);
+  const employee = rows[0];
+  const match = await bcrypt.compare(password, employee.password_hash);
   if (!match) {
     const err = new Error('Invalid email or password');
     err.statusCode = 401;
     throw err;
   }
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 hours
-  await db.pool.query(
-    'INSERT INTO sessions (token, employee_id, expires_at) VALUES ($1, $2, $3)',
-    [token, user.id, expiresAt]
-  );
-  
-  const isDirector = user.role === 'director' || Boolean(user.is_director);
-  const userPermissions = isDirector
-    ? ['*']
-    : (Array.isArray(user.permissions) && user.permissions.length > 0 && user.permissions[0] !== null
-        ? user.permissions
-        : getDefaultPermissionsForRole(user.role));
-
-  return {
-    token,
-    user: { 
-      id: user.id, 
-      name: user.name,
-      email: user.email, 
-      role: user.role, 
-      roleId: user.role_id,
-      roleName: user.role_name || user.role,
-      isDirector, 
-      permissions: userPermissions,
-      adminType: user.admin_type 
-    }
-  };
+  return createSessionForEmployee(employee.id);
 };
 
 const logout = async (token) => {
@@ -97,4 +120,4 @@ const changePassword = async (userId, currentPassword, newPassword) => {
   }
 };
 
-module.exports = { login, logout, changePassword };
+module.exports = { login, logout, changePassword, createSessionForEmployee };

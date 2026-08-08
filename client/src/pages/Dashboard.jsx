@@ -39,8 +39,9 @@ export default function Dashboard() {
       {/* Header & Quick Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">IT Asset Dashboard</h1>
-          <p className="text-sm text-secondary mt-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-1.5">Fleet operations</p>
+          <h1 className="text-2xl sm:text-[1.7rem] font-bold text-primary tracking-[-0.035em]">IT Asset Dashboard</h1>
+          <p className="text-sm text-secondary mt-1.5">
             Live snapshot of fleet health, pending actions, and inventory alerts.
           </p>
         </div>

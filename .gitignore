@@ -10,6 +10,8 @@ node_modules/
 
 # Database & Backups
 data/assets.db
+server/database.sqlite
+server/database.sqlite3
 backups/
 
 # Build outputs
@@ -23,3 +25,4 @@ server/tmp/
 # Playwright artifacts
 test-results/
 playwright-report/
+laptop_screenshot.png

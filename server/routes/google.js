@@ -20,6 +20,9 @@ router.post('/login', [
   body('credential').notEmpty().withMessage('Google credential is required'),
   validateRequest,
 ], async (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: true, message: 'Route not found', code: 404 });
+  }
   try {
     const result = await googleService.loginWithGoogleTestingFlow(req.body.credential);
     res.status(200).json({ data: result, message: 'Logged in successfully' });

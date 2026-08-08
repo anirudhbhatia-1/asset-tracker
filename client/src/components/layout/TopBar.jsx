@@ -61,7 +61,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
 
 
   return (
-    <header className="h-16 bg-surface/80 backdrop-blur-md border-b border-border sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
+    <header className="h-[4.5rem] bg-surface/80 backdrop-blur-xl border-b border-border/80 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 shadow-[0_1px_0_rgba(20,33,58,0.02)]">
       
       {/* Mobile Expanded Search */}
       {isSearchExpanded ? (
@@ -75,7 +75,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
               onChange={handleSearchChange}
               onKeyDown={handleKeyDown}
               placeholder="Search assets..."
-              className="w-full pl-9 pr-4 py-1.5 bg-base/60 border border-border rounded-lg text-base md:text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-raised/80 border border-border rounded-xl text-base md:text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
             />
           </div>
           <button 
@@ -116,7 +116,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
                 onChange={handleSearchChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Search assets by serial or name..."
-                className="w-full pl-9 pr-4 py-1.5 bg-base/60 border border-border rounded-lg text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-raised/80 border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
               />
             </div>
           </div>
@@ -136,7 +136,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
             {hasPermission('assets:create') && (
               <Link
                 to="/inventory/new"
-                className="bg-accent hover:bg-accent/90 text-white p-2 md:px-4 md:py-2 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+                className="bg-accent hover:bg-accent-hover text-white p-2 md:px-4 md:py-2 rounded-xl font-medium shadow-sm shadow-accent/20 transition-all flex items-center justify-center gap-2 text-sm"
                 aria-label="Add Asset"
               >
                 <Plus className="w-5 h-5 md:w-4 md:h-4" />
@@ -191,7 +191,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-2 sm:gap-3 p-1.5 rounded-xl hover:bg-raised/50 transition-colors border border-transparent hover:border-border/60"
               >
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-xs uppercase shrink-0">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-xs uppercase shrink-0 shadow-sm">
                   {user?.email?.[0] || 'U'}
                 </div>
                 <div className="hidden sm:block text-left min-w-0 max-w-[200px] lg:max-w-xs">

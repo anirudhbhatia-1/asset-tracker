@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const ProtectedRoute = ({ allowedRoles, requiredPermission }) => {
+const ProtectedRoute = ({ allowedRoles, requiredPermission, requiredAnyPermission }) => {
   const { user, hasPermission } = useAuth();
   const location = useLocation();
 
@@ -17,6 +17,12 @@ const ProtectedRoute = ({ allowedRoles, requiredPermission }) => {
 
   // 1. Permission check
   if (requiredPermission && !hasPermission(requiredPermission)) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Parent areas can contain independently permissioned pages. In that case,
+  // the user needs at least one supplied permission to enter the area.
+  if (requiredAnyPermission && !requiredAnyPermission.some(hasPermission)) {
     return <Navigate to="/" replace />;
   }
 

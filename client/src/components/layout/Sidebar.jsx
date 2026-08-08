@@ -18,13 +18,14 @@ const allNavItems = [
   { name: 'Onboarding', path: '/onboarding', icon: UserPlus, permissionKey: 'onboarding:read' },
   { name: 'Scanner', path: '/scanner', icon: QrCode, permissionKey: 'scanner:read' },
   { name: 'Employees', path: '/employees', icon: Users, permissionKey: 'employees:read' },
-  { name: 'Settings', path: '/settings', icon: Settings, permissionKey: 'settings:read' },
+  { name: 'Settings', path: '/settings', icon: Settings, permissionKeys: ['settings:read', 'roles:read', 'categories:read', 'locations:read'] },
 ];
 
 const Sidebar = ({ isOpen = true }) => {
   const { user, hasPermission } = useAuth();
 
   const visibleNavItems = allNavItems.filter(item => {
+    if (item.permissionKeys) return item.permissionKeys.some(hasPermission);
     if (!item.permissionKey) return true;
     return hasPermission(item.permissionKey);
   });
@@ -35,7 +36,7 @@ const Sidebar = ({ isOpen = true }) => {
     <>
       {/* Container is bottom tab bar on mobile, left sidebar on md+ */}
       <aside className={`
-        fixed z-50 flex bg-surface
+        fixed z-50 flex bg-surface/95 backdrop-blur-xl
         
         /* Mobile: Bottom Tab Bar */
         bottom-0 left-0 right-0 w-full flex-row items-center justify-around
@@ -44,12 +45,12 @@ const Sidebar = ({ isOpen = true }) => {
         
         /* Tablet/Desktop: Left Sidebar */
         md:top-0 md:bottom-auto md:left-0 md:h-screen ${isOpen ? 'md:w-64' : 'md:w-20'}
-        md:flex-col md:border-t-0 md:border-r md:justify-start md:pb-0
+        md:flex-col md:border-t-0 md:border-r md:border-border/80 md:justify-start md:pb-0
         transition-all duration-300 ease-in-out select-none
       `}>
         
         {/* Brand Header (Hidden on Mobile, visible on md+) */}
-        <div className={`hidden md:flex h-16 px-4 items-center border-b border-border shrink-0 ${isOpen ? 'justify-start lg:px-6' : 'justify-center'}`}>
+        <div className={`hidden md:flex h-[4.5rem] px-4 items-center border-b border-border/80 shrink-0 ${isOpen ? 'justify-start lg:px-6' : 'justify-center'}`}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 flex items-center justify-center shrink-0">
               <img 
@@ -74,7 +75,7 @@ const Sidebar = ({ isOpen = true }) => {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex flex-1 md:flex-col md:py-6 md:px-3 md:space-y-1 md:overflow-y-auto w-full h-full md:h-auto items-center justify-around md:justify-start">
+        <nav className="flex flex-1 md:flex-col md:py-5 md:px-3 md:space-y-1.5 md:overflow-y-auto w-full h-full md:h-auto items-center justify-around md:justify-start">
           
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
@@ -86,12 +87,12 @@ const Sidebar = ({ isOpen = true }) => {
                 to={item.path}
                 end={item.path === '/'}
                 className={({ isActive }) =>
-                  `flex flex-col md:flex-row items-center ${isOpen ? 'md:justify-start' : 'md:justify-center'} gap-1 md:gap-3 
+                  `relative flex flex-col md:flex-row items-center ${isOpen ? 'md:justify-start' : 'md:justify-center'} gap-1 md:gap-3
                    w-full px-2 md:px-3 py-2 md:py-2.5 rounded-lg text-[10px] md:text-sm transition-all duration-150 group
                    ${isMobileHidden ? 'hidden md:flex' : 'flex'}
                    ${isActive
-                      ? 'md:bg-accent/10 text-accent font-medium'
-                      : 'text-secondary hover:bg-raised/50 hover:text-primary'
+                      ? 'md:bg-accent/10 text-accent font-semibold md:shadow-[inset_3px_0_0_var(--theme-accent)]'
+                      : 'text-secondary hover:bg-raised/70 hover:text-primary'
                   }`
                 }
                 title={!isOpen ? item.name : undefined}
@@ -110,7 +111,7 @@ const Sidebar = ({ isOpen = true }) => {
 
         {/* Sidebar Footer — System Status */}
         {isOpen && (
-          <div className="hidden md:block p-4 m-3 rounded-xl bg-base border border-border shrink-0">
+          <div className="hidden md:block p-4 m-3 rounded-xl bg-raised/75 border border-border/80 shrink-0">
             <div className="flex items-center justify-between text-secondary font-medium text-xs mb-2">
               <span>System Status</span>
               <span className="flex items-center gap-1 text-success text-[11px]">

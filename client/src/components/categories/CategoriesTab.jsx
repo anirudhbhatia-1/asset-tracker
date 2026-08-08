@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { getCategories, createCategory, updateCategory, deleteCategoryApi } from '../../api/categoriesApi';
 import CategoryCard from './CategoryCard';
 import CategoryBuilder from './CategoryBuilder';
+import EmptyState from '../ui/EmptyState';
 import { useAuth } from '../../context/AuthContext';
 
 export default function CategoriesTab() {

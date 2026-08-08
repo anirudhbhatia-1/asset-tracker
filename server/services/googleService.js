@@ -11,8 +11,8 @@
 //   - Only employees with your company domain should be allowed
 // ============================================================
 const { OAuth2Client } = require('google-auth-library');
-const crypto = require('crypto');
 const { pool } = require('../db');
+const { createSessionForEmployee } = require('./authService');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 /**
  * Verifies a Google ID token using the official library.
@@ -43,7 +43,7 @@ const loginWithGoogleTestingFlow = async (idToken) => {
   // Only find employees that an admin has explicitly granted login access to
   // (role IS NOT NULL means they have been granted access)
   const { rows } = await pool.query(
-    `SELECT id, email, role, admin_type
+    `SELECT id
      FROM employees
      WHERE LOWER(email) = $1
        AND deleted_at IS NULL
@@ -57,22 +57,6 @@ const loginWithGoogleTestingFlow = async (idToken) => {
     err.statusCode = 403;
     throw err;
   }
-  const employee = rows[0];
-  // Create session — same pattern as authService.js:login
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 hours
-  await pool.query(
-    'INSERT INTO sessions (token, employee_id, expires_at) VALUES ($1, $2, $3)',
-    [token, employee.id, expiresAt]
-  );
-  return {
-    token,
-    user: {
-      id: employee.id,
-      email: employee.email,
-      role: employee.role,
-      adminType: employee.admin_type,
-    },
-  };
+  return createSessionForEmployee(rows[0].id);
 };
 module.exports = { verifyGoogleIdToken, loginWithGoogleTestingFlow };
