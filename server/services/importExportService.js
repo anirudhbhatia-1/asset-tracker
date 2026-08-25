@@ -89,7 +89,11 @@ const normalizeEmployeeImportName = (value) => {
 };
 
 const EMPLOYEE_IMPORT_EMAIL_ALIASES = Object.freeze({
+  deebandhughosh: 'deebandu.ghosh@thinkvibes.com',
+  lalitumpa: 'lalit.umap@thinkvibes.com',
+  lalitvitthalraoumap: 'lalit.umap@thinkvibes.com',
   niteshkumarkumawat: 'nitesh.kumawat@thinkvibes.com',
+  smitapandy: 'smita@thinkvibes.com',
 });
 
 const findEmployeeIdByImportName = async (databasePool, value) => {

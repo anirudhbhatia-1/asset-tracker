@@ -69,7 +69,7 @@ describe('Excel import value normalization', () => {
     expect(normalizeEmployeeImportName(input)).toBe(expected);
   });
 
-  it('resolves normalized names and the verified Nitesh email alias', async () => {
+  it('resolves normalized names and verified email aliases from import forms', async () => {
     const databasePool = { query: vi.fn().mockResolvedValue({ rows: [{ id: 120 }] }) };
 
     await expect(findEmployeeIdByImportName(databasePool, 'Lakshya Soni / Intern')).resolves.toBe(120);
@@ -77,6 +77,17 @@ describe('Excel import value normalization', () => {
 
     await expect(findEmployeeIdByImportName(databasePool, 'Nitesh Kumar Kumawat')).resolves.toBe(120);
     expect(databasePool.query.mock.calls[1][1]).toEqual(['nitesh.kumawat@thinkvibes.com']);
+
+    const aliases = [
+      ['Deebandhu Ghosh', 'deebandu.ghosh@thinkvibes.com'],
+      ['Lalit Vitthalrao Umap', 'lalit.umap@thinkvibes.com'],
+      ['Lalit Umpa', 'lalit.umap@thinkvibes.com'],
+      ['Smita Pandy', 'smita@thinkvibes.com'],
+    ];
+    for (const [name, email] of aliases) {
+      await expect(findEmployeeIdByImportName(databasePool, name)).resolves.toBe(120);
+      expect(databasePool.query.mock.lastCall[1]).toEqual([email]);
+    }
   });
 
   it('does not guess missing or ambiguous employee mappings', async () => {
