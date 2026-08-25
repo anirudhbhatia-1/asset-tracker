@@ -11,6 +11,7 @@ import {
   optionalExcelText,
   normalizeEmployeeImportName,
   findEmployeeIdByImportName,
+  exportAssetsToExcel,
   importAssetsFromExcel,
 } from '../services/importExportService';
 
@@ -88,6 +89,39 @@ describe('Excel import value normalization', () => {
       await expect(findEmployeeIdByImportName(databasePool, name)).resolves.toBe(120);
       expect(databasePool.query.mock.lastCall[1]).toEqual([email]);
     }
+  });
+
+  it('uses a supplied email as the primary case-insensitive employee identifier', async () => {
+    const databasePool = { query: vi.fn().mockResolvedValue({ rows: [{ id: 87 }] }) };
+
+    await expect(findEmployeeIdByImportName(databasePool, ' Amit@Thinkvibes.com ')).resolves.toBe(87);
+
+    expect(databasePool.query.mock.calls[0][0]).toContain('LOWER(email)');
+    expect(databasePool.query.mock.calls[0][1]).toEqual(['amit@thinkvibes.com']);
+  });
+
+  it('exports assignee emails as the first column on every supported sheet', async () => {
+    const databasePool = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{
+          id: 1,
+          category_name: 'Laptop',
+          asset_type: 'company',
+          assignee_name: 'Amit Jain',
+          assignee_email: 'amit@thinkvibes.com',
+          serial_number: 'LAP-EMAIL',
+          status: 'in-use',
+        }],
+      }),
+    };
+
+    const workbook = await exportAssetsToExcel({ pool: databasePool });
+
+    expect(databasePool.query.mock.calls[0][0]).toContain('e.email AS assignee_email');
+    for (const sheetName of ['Laptops', 'Headphones', 'Keyboard Mouse', 'Client Laptops']) {
+      expect(workbook.getWorksheet(sheetName).getCell(1, 1).value).toBe('Issued To Email');
+    }
+    expect(workbook.getWorksheet('Laptops').getCell(2, 1).value).toBe('amit@thinkvibes.com');
   });
 
   it('does not guess missing or ambiguous employee mappings', async () => {

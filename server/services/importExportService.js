@@ -97,10 +97,14 @@ const EMPLOYEE_IMPORT_EMAIL_ALIASES = Object.freeze({
 });
 
 const findEmployeeIdByImportName = async (databasePool, value) => {
+  const importIdentity = optionalExcelText(value);
+  if (!importIdentity) return null;
   const normalizedName = normalizeEmployeeImportName(value);
-  if (!normalizedName) return null;
 
-  const emailAlias = EMPLOYEE_IMPORT_EMAIL_ALIASES[normalizedName];
+  // Email is the primary, unique identifier in new workbooks. Name aliases are
+  // retained only so previously exported/imported files continue to work.
+  const suppliedEmail = importIdentity.includes('@') ? importIdentity.toLowerCase() : null;
+  const emailAlias = suppliedEmail || EMPLOYEE_IMPORT_EMAIL_ALIASES[normalizedName];
   const query = emailAlias
     ? `SELECT id FROM employees
        WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL
@@ -112,7 +116,7 @@ const findEmployeeIdByImportName = async (databasePool, value) => {
   const { rows } = await databasePool.query(query, [emailAlias || normalizedName]);
 
   if (rows.length > 1) {
-    const err = new Error(`Multiple active employees match imported name: ${optionalExcelText(value)}`);
+    const err = new Error(`Multiple active employees match imported assignee: ${importIdentity}`);
     err.statusCode = 409;
     throw err;
   }
@@ -122,16 +126,18 @@ const findEmployeeIdByImportName = async (databasePool, value) => {
 // ────────────────────────────────────────────
 // EXPORT — Generate .xlsx file with 4 sheets
 // ────────────────────────────────────────────
-const exportAssetsToExcel = async () => {
+const exportAssetsToExcel = async (dependencies = {}) => {
+  const databasePool = dependencies.pool || pool;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'AssetTrack';
   workbook.created = new Date();
 
   // Fetch all assets with full joins
-  const { rows: assets } = await pool.query(`
+  const { rows: assets } = await databasePool.query(`
     SELECT a.*,
            c.name AS category_name,
            e.name AS assignee_name,
+           e.email AS assignee_email,
            adaptor.serial_number AS adaptor_serial_number
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
@@ -154,7 +160,7 @@ const exportAssetsToExcel = async () => {
   // ── Sheet 1: Laptops ──
   const laptopSheet = workbook.addWorksheet('Laptops');
   laptopSheet.addRow([
-    'Issued To','Brand','Model','Serial Number','Date of Invoice','Date of Issue',
+    'Issued To Email','Brand','Model','Serial Number','Date of Invoice','Date of Issue',
     'Adaptor S/N','Processor','RAM','HDD','Screen Size','Graphics Card','OS',
     'MS Office','Anti-Virus','Service/Warranty','Purchase Price','Comments',
     'Warranty Last Date','Remaining Days','Warranty Upgrade','Vendor'
@@ -162,7 +168,7 @@ const exportAssetsToExcel = async () => {
   const laptops = assets.filter(a => a.category_name?.toLowerCase() === 'laptop');
   for (const a of laptops) {
     laptopSheet.addRow([
-      a.assignee_name || '',
+      a.assignee_email || '',
       a.brand || '', a.model || '', a.serial_number,
       a.purchase_date || '', a.assigned_date || '',
       a.adaptor_serial_number || '',
@@ -179,14 +185,14 @@ const exportAssetsToExcel = async () => {
   // ── Sheet 2: Headphones ──
   const headphoneSheet = workbook.addWorksheet('Headphones');
   headphoneSheet.addRow([
-    'Issued To','Brand','Type','Model','Color','Serial Number',
+    'Issued To Email','Brand','Type','Model','Color','Serial Number',
     'Date of Invoice','Service/Warranty','Purchase Price',
     'Issue Date','Return Date','Status','Vendor'
   ]);
   const headphones = assets.filter(a => a.category_name?.toLowerCase() === 'headphones' || a.category_name?.toLowerCase() === 'headphone');
   for (const a of headphones) {
     headphoneSheet.addRow([
-      a.assignee_name || '', a.brand || '', a.hardware_type || '',
+      a.assignee_email || '', a.brand || '', a.hardware_type || '',
       a.model || '', a.color || '', a.serial_number,
       a.purchase_date || '', a.warranty_plan || '',
       a.cost_cents ? a.cost_cents / 100 : '',
@@ -197,7 +203,7 @@ const exportAssetsToExcel = async () => {
   // ── Sheet 3: Keyboard / Mouse ──
   const kbSheet = workbook.addWorksheet('Keyboard Mouse');
   kbSheet.addRow([
-    'Issued To','Date of Issue','Hardware Type','Brand','Model',
+    'Issued To Email','Date of Issue','Hardware Type','Brand','Model',
     'Serial Number','Date of Invoice','Service/Warranty',
     'Purchase Price','Comments','Vendor Name'
   ]);
@@ -207,7 +213,7 @@ const exportAssetsToExcel = async () => {
   );
   for (const a of keyboards) {
     kbSheet.addRow([
-      a.assignee_name || '', a.assigned_date || '',
+      a.assignee_email || '', a.assigned_date || '',
       a.category_name || '', a.brand || '', a.model || '',
       a.serial_number, a.purchase_date || '',
       a.warranty_plan || '', a.cost_cents ? a.cost_cents / 100 : '',
@@ -218,13 +224,13 @@ const exportAssetsToExcel = async () => {
   // ── Sheet 4: Client Laptops ──
   const clientSheet = workbook.addWorksheet('Client Laptops');
   clientSheet.addRow([
-    'Issued To','Brand','Type','Model','Serial Number',
+    'Issued To Email','Brand','Type','Model','Serial Number',
     'Status','Received On','Returned On','Client Name','Comments'
   ]);
   const clientLaptops = assets.filter(a => a.asset_type === 'client');
   for (const a of clientLaptops) {
     clientSheet.addRow([
-      a.assignee_name || '', a.brand || '', a.hardware_type || '',
+      a.assignee_email || '', a.brand || '', a.hardware_type || '',
       a.model || '', a.serial_number, a.status,
       a.received_on || a.purchase_date || '',
       a.return_date || '', a.client_name || '', a.notes || ''
