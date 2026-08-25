@@ -75,6 +75,46 @@ const normalizeAssetStatus = (val, fallback = 'available') => {
   return ['available', 'in-use', 'retired'].includes(text) ? text : fallbackStatus;
 };
 
+// Names in legacy workbooks are not always formatted like the employee
+// directory (for example "Arun Kumar" vs "Arunkumar", or "/ Intern").
+// Normalize presentation-only differences, then resolve the one known legal
+// name/email difference explicitly instead of using unsafe fuzzy matching.
+const normalizeEmployeeImportName = (value) => {
+  const text = optionalExcelText(value);
+  if (!text) return '';
+  return text
+    .replace(/\s*\/\s*intern\s*$/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+};
+
+const EMPLOYEE_IMPORT_EMAIL_ALIASES = Object.freeze({
+  niteshkumarkumawat: 'nitesh.kumawat@thinkvibes.com',
+});
+
+const findEmployeeIdByImportName = async (databasePool, value) => {
+  const normalizedName = normalizeEmployeeImportName(value);
+  if (!normalizedName) return null;
+
+  const emailAlias = EMPLOYEE_IMPORT_EMAIL_ALIASES[normalizedName];
+  const query = emailAlias
+    ? `SELECT id FROM employees
+       WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL
+       LIMIT 2`
+    : `SELECT id FROM employees
+       WHERE LOWER(REGEXP_REPLACE(name, '[^a-zA-Z0-9]', '', 'g')) = $1
+         AND deleted_at IS NULL
+       LIMIT 2`;
+  const { rows } = await databasePool.query(query, [emailAlias || normalizedName]);
+
+  if (rows.length > 1) {
+    const err = new Error(`Multiple active employees match imported name: ${optionalExcelText(value)}`);
+    err.statusCode = 409;
+    throw err;
+  }
+  return rows[0]?.id || null;
+};
+
 // ────────────────────────────────────────────
 // EXPORT — Generate .xlsx file with 4 sheets
 // ────────────────────────────────────────────
@@ -202,14 +242,12 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => 
 
   const results = { imported: 0, skipped: [], errors: [] };
 
-  // Helper: look up employee ID by name
-  const findEmployee = async (name) => {
-    if (!name || !name.trim()) return null;
-    const { rows } = await databasePool.query(
-      `SELECT id FROM employees WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
-      [name.trim()]
-    );
-    return rows[0]?.id || null;
+  const findEmployee = (name) => findEmployeeIdByImportName(databasePool, name);
+
+  const shouldSkipMissingEmployee = (issuedTo, employeeId, serial, sheetName) => {
+    if (!issuedTo || employeeId) return false;
+    results.skipped.push(`Employee not found: ${issuedTo} (${sheetName}, serial ${serial})`);
+    return true;
   };
 
   // Helper: look up category ID by name
@@ -284,6 +322,7 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => 
         const brand = optionalExcelText(r[2]);
         const model = optionalExcelText(r[3]);
         const employeeId = await findEmployee(issuedTo);
+        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Laptops')) continue;
 
         const assetId = await insertAsset(client, {
           name: `${brand || ''} ${model || ''}`.trim() || serial,
@@ -345,6 +384,7 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => 
         const brand = optionalExcelText(r[2]);
         const model = optionalExcelText(r[4]);
         const employeeId = await findEmployee(issuedTo);
+        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Headphones')) continue;
 
         await insertAsset(client, {
           name: `${brand || ''} ${model || ''}`.trim() || serial,
@@ -381,7 +421,9 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => 
         const brand = optionalExcelText(r[4]);
         const model = optionalExcelText(r[5]);
         const catId = await findCategory(hardwareType || 'Keyboard');
-        const employeeId = await findEmployee(optionalExcelText(r[1]));
+        const issuedTo = optionalExcelText(r[1]);
+        const employeeId = await findEmployee(issuedTo);
+        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Keyboard Mouse')) continue;
 
         await insertAsset(client, {
           name: `${brand || ''} ${model || ''}`.trim() || serial,
@@ -416,7 +458,9 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => 
 
         const brand = optionalExcelText(r[2]);
         const model = optionalExcelText(r[4]);
-        const employeeId = await findEmployee(optionalExcelText(r[1]));
+        const issuedTo = optionalExcelText(r[1]);
+        const employeeId = await findEmployee(issuedTo);
+        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Client Laptops')) continue;
 
         await insertAsset(client, {
           name: `${brand || ''} ${model || ''}`.trim() || serial,
@@ -447,4 +491,6 @@ module.exports = {
   excelNumberToCents,
   normalizeAssetStatus,
   optionalExcelText,
+  normalizeEmployeeImportName,
+  findEmployeeIdByImportName,
 };

@@ -9,6 +9,8 @@ import {
   excelNumberToCents,
   normalizeAssetStatus,
   optionalExcelText,
+  normalizeEmployeeImportName,
+  findEmployeeIdByImportName,
   importAssetsFromExcel,
 } from '../services/importExportService';
 
@@ -56,6 +58,64 @@ describe('Excel import value normalization', () => {
   it('unwraps rich text and formula results', () => {
     expect(optionalExcelText({ richText: [{ text: ' Dell' }, { text: ' Inc. ' }] })).toBe('Dell Inc.');
     expect(optionalExcelText({ formula: 'A1', result: 0 })).toBeNull();
+  });
+
+  it.each([
+    ['Lakshya Soni / Intern', 'lakshyasoni'],
+    ['Arun Kumar Soni', 'arunkumarsoni'],
+    ['Gunwant Singh Hada / Intern', 'gunwantsinghhada'],
+    [0, ''],
+  ])('normalizes imported employee names safely (%s)', (input, expected) => {
+    expect(normalizeEmployeeImportName(input)).toBe(expected);
+  });
+
+  it('resolves normalized names and the verified Nitesh email alias', async () => {
+    const databasePool = { query: vi.fn().mockResolvedValue({ rows: [{ id: 120 }] }) };
+
+    await expect(findEmployeeIdByImportName(databasePool, 'Lakshya Soni / Intern')).resolves.toBe(120);
+    expect(databasePool.query.mock.calls[0][1]).toEqual(['lakshyasoni']);
+
+    await expect(findEmployeeIdByImportName(databasePool, 'Nitesh Kumar Kumawat')).resolves.toBe(120);
+    expect(databasePool.query.mock.calls[1][1]).toEqual(['nitesh.kumawat@thinkvibes.com']);
+  });
+
+  it('does not guess missing or ambiguous employee mappings', async () => {
+    await expect(findEmployeeIdByImportName(
+      { query: vi.fn().mockResolvedValue({ rows: [] }) },
+      'Abhay Deewan',
+    )).resolves.toBeNull();
+
+    await expect(findEmployeeIdByImportName(
+      { query: vi.fn().mockResolvedValue({ rows: [{ id: 1 }, { id: 2 }] }) },
+      'Duplicate Name',
+    )).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('skips a named assignee with no employee email record instead of importing it unassigned', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Laptops');
+    sheet.addRow(['Issued To', 'Brand', 'Model', 'Serial Number']);
+    sheet.addRow(['Abhay Deewan', 'Dell', 'Latitude', 'LAP-UNMAPPED']);
+    const filePath = join(tmpdir(), `asset-import-unmapped-${process.pid}-${Date.now()}.xlsx`);
+    temporaryFiles.push(filePath);
+    await workbook.xlsx.writeFile(filePath);
+
+    const transactionClient = { query: vi.fn() };
+    const databasePool = {
+      query: vi.fn(async (sql) => (
+        sql.includes('FROM categories') ? { rows: [{ id: 10 }] } : { rows: [] }
+      )),
+    };
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, {
+      pool: databasePool,
+      withTransaction: (callback) => callback(transactionClient),
+      logEvent: vi.fn(),
+    });
+
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toContain('Employee not found: Abhay Deewan (Laptops, serial LAP-UNMAPPED)');
+    expect(transactionClient.query).not.toHaveBeenCalled();
   });
 
   it('turns invalid date strings and invalid native dates into null', () => {
