@@ -23,6 +23,19 @@ export const importAssetsExcel = (file) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post('/assets/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    // Imports perform several database operations per row and can legitimately
+    // take longer than the shared 10-second API timeout. Let the browser set
+    // the multipart boundary; manually setting Content-Type can omit it.
+    timeout: 120000,
   });
+};
+
+export const getImportErrorMessage = (error) => {
+  if (error?.code === 'ECONNABORTED') {
+    return 'Import timed out. Try a smaller file or contact your administrator.';
+  }
+  if (!error?.response) {
+    return 'Import could not reach the server. Check your connection and try again.';
+  }
+  return error.response.data?.message || 'Import failed';
 };

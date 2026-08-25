@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import useAssets from '../hooks/useAssets';
 import useCategories from '../hooks/useCategories';
 import { useAuth } from '../context/AuthContext';
-import { exportAssetsExcel, importAssetsExcel } from '../api/assetsApi';
+import { exportAssetsExcel, getImportErrorMessage, importAssetsExcel } from '../api/assetsApi';
 import toast from 'react-hot-toast';
 import SearchBar from '../components/inventory/SearchBar';
 import FilterToolbar from '../components/inventory/FilterToolbar';
@@ -136,7 +136,7 @@ export default function Inventory() {
       toast.success(`Imported ${result.imported} assets`);
       refresh();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Import failed');
+      toast.error(getImportErrorMessage(err));
     } finally {
       setImporting(false);
       e.target.value = '';
