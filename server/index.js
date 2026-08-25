@@ -8,6 +8,14 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// When deployed behind a known reverse proxy (for example the supplied Nginx
+// config), trust only the configured number of proxy hops so rate limits use
+// the real client IP without accepting arbitrary forwarded headers.
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS);
+if (Number.isInteger(trustProxyHops) && trustProxyHops > 0 && trustProxyHops <= 10) {
+  app.set('trust proxy', trustProxyHops);
+}
+
 // Middlewares
 app.use(cors({
   origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',

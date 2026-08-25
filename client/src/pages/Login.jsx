@@ -1,30 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShieldCheck, Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
 import api from '../api/axiosInstance';
-// ============================================================
-// TESTING ONLY: GoogleLogin button and handleGoogleSuccess
-// WHEN GOING TO PRODUCTION:
-//   - Remove the GoogleLogin import
-//   - Remove handleGoogleSuccess and googleError state
-//   - Remove the divider and GoogleLogin JSX below the form
-//   - Replace with Workspace-based redirect/button
-// ============================================================
-const Login = () => {
+import { getGoogleButtonWidth, getGoogleLoginError, isGoogleLoginConfigured } from '../utils/googleAuth';
+
+const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [googleError, setGoogleError] = useState(null); // TESTING ONLY
+  const [googleError, setGoogleError] = useState(null);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [googleButtonWidth, setGoogleButtonWidth] = useState(() => (
+    getGoogleButtonWidth(typeof window === 'undefined' ? undefined : window.innerWidth)
+  ));
   const { login, loginWithToken } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
-  // The Google endpoint is intentionally a development-only test flow. Do not
-  // advertise it from a production bundle where the API rejects the request.
-  const isTestGoogleLoginEnabled = import.meta.env.DEV;
+  const isGoogleLoginEnabled = isGoogleLoginConfigured(googleClientId);
+  useEffect(() => {
+    const updateGoogleButtonWidth = () => setGoogleButtonWidth(getGoogleButtonWidth(window.innerWidth));
+    window.addEventListener('resize', updateGoogleButtonWidth);
+    return () => window.removeEventListener('resize', updateGoogleButtonWidth);
+  }, []);
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -42,22 +43,20 @@ const Login = () => {
       setIsSubmitting(false);
     }
   };
-  // TESTING ONLY — handles the Google Sign-In button response
   const handleGoogleSuccess = async ({ credential }) => {
+    if (isGoogleSubmitting) return;
     setGoogleError(null);
+    setIsGoogleSubmitting(true);
     try {
-      const res = await api.post('/google/login', { credential });
+      const res = await api.post('/google/login', { credential }, { skipAuthRedirect: true });
       const { token, user } = res.data.data;
       loginWithToken(token, user);
       toast.success('Logged in with Google');
       navigate(from, { replace: true });
     } catch (err) {
-      const status = err.response?.status;
-      if (status === 403) {
-        setGoogleError("This Google account hasn't been granted access. Contact your admin.");
-      } else {
-        setGoogleError('Google sign-in failed. Please try again or use email/password.');
-      }
+      setGoogleError(getGoogleLoginError(err.response?.status));
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
   return (
@@ -122,12 +121,7 @@ const Login = () => {
             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
           </button>
         </form>
-        {/* ======================================================
-            TESTING ONLY — Google Sign-In section
-            WHEN GOING TO PRODUCTION: Remove everything below
-            this comment down to the closing </div> of this block.
-            ====================================================== */}
-        {isTestGoogleLoginEnabled && (
+        {isGoogleLoginEnabled && (
         <div className="mt-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-px bg-border" />
@@ -135,23 +129,29 @@ const Login = () => {
             <div className="flex-1 h-px bg-border" />
           </div>
           {googleError && (
-            <div className="mb-3 p-3 rounded-xl bg-error/10 border border-error/30 text-xs text-error">
+            <div role="alert" className="mb-3 p-3 rounded-xl bg-danger/10 border border-danger/30 text-sm text-danger">
               {googleError}
             </div>
           )}
-          <div className="flex justify-center">
+          <div
+            className={`flex justify-center transition-opacity ${isGoogleSubmitting ? 'pointer-events-none opacity-60' : ''}`}
+            aria-busy={isGoogleSubmitting}
+          >
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => setGoogleError('Google sign-in failed. Please try again.')}
+              onError={() => {
+                setIsGoogleSubmitting(false);
+                setGoogleError('Google sign-in failed. Please try again.');
+              }}
               theme="outline"
               size="large"
               text="signin_with_google"
               shape="rectangular"
-              width="368"
+              width={googleButtonWidth}
             />
           </div>
-          <p className="text-center text-xs text-secondary/60 mt-3">
-            Only works if your admin has pre-approved your Google account.
+          <p className="text-center text-sm text-secondary mt-3" aria-live="polite">
+            {isGoogleSubmitting ? 'Signing in with Google…' : 'Use a Google account that your admin has approved.'}
           </p>
         </div>
         )}

@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email, password }, { skipAuthRedirect: true });
       const { token, user: userData } = res.data.data;
       
       sessionStorage.setItem('token', token);

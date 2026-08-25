@@ -2,25 +2,49 @@ const ExcelJS = require('exceljs');
 const { pool, withTransaction } = require('../db');
 const historyService = require('./historyService');
 
-// Convert Excel date (serial, native Date, or string) to YYYY-MM-DD string
+// ExcelJS may return formula cells as { formula, result } and rich-text cells
+// as { richText }. Normalize those shapes before validating import values.
+const unwrapExcelValue = (val) => {
+  if (val && typeof val === 'object' && Object.prototype.hasOwnProperty.call(val, 'result')) {
+    return val.result;
+  }
+  if (val && typeof val === 'object' && Array.isArray(val.richText)) {
+    return val.richText.map((part) => part.text || '').join('');
+  }
+  return val;
+};
+
+const isBlankOrZero = (val) => {
+  const value = unwrapExcelValue(val);
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'number') return value === 0 || !Number.isFinite(value);
+  if (typeof value !== 'string') return false;
+
+  const trimmed = value.trim();
+  return trimmed === '' || /^[-+]?0(?:\.0+)?$/.test(trimmed);
+};
+
+const optionalExcelText = (val) => {
+  if (isBlankOrZero(val)) return null;
+  const text = String(unwrapExcelValue(val)).trim();
+  return text || null;
+};
+
+// Convert Excel date (serial, native Date, or string) to YYYY-MM-DD string.
+// Zero, empty, formula-zero, and invalid values are optional and become null.
 const excelDateToISO = (val) => {
-  if (!val) return null;
+  if (isBlankOrZero(val)) return null;
+  const value = unwrapExcelValue(val);
   
   // If ExcelJS parsed it as a native Date object
-  if (val instanceof Date) {
-    if (isNaN(val.getTime())) return null;
-    return val.toISOString().substring(0, 10);
-  }
-  
-  // If it's a formula result containing a Date
-  if (typeof val === 'object' && val.result instanceof Date) {
-    if (isNaN(val.result.getTime())) return null;
-    return val.result.toISOString().substring(0, 10);
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null;
+    return value.toISOString().substring(0, 10);
   }
 
   // If it's an Excel serial number (e.g. 44652)
-  const num = Number(val);
-  if (!isNaN(num)) {
+  const num = Number(value);
+  if (Number.isFinite(num) && num > 0) {
     const ms = (num - 25569) * 86400 * 1000;
     const date = new Date(ms);
     if (isNaN(date.getTime())) return null;
@@ -28,12 +52,27 @@ const excelDateToISO = (val) => {
   }
   
   // Try standard string parsing as a fallback
-  const strDate = new Date(val.toString());
+  const strDate = new Date(String(value).trim());
   if (!isNaN(strDate.getTime())) {
     return strDate.toISOString().substring(0, 10);
   }
   
   return null;
+};
+
+const excelNumberToCents = (val) => {
+  if (isBlankOrZero(val)) return 0;
+  const normalized = String(unwrapExcelValue(val)).replace(/,/g, '').replace(/[^0-9.-]/g, '');
+  const amount = Number(normalized);
+  return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : 0;
+};
+
+const normalizeAssetStatus = (val, fallback = 'available') => {
+  const fallbackStatus = ['available', 'in-use', 'retired'].includes(fallback) ? fallback : 'available';
+  const text = optionalExcelText(val)?.toLowerCase().replace(/[_\s]+/g, '-');
+  if (!text) return fallbackStatus;
+  if (text === 'assigned' || text === 'inuse') return 'in-use';
+  return ['available', 'in-use', 'retired'].includes(text) ? text : fallbackStatus;
 };
 
 // ────────────────────────────────────────────
@@ -154,7 +193,10 @@ const exportAssetsToExcel = async () => {
 // ────────────────────────────────────────────
 // IMPORT — Read .xlsx file, insert rows to DB
 // ────────────────────────────────────────────
-const importAssetsFromExcel = async (filePath, actorUser) => {
+const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => {
+  const databasePool = dependencies.pool || pool;
+  const runInTransaction = dependencies.withTransaction || withTransaction;
+  const logHistoryEvent = dependencies.logEvent || historyService.logEvent;
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
 
@@ -163,7 +205,7 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
   // Helper: look up employee ID by name
   const findEmployee = async (name) => {
     if (!name || !name.trim()) return null;
-    const { rows } = await pool.query(
+    const { rows } = await databasePool.query(
       `SELECT id FROM employees WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
       [name.trim()]
     );
@@ -173,7 +215,7 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
   // Helper: look up category ID by name
   const findCategory = async (name) => {
     if (!name) return null;
-    const { rows } = await pool.query(
+    const { rows } = await databasePool.query(
       `SELECT id FROM categories WHERE LOWER(name) = LOWER($1) LIMIT 1`,
       [name.trim()]
     );
@@ -207,17 +249,17 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
       assetData.name, assetData.categoryId, assetData.model,
       assetData.serialNumber, assetData.status || 'in-use',
       assetData.assetType || 'company',
-      assetData.purchaseDate, assetData.assignedTo, assetData.assignedDate,
-      assetData.costCents || 0, assetData.notes,
-      assetData.warrantyExpiryDate, assetData.brand, assetData.vendor,
-      assetData.processor, assetData.ram, assetData.storage,
-      assetData.screenSize, assetData.graphicsCard, assetData.os,
-      assetData.msOffice, assetData.antiVirus, assetData.warrantyPlan,
-      assetData.warrantyUpgrade, assetData.color, assetData.hardwareType,
-      assetData.clientName, assetData.returnDate, assetData.receivedOn,
+      assetData.purchaseDate ?? null, assetData.assignedTo ?? null, assetData.assignedDate ?? null,
+      assetData.costCents ?? 0, assetData.notes ?? null,
+      assetData.warrantyExpiryDate ?? null, assetData.brand ?? null, assetData.vendor ?? null,
+      assetData.processor ?? null, assetData.ram ?? null, assetData.storage ?? null,
+      assetData.screenSize ?? null, assetData.graphicsCard ?? null, assetData.os ?? null,
+      assetData.msOffice ?? null, assetData.antiVirus ?? null, assetData.warrantyPlan ?? null,
+      assetData.warrantyUpgrade ?? null, assetData.color ?? null, assetData.hardwareType ?? null,
+      assetData.clientName ?? null, assetData.returnDate ?? null, assetData.receivedOn ?? null,
     ]);
 
-    await historyService.logEvent(
+    await logHistoryEvent(
       rows[0].id, 'created', actorUser, assetData.assignedTo,
       'Imported via Excel upload', null, client
     );
@@ -226,7 +268,7 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
     return rows[0].id;
   };
 
-  await withTransaction(async (client) => {
+  await runInTransaction(async (client) => {
     // ── Process Laptops Sheet ──
     const laptopSheet = workbook.getWorksheet('Laptops');
     if (laptopSheet) {
@@ -235,40 +277,43 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
       const laptopCategoryId = await findCategory('Laptop');
 
       for (const r of rows) {
-        const serial = r[4]?.toString()?.trim();
+        const serial = optionalExcelText(r[4]);
         if (!serial) { results.skipped.push('Row missing serial number (Laptops sheet)'); continue; }
 
-        const employeeId = await findEmployee(r[1]?.toString());
+        const issuedTo = optionalExcelText(r[1]);
+        const brand = optionalExcelText(r[2]);
+        const model = optionalExcelText(r[3]);
+        const employeeId = await findEmployee(issuedTo);
 
         const assetId = await insertAsset(client, {
-          name: `${r[2] || ''} ${r[3] || ''}`.trim() || serial,
+          name: `${brand || ''} ${model || ''}`.trim() || serial,
           categoryId: laptopCategoryId,
-          model: r[3]?.toString() || null,
+          model,
           serialNumber: serial,
           assetType: 'company',
           assignedTo: employeeId,
-          brand: r[2]?.toString() || null,
-          purchaseDate: excelDateToISO(r[5]) || r[5]?.toString() || null,
-          assignedDate: excelDateToISO(r[6]) || r[6]?.toString() || null,
-          processor: r[8]?.toString() || null,
-          ram: r[9]?.toString() || null,
-          storage: r[10]?.toString() || null,
-          screenSize: r[11]?.toString() || null,
-          graphicsCard: r[12]?.toString() || null,
-          os: r[13]?.toString() || null,
-          msOffice: r[14]?.toString() || null,
-          antiVirus: r[15]?.toString() || null,
-          warrantyPlan: r[16]?.toString() || null,
-          costCents: r[17] ? Math.round(Number(r[17]) * 100) : 0,
-          notes: r[18]?.toString() || null,
-          warrantyExpiryDate: excelDateToISO(r[19]) || r[19]?.toString() || null,
-          warrantyUpgrade: r[21]?.toString() || null,
-          vendor: r[22]?.toString() || null,
+          brand,
+          purchaseDate: excelDateToISO(r[5]),
+          assignedDate: excelDateToISO(r[6]),
+          processor: optionalExcelText(r[8]),
+          ram: optionalExcelText(r[9]),
+          storage: optionalExcelText(r[10]),
+          screenSize: optionalExcelText(r[11]),
+          graphicsCard: optionalExcelText(r[12]),
+          os: optionalExcelText(r[13]),
+          msOffice: optionalExcelText(r[14]),
+          antiVirus: optionalExcelText(r[15]),
+          warrantyPlan: optionalExcelText(r[16]),
+          costCents: excelNumberToCents(r[17]),
+          notes: optionalExcelText(r[18]),
+          warrantyExpiryDate: excelDateToISO(r[19]),
+          warrantyUpgrade: optionalExcelText(r[21]),
+          vendor: optionalExcelText(r[22]),
           status: employeeId ? 'in-use' : 'available',
         }, actorUser);
 
         // Handle Adaptor S/N (column 7) — create linked sub-asset
-        const adaptorSerial = r[7]?.toString()?.trim();
+        const adaptorSerial = optionalExcelText(r[7]);
         if (assetId && adaptorSerial) {
           const adaptorCategory = await findCategory('Adaptor');
           const adaptorExists = await client.query('SELECT id FROM assets WHERE serial_number = $1', [adaptorSerial]);
@@ -279,7 +324,7 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
               VALUES ($1, $2, $3, $4, $5, 'company', NOW(), NOW()) RETURNING id
             `, [`Adaptor for ${serial}`, adaptorCategory, adaptorSerial, 'in-use', assetId]);
 
-            await historyService.logEvent(subRows[0].id, 'created', actorUser, null, `Adaptor linked to laptop ${serial}`, null, client);
+            await logHistoryEvent(subRows[0].id, 'created', actorUser, null, `Adaptor linked to laptop ${serial}`, null, client);
           }
         }
       }
@@ -293,27 +338,30 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
       const catId = await findCategory('Headphones');
 
       for (const r of rows) {
-        const serial = r[6]?.toString()?.trim();
+        const serial = optionalExcelText(r[6]);
         if (!serial) { results.skipped.push('Row missing serial (Headphones sheet)'); continue; }
 
-        const employeeId = await findEmployee(r[1]?.toString());
+        const issuedTo = optionalExcelText(r[1]);
+        const brand = optionalExcelText(r[2]);
+        const model = optionalExcelText(r[4]);
+        const employeeId = await findEmployee(issuedTo);
 
         await insertAsset(client, {
-          name: `${r[2] || ''} ${r[4] || ''}`.trim() || serial,
+          name: `${brand || ''} ${model || ''}`.trim() || serial,
           categoryId: catId,
-          model: r[4]?.toString() || null,
+          model,
           serialNumber: serial,
-          brand: r[2]?.toString() || null,
-          hardwareType: r[3]?.toString() || null,
-          color: r[5]?.toString() || null,
-          purchaseDate: excelDateToISO(r[7]) || r[7]?.toString() || null,
-          warrantyPlan: r[8]?.toString() || null,
-          costCents: r[9] ? Math.round(Number(r[9]) * 100) : 0,
+          brand,
+          hardwareType: optionalExcelText(r[3]),
+          color: optionalExcelText(r[5]),
+          purchaseDate: excelDateToISO(r[7]),
+          warrantyPlan: optionalExcelText(r[8]),
+          costCents: excelNumberToCents(r[9]),
           assignedTo: employeeId,
-          assignedDate: excelDateToISO(r[10]) || r[10]?.toString() || null,
-          returnDate: excelDateToISO(r[11]) || r[11]?.toString() || null,
-          status: r[12]?.toString()?.toLowerCase() || (employeeId ? 'in-use' : 'available'),
-          vendor: r[13]?.toString() || null,
+          assignedDate: excelDateToISO(r[10]),
+          returnDate: excelDateToISO(r[11]),
+          status: normalizeAssetStatus(r[12], employeeId ? 'in-use' : 'available'),
+          vendor: optionalExcelText(r[13]),
           assetType: 'company',
         }, actorUser);
       }
@@ -326,25 +374,28 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
       kbSheet.eachRow((row, rowNum) => { if (rowNum > 1) rows.push(row.values); });
 
       for (const r of rows) {
-        const serial = r[6]?.toString()?.trim();
+        const serial = optionalExcelText(r[6]);
         if (!serial) { results.skipped.push('Row missing serial (Keyboard Mouse sheet)'); continue; }
 
-        const catId = await findCategory(r[3]?.toString() || 'Keyboard');
-        const employeeId = await findEmployee(r[1]?.toString());
+        const hardwareType = optionalExcelText(r[3]);
+        const brand = optionalExcelText(r[4]);
+        const model = optionalExcelText(r[5]);
+        const catId = await findCategory(hardwareType || 'Keyboard');
+        const employeeId = await findEmployee(optionalExcelText(r[1]));
 
         await insertAsset(client, {
-          name: `${r[4] || ''} ${r[5] || ''}`.trim() || serial,
+          name: `${brand || ''} ${model || ''}`.trim() || serial,
           categoryId: catId,
-          model: r[5]?.toString() || null,
+          model,
           serialNumber: serial,
-          assignedDate: excelDateToISO(r[2]) || r[2]?.toString() || null,
-          hardwareType: r[3]?.toString() || null,
-          brand: r[4]?.toString() || null,
-          purchaseDate: excelDateToISO(r[7]) || r[7]?.toString() || null,
-          warrantyPlan: r[8]?.toString() || null,
-          costCents: r[9] ? Math.round(Number(r[9]) * 100) : 0,
-          notes: r[10]?.toString() || null,
-          vendor: r[11]?.toString() || null,
+          assignedDate: excelDateToISO(r[2]),
+          hardwareType,
+          brand,
+          purchaseDate: excelDateToISO(r[7]),
+          warrantyPlan: optionalExcelText(r[8]),
+          costCents: excelNumberToCents(r[9]),
+          notes: optionalExcelText(r[10]),
+          vendor: optionalExcelText(r[11]),
           assignedTo: employeeId,
           status: employeeId ? 'in-use' : 'available',
           assetType: 'company',
@@ -360,23 +411,25 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
       const catId = await findCategory('Laptop');
 
       for (const r of rows) {
-        const serial = r[5]?.toString()?.trim();
+        const serial = optionalExcelText(r[5]);
         if (!serial) { results.skipped.push('Row missing serial (Client Laptops sheet)'); continue; }
 
-        const employeeId = await findEmployee(r[1]?.toString());
+        const brand = optionalExcelText(r[2]);
+        const model = optionalExcelText(r[4]);
+        const employeeId = await findEmployee(optionalExcelText(r[1]));
 
         await insertAsset(client, {
-          name: `${r[2] || ''} ${r[4] || ''}`.trim() || serial,
+          name: `${brand || ''} ${model || ''}`.trim() || serial,
           categoryId: catId,
-          model: r[4]?.toString() || null,
+          model,
           serialNumber: serial,
-          brand: r[2]?.toString() || null,
-          hardwareType: r[3]?.toString() || null,
-          status: r[6]?.toString()?.toLowerCase() || 'available',
-          receivedOn: excelDateToISO(r[7]) || r[7]?.toString() || null,
-          returnDate: excelDateToISO(r[8]) || r[8]?.toString() || null,
-          clientName: r[9]?.toString() || null,
-          notes: r[10]?.toString() || null,
+          brand,
+          hardwareType: optionalExcelText(r[3]),
+          status: normalizeAssetStatus(r[6], 'available'),
+          receivedOn: excelDateToISO(r[7]),
+          returnDate: excelDateToISO(r[8]),
+          clientName: optionalExcelText(r[9]),
+          notes: optionalExcelText(r[10]),
           assignedTo: employeeId,
           assetType: 'client',
         }, actorUser);
@@ -387,4 +440,11 @@ const importAssetsFromExcel = async (filePath, actorUser) => {
   return results;
 };
 
-module.exports = { exportAssetsToExcel, importAssetsFromExcel };
+module.exports = {
+  exportAssetsToExcel,
+  importAssetsFromExcel,
+  excelDateToISO,
+  excelNumberToCents,
+  normalizeAssetStatus,
+  optionalExcelText,
+};
