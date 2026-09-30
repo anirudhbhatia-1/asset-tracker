@@ -91,7 +91,7 @@ export default function CategoriesTab() {
         {canManageCategories && (
           <button
             onClick={() => handleOpenBuilder()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent text-white text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-accent/20"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent text-on-accent text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-accent/20"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add Category</span>

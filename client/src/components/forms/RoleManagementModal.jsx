@@ -2,27 +2,29 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { Key, Edit3, ShieldCheck, User } from 'lucide-react';
-import toast from 'react-hot-toast';
-
-const ROLES = [
-  { value: 'employee', label: 'Employee', description: 'Can request hardware and view own assets.' },
-  { value: 'hr', label: 'HR', description: 'Can submit and track onboarding hardware requests.' },
-  { value: 'admin', label: 'Admin', description: 'Full access to manage inventory, settings, and users.' },
-];
+import useRoles, { findRoleValue, defaultRoleValue } from '../../hooks/useRoles';
 
 export default function RoleManagementModal({ isOpen, onClose, employee, onGrantAccess, onChangeRole, onGrantGoogleAccess }) {
-  const [role, setRole] = useState('employee');
+  const { roles } = useRoles(isOpen);
+  const [role, setRole] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [tempPassword, setTempPassword] = useState('');
 
   useEffect(() => {
     if (isOpen && employee) {
-      setRole(employee.role || 'employee');
       setError('');
       setTempPassword('');
     }
   }, [isOpen, employee]);
+
+  // Preselect the current role (or Employee when granting access) once the
+  // role list is known.
+  useEffect(() => {
+    if (isOpen && employee) {
+      setRole(findRoleValue(roles, employee) || defaultRoleValue(roles));
+    }
+  }, [isOpen, employee, roles]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,7 +42,7 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
         setTempPassword(res.temporaryPassword);
       }
     } catch (err) {
-      setError(err.message || 'Failed to manage role.');
+      setError(err.response?.data?.message || err.message || 'Failed to manage role.');
     } finally {
       setSubmitting(false);
     }
@@ -78,7 +80,7 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
               <span>System Role</span>
             </label>
             <div className="space-y-2">
-              {ROLES.map((r) => (
+              {roles.map((r) => (
                 <label
                   key={r.value}
                   className={`flex items-start p-3 border rounded-xl cursor-pointer transition-all ${
@@ -96,8 +98,8 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
                     className="mt-0.5 text-accent focus:ring-accent border-secondary bg-surface"
                   />
                   <div className="ml-3">
-                    <span className="block text-sm font-medium text-primary">{r.label}</span>
-                    <span className="block text-xs text-secondary mt-0.5">{r.description}</span>
+                    <span className="block text-sm font-medium text-primary">{r.name}</span>
+                    {r.description && <span className="block text-xs text-secondary mt-0.5">{r.description}</span>}
                   </div>
                 </label>
               ))}

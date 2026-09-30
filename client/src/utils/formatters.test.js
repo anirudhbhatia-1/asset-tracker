@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCurrency, formatDate, formatDateTime } from './formatters';
+import { formatCurrency, formatDate, formatDateTime, getWarrantyBadge } from './formatters';
 
 describe('formatters Unit Tests', () => {
   describe('formatCurrency', () => {
@@ -45,6 +45,28 @@ describe('formatters Unit Tests', () => {
       const formatted = formatDateTime('2026-07-22 14:30:00');
       expect(formatted).toContain('22/07/2026');
       expect(formatted).toContain('2:30 PM');
+    });
+  });
+
+  describe('getWarrantyBadge', () => {
+    const now = new Date(2026, 8, 30, 15, 0, 0); // local Sep 30 2026
+    const local = (y, m, d) => new Date(y, m - 1, d);
+
+    it('flags unknown warranty as muted', () => {
+      expect(getWarrantyBadge(null, now)).toMatchObject({ label: 'No warranty', tone: 'muted' });
+      expect(getWarrantyBadge('garbage', now)).toMatchObject({ label: 'No warranty', tone: 'muted' });
+    });
+
+    it('shows expired, today, and short countdowns in amber', () => {
+      expect(getWarrantyBadge(local(2026, 9, 1), now)).toMatchObject({ label: 'Expired', tone: 'danger' });
+      expect(getWarrantyBadge(local(2026, 9, 30), now)).toMatchObject({ label: 'Expires today', tone: 'warning' });
+      expect(getWarrantyBadge(local(2026, 10, 12), now)).toMatchObject({ label: '12d left', tone: 'warning' });
+      expect(getWarrantyBadge(local(2026, 11, 29), now)).toMatchObject({ label: '60d left', tone: 'warning' });
+    });
+
+    it('uses months and years for longer coverage', () => {
+      expect(getWarrantyBadge(local(2027, 3, 30), now)).toMatchObject({ label: '6mo left', tone: 'success' });
+      expect(getWarrantyBadge(local(2028, 10, 1), now)).toMatchObject({ label: '2y left', tone: 'success' });
     });
   });
 });

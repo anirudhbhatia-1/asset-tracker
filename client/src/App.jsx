@@ -35,9 +35,8 @@ const RoleBasedDashboard = () => {
   if (hasPermission('onboarding:read')) return <HrDashboard />;
   if (hasPermission('tickets:read')) return <EmployeeDashboard />;
   if (hasPermission('roles:read')) return <Navigate to="/settings/roles" replace />;
-  if (hasPermission('categories:read')) return <Navigate to="/settings/categories" replace />;
-  if (hasPermission('locations:read')) return <Navigate to="/settings/locations" replace />;
-  if (hasPermission('settings:read')) return <Navigate to="/settings/google" replace />;
+  if (hasPermission('categories:manage')) return <Navigate to="/settings/categories" replace />;
+  if (hasPermission('locations:manage')) return <Navigate to="/settings/locations" replace />;
   return <EmployeeDashboard />;
 };
 
@@ -76,7 +75,7 @@ const App = () => {
                   <Route path="profile" element={<ProfilePage />} />
 
                   {/* Settings Routes */}
-                  <Route element={<ProtectedRoute requiredAnyPermission={['settings:read', 'roles:read', 'categories:read', 'locations:read']} />}>
+                  <Route element={<ProtectedRoute requiredAnyPermission={['roles:read', 'categories:manage', 'locations:manage']} />}>
                     <Route path="settings/*" element={<Settings />} />
                   </Route>
 

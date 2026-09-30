@@ -1,5 +1,9 @@
 # AssetTrack — Dynamic RBAC (Option 2) Risk Audit Document
 
+> **Historical document.** This describes the original plan and parts of it no longer match
+> the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
+> configuration and API are documented in [README.md](README.md).
+
 **Document Version:** 2.1  
 **Date:** August 6, 2026  
 **Status:** Comprehensive Pre-Implementation Audit Verified  

@@ -1,0 +1,3 @@
+-- Intentionally empty: the tickets/onboarding schema it was meant to hold
+-- was created in 20260727100000_rbac_rebuild.sql. Kept so migration history
+-- stays aligned with databases that already recorded this version.

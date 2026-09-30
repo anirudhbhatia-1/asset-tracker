@@ -5,6 +5,7 @@
 //   npm run db          start (creates, migrates and seeds on first run)
 //   npm run db:reset    wipe local data and start fresh
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
@@ -37,6 +38,19 @@ const CATEGORIES = [
   ['Monitor Mount', 'M', 'Teal', 'Monitor arms and mounts'],
   ['USB Hub', 'U', 'Cyan', 'USB hubs and docks'],
 ];
+
+// PGlite allows only one process per data folder; opening it twice can
+// corrupt it. Check the port first and stop if a local database is already up.
+const portInUse = await new Promise((resolve) => {
+  const socket = net.connect({ port, host: '127.0.0.1' });
+  socket.once('connect', () => { socket.destroy(); resolve(true); });
+  socket.once('error', () => resolve(false));
+});
+if (portInUse) {
+  console.log(`[devdb] Port ${port} is already in use - a local database (another \`npm run dev\`?) is probably running.`);
+  console.log('[devdb] Not starting a second copy. Stop the other one first if the app cannot connect.');
+  process.exit(0);
+}
 
 if (process.argv.includes('--reset')) {
   fs.rmSync(dataDir, { recursive: true, force: true });
@@ -90,7 +104,10 @@ const seed = async () => {
 await migrate();
 if (isNew) await seed();
 
-const server = new PGLiteSocketServer({ db, port, host: '127.0.0.1', maxConnections: 10 });
+// Connections beyond the limit are dropped, and the API, tests and tools each
+// keep their own pool, so allow plenty; PGlite still runs queries one at a time.
+const maxConnections = Number(process.env.DEV_DB_MAX_CONNECTIONS || 50);
+const server = new PGLiteSocketServer({ db, port, host: '127.0.0.1', maxConnections });
 await server.start();
 console.log(`[devdb] Local Postgres ready at postgresql://postgres:postgres@127.0.0.1:${port}/postgres`);
 

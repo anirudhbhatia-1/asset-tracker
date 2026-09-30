@@ -14,7 +14,7 @@ export default function useEmployees() {
       const res = await getEmployees();
       setEmployees(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
-      setError(err.message || 'Failed to load employees');
+      setError(err.response?.data?.message || err.message || 'Failed to load employees');
     } finally {
       setLoading(false);
     }
@@ -66,7 +66,7 @@ export default function useEmployees() {
       toast.success('Employee profile deleted');
       return true;
     } catch (err) {
-      toast.error(err.message || 'Failed to delete employee');
+      toast.error(err.response?.data?.message || err.message || 'Failed to delete employee');
       throw err;
     }
   };

@@ -2,8 +2,8 @@ import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
+import WarrantyBadge from '../ui/WarrantyBadge';
 import { ChevronRight, MapPin, User } from 'lucide-react';
-import { getWarrantyStatus } from '../../utils/formatters';
 
 const AssetTableRow = memo(function AssetTableRow({ asset }) {
   return (
@@ -45,9 +45,9 @@ const AssetTableRow = memo(function AssetTableRow({ asset }) {
         <StatusPill status={asset.status} />
       </td>
 
-      {/* Warranty Pill */}
+      {/* Warranty countdown */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <StatusPill status={getWarrantyStatus(asset.warrantyExpiryDate)} />
+        <WarrantyBadge expiryDate={asset.warrantyExpiryDate} />
       </td>
 
       {/* Location */}

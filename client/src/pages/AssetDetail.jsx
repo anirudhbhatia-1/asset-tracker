@@ -10,7 +10,7 @@ import LinkedAccessoriesCard from '../components/asset-detail/LinkedAccessoriesC
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import { ArrowLeft, RefreshCw, PackageX } from 'lucide-react';
-import { getChildAssets } from '../api/assetsApi';
+import { getChildAssets, getAssetTickets } from '../api/assetsApi';
 
 export default function AssetDetail() {
   const { id } = useParams();
@@ -31,8 +31,13 @@ export default function AssetDetail() {
   const canAssignAsset = hasPermission('assets:assign');
   const canDeleteAsset = hasPermission('assets:delete');
   const isReadOnly = !canUpdateAsset;
+  // The linked-tickets endpoint needs both permissions; it also decides
+  // whether ticket entries link through to the Tickets page.
+  const canReadTickets = hasPermission('tickets:read');
+  const canViewAssetTickets = hasPermission('assets:read') && canReadTickets;
 
   const [childAssets, setChildAssets] = useState([]);
+  const [assetTickets, setAssetTickets] = useState([]);
 
   useEffect(() => {
     if (asset?.id) {
@@ -41,6 +46,21 @@ export default function AssetDetail() {
         .catch(() => {});
     }
   }, [asset?.id]);
+
+  // Linked tickets are a nice-to-have on this page: a failed request just
+  // leaves the timeline showing audit history alone. Keyed on the asset
+  // object (not just its id) so Refresh and lifecycle actions reload them too.
+  useEffect(() => {
+    if (!asset?.id || !canViewAssetTickets) {
+      setAssetTickets([]);
+      return undefined;
+    }
+    let cancelled = false;
+    getAssetTickets(asset.id)
+      .then(res => { if (!cancelled) setAssetTickets(res.data?.data || []); })
+      .catch(() => { if (!cancelled) setAssetTickets([]); });
+    return () => { cancelled = true; };
+  }, [asset, canViewAssetTickets]);
 
   if (loading) {
     return (
@@ -139,7 +159,13 @@ export default function AssetDetail() {
 
         {/* 4. Chronological Audit Timeline */}
         <div className="md:col-span-1 lg:col-span-1 md:sticky md:top-24">
-          <HistoryTimeline history={asset.history || []} loading={loading} />
+          <HistoryTimeline
+            history={asset.history || []}
+            tickets={assetTickets}
+            assetId={asset.id}
+            canOpenTickets={canReadTickets}
+            loading={loading}
+          />
         </div>
       </div>
     </div>

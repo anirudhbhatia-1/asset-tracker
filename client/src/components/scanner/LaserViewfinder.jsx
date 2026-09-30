@@ -19,7 +19,7 @@ export default function LaserViewfinder({ onRetryCamera }) {
         <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-danger to-transparent shadow-[0_0_12px_#f43f5e] animate-scanline opacity-75" />
 
         <CameraOff className="w-10 h-10 text-secondary mb-3" />
-        <h4 className="text-sm font-semibold text-secondary">Laser Viewfinder (Simulator Mode)</h4>
+        <h4 className="text-sm font-semibold text-secondary">Camera Unavailable</h4>
         <p className="text-xs text-secondary mt-1 max-w-[200px]">
           Hardware webcam stream offline or permission denied.
         </p>
@@ -29,14 +29,14 @@ export default function LaserViewfinder({ onRetryCamera }) {
       <div className="mt-5 flex flex-col sm:flex-row items-center gap-3 relative z-10">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs font-medium">
           <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
-          <span>Use the Serial Simulator below to test decoding</span>
+          <span>Enter the serial number below to look it up</span>
         </div>
 
         {onRetryCamera && (
           <button
             type="button"
             onClick={onRetryCamera}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent text-white text-xs font-semibold transition-colors shadow-md shadow-accent/20 cursor-pointer shrink-0"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent text-on-accent text-xs font-semibold transition-colors shadow-md shadow-accent/20 cursor-pointer shrink-0"
           >
             <Camera className="w-3.5 h-3.5" />
             <span>Enable Camera</span>

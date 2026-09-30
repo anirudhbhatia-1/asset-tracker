@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { User, Mail, Building2, MapPin, ShieldCheck, Laptop, Trash2, Key, Edit3, Package } from 'lucide-react';
+import { onActivateKey } from '../../utils/a11y';
 
 const toTitleCase = (str) => {
   if (!str) return '';
@@ -44,6 +45,9 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
   return (
     <div
       onClick={() => onClick && onClick(employee)}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? onActivateKey(() => onClick(employee)) : undefined}
       className="bg-surface rounded-2xl border border-border/80 p-5 shadow-sm hover:border-border/80 hover:bg-surface/90 transition-all cursor-pointer group flex flex-col justify-between h-full relative overflow-hidden"
     >
       {/* Top Section: Avatar & Verified Badge */}
@@ -86,7 +90,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
                 </span>
               ) : (
                 <span
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-base/60 text-secondary/70 border border-border/50"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-base/60 text-secondary border border-border/50"
                 >
                   <User className="w-3 h-3" />
                   <span>No Login</span>
@@ -95,9 +99,10 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
             </>
           )}
 
-          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
+          <div className="flex items-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-all">
             <button
               type="button"
+              aria-label="Assign Hardware"
               onClick={(e) => { e.stopPropagation(); onClick && onClick(employee, 'bulk-assign'); }}
               className="p-1.5 rounded-lg text-secondary hover:text-success hover:bg-raised/60 transition-all"
               title="Assign Hardware"
@@ -106,6 +111,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
             </button>
             <button
               type="button"
+              aria-label="Manage Login & Role"
               onClick={handleEditRole}
               className="p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-raised/60 transition-all"
               title="Manage Login & Role"
@@ -115,6 +121,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onClick, onDelete })
             {onDelete && (
               <button
                 type="button"
+                aria-label="Delete employee profile"
                 onClick={handleDelete}
                 className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised/60 transition-all"
                 title="Delete employee profile"

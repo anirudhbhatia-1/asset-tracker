@@ -8,9 +8,19 @@ import { Laptop, Ticket as TicketIcon, Calendar, Plus, PackageX } from 'lucide-r
 import { Link } from 'react-router-dom';
 import CreateTicketModal from '../components/forms/CreateTicketModal';
 import TicketDetailsModal from '../components/tickets/TicketDetailsModal';
+import ReopenTicketModal from '../components/tickets/ReopenTicketModal';
+import { onActivateKey } from '../utils/a11y';
 
-export default function EmployeeDashboard() {
+function AssetLinkOrDiv({ linkable, to, className, children }) {
+  return linkable
+    ? <Link to={to} className={className}>{children}</Link>
+    : <div className={className}>{children}</div>;
+}
+
+// `embedded` hides the page title when rendered inside another dashboard (Director view).
+export default function EmployeeDashboard({ embedded = false }) {
   const { user, hasPermission } = useAuth();
+  const canViewAssets = hasPermission('assets:read');
   const [assets, setAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
   
@@ -18,6 +28,7 @@ export default function EmployeeDashboard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [ticketInitialParams, setTicketInitialParams] = useState({ type: 'issue', assetId: '' });
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [reopeningTicket, setReopeningTicket] = useState(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -41,12 +52,14 @@ export default function EmployeeDashboard() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-primary tracking-tight">Welcome, {user?.name || user?.roleName || 'Employee'}</h1>
-        <p className="text-sm text-secondary mt-1">
-          View your assigned hardware and manage support requests.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold text-primary tracking-tight">Welcome, {user?.name || user?.roleName || 'Employee'}</h1>
+          <p className="text-sm text-secondary mt-1">
+            View your assigned hardware and manage support requests.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* My Assets */}
@@ -72,7 +85,8 @@ export default function EmployeeDashboard() {
                   {safeAssets.map(asset => (
                     <div key={asset.id} className="bg-base/80 p-3.5 rounded-xl border border-border/80 flex flex-col gap-3">
                       <div className="flex items-center justify-between gap-3 min-w-0">
-                        <Link to={`/assets/${asset.id}`} className="flex items-center gap-3 min-w-0 flex-1 group">
+                        {/* Asset detail needs assets:read; plain employees get a static card. */}
+                        <AssetLinkOrDiv linkable={canViewAssets} to={`/assets/${asset.id}`} className={`flex items-center gap-3 min-w-0 flex-1 ${canViewAssets ? 'group' : ''}`}>
                           <Badge badgeChar={asset.categoryBadgeChar || asset.categoryName?.[0] || '?'} color={asset.categoryColor} title={asset.categoryName} />
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-bold text-primary truncate group-hover:text-accent transition-colors">{asset.name}</div>
@@ -81,7 +95,7 @@ export default function EmployeeDashboard() {
                               {asset.model && <span className="truncate">· {asset.model}</span>}
                             </div>
                           </div>
-                        </Link>
+                        </AssetLinkOrDiv>
                         <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">
                           <StatusPill status={asset.status} />
                           {asset.assignedDate && (
@@ -122,7 +136,7 @@ export default function EmployeeDashboard() {
                   setTicketInitialParams({ type: 'issue', assetId: '' });
                   setIsCreateModalOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-on-accent text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> Raise Ticket
               </button>
@@ -140,7 +154,7 @@ export default function EmployeeDashboard() {
              ) : (
                <div className="space-y-3">
                  {recentTickets.map(ticket => (
-                    <div key={ticket.id} onClick={() => setSelectedTicket(ticket)} className={`p-3.5 rounded-xl border flex flex-col gap-3 cursor-pointer transition-colors ${ticket.status === 'closed' ? 'bg-base/40 border-border/40 opacity-75' : 'bg-base/80 border-border/80 hover:bg-raised/50'}`}>
+                    <div key={ticket.id} role="button" tabIndex={0} onClick={() => setSelectedTicket(ticket)} onKeyDown={onActivateKey(() => setSelectedTicket(ticket))} className={`p-3.5 rounded-xl border flex flex-col gap-3 cursor-pointer transition-colors ${ticket.status === 'closed' ? 'bg-base/40 border-border/40 opacity-75' : 'bg-base/80 border-border/80 hover:bg-raised/50'}`}>
                        <div className="flex items-center justify-between gap-4">
                          <div className="flex-1 min-w-0">
                            <div className="flex items-center gap-2 mb-1">
@@ -182,8 +196,7 @@ export default function EmployeeDashboard() {
                            <button 
                              onClick={(e) => { 
                                e.stopPropagation(); 
-                               const note = prompt('Why are you reopening this ticket?');
-                               if (note !== null) reopenTicket(ticket.id, note);
+                               setReopeningTicket(ticket);
                              }}
                              className="flex-1 py-1.5 bg-error/10 hover:bg-error/20 text-error text-xs font-medium rounded-lg transition-colors border border-error/20"
                            >
@@ -211,6 +224,7 @@ export default function EmployeeDashboard() {
         initialAssetId={ticketInitialParams.assetId}
       />
       <TicketDetailsModal isOpen={!!selectedTicket} ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdate={updateTicket} />
+      <ReopenTicketModal ticket={reopeningTicket} onClose={() => setReopeningTicket(null)} onReopen={reopenTicket} />
     </div>
   );
 }

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 const ChangePasswordModal = ({ isOpen, onClose }) => {
   const { logout } = useAuth();
@@ -18,6 +19,11 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
   
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(dialogRef, isOpen, () => handleClose());
 
   if (!isOpen) return null;
 
@@ -67,17 +73,18 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleClose}>
-      <div 
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} 
         className="bg-surface w-full max-w-md rounded-2xl shadow-xl border border-border/80 flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-4 duration-300"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-border/60 flex items-center justify-between bg-base/50 shrink-0 rounded-t-2xl">
-          <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+          <h2 id={titleId} className="text-lg font-bold text-primary flex items-center gap-2">
             <Lock className="w-5 h-5 text-accent" />
             Change Password
           </h2>
           <button
+            aria-label="Close"
             onClick={handleClose}
             className="p-2 -mr-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
           >
@@ -108,6 +115,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                 />
                 <button
                   type="button"
+                  aria-label={showCurrent ? 'Hide password' : 'Show password'}
                   onClick={() => setShowCurrent(!showCurrent)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-primary"
                   tabIndex="-1"
@@ -129,6 +137,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                 />
                 <button
                   type="button"
+                  aria-label={showNew ? 'Hide password' : 'Show password'}
                   onClick={() => setShowNew(!showNew)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-primary"
                   tabIndex="-1"
@@ -150,6 +159,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                 />
                 <button
                   type="button"
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-primary"
                   tabIndex="-1"
@@ -176,11 +186,11 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
             type="submit"
             form="change-password-form"
             disabled={loading}
-            className="px-6 py-2 text-sm font-bold bg-accent hover:bg-accent/90 text-white rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 text-sm font-bold bg-accent hover:bg-accent/90 text-on-accent rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-on-accent/30 border-t-on-accent rounded-full animate-spin" />
                 Updating...
               </>
             ) : (

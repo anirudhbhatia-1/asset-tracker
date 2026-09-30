@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getEmployeeAssets } from '../../api/employeesApi';
 import { getCategories } from '../../api/categoriesApi';
 import toast from 'react-hot-toast';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', initialAssetId = '' }) => {
   const { user } = useAuth();
@@ -59,6 +60,11 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
     }
   }, [isOpen, user, initialType, initialAssetId]);
 
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(dialogRef, isOpen, onClose);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -88,10 +94,10 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50">
-          <h2 className="text-lg font-semibold text-primary">Raise a Ticket</h2>
-          <button onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <h2 id={titleId} className="text-lg font-semibold text-primary">Raise a Ticket</h2>
+          <button aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -212,7 +218,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
                 <button
                   type="submit"
                   disabled={submitting || !title.trim()}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Submit Ticket

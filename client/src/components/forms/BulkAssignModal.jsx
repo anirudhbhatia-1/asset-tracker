@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useId } from 'react';
 import { X, Loader2, Package, Search, CheckSquare, Square, ChevronDown, ChevronRight } from 'lucide-react';
 import { getAssets, bulkAssignAssets } from '../../api/assetsApi';
 import toast from 'react-hot-toast';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }) {
   const [assets, setAssets] = useState([]);
@@ -100,22 +101,27 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
     }
   };
 
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(dialogRef, isOpen && !!employee, onClose);
+
   if (!isOpen || !employee) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-primary">Assign Hardware</h2>
+            <h2 id={titleId} className="text-base font-semibold text-primary">Assign Hardware</h2>
             <p className="text-xs text-secondary mt-0.5">
               Select available assets to assign to <span className="font-medium text-primary">{employee.name}</span>
             </p>
           </div>
-          <button onClick={onClose} className="p-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button type="button" onClick={onClose} aria-label="Close" className="p-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -167,6 +173,9 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
                       type="button"
                       onClick={e => { e.stopPropagation(); toggleCategory(cat); }}
                       className="shrink-0"
+                      role="checkbox"
+                      aria-checked={allSelected ? true : someSelected ? 'mixed' : false}
+                      aria-label={`Select all ${cat} assets`}
                     >
                       {allSelected
                         ? <CheckSquare className="w-4 h-4 text-accent" />
@@ -175,9 +184,18 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
                         : <Square className="w-4 h-4 text-secondary" />}
                     </button>
                     <span className="text-xs font-semibold text-secondary uppercase tracking-wider flex-1">
-                      {cat} <span className="text-secondary/60 font-normal">({catAssets.length})</span>
+                      {cat} <span className="text-secondary font-normal">({catAssets.length})</span>
                     </span>
-                    {isCollapsed ? <ChevronRight className="w-4 h-4 text-secondary" /> : <ChevronDown className="w-4 h-4 text-secondary" />}
+                    {/* The header row is click-to-collapse for mouse users; this button is the keyboard path. */}
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); toggleCollapse(cat); }}
+                      aria-expanded={!isCollapsed}
+                      aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${cat}`}
+                      className="shrink-0 rounded"
+                    >
+                      {isCollapsed ? <ChevronRight className="w-4 h-4 text-secondary" /> : <ChevronDown className="w-4 h-4 text-secondary" />}
+                    </button>
                   </div>
 
                   {/* Assets in Category */}
@@ -190,6 +208,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
                             key={asset.id}
                             type="button"
                             onClick={() => toggleAsset(asset.id)}
+                            aria-pressed={isSelected}
                             className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                               isSelected ? 'bg-accent/8' : 'hover:bg-raised/20'
                             }`}
@@ -234,7 +253,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
               type="button"
               onClick={handleSubmit}
               disabled={submitting || selectedIds.size === 0 || loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Assign {selectedIds.size > 0 ? `${selectedIds.size} Asset${selectedIds.size > 1 ? 's' : ''}` : 'Assets'}

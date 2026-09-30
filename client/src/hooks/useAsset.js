@@ -22,7 +22,7 @@ export default function useAsset(id) {
       const res = await getAsset(id);
       setAsset(res.data?.data || res.data || null);
     } catch (err) {
-      setError(err.message || 'Failed to load asset details');
+      setError(err.response?.data?.message || err.message || 'Failed to load asset details');
     } finally {
       setLoading(false);
     }
@@ -40,7 +40,7 @@ export default function useAsset(id) {
       toast.success('Asset details updated');
       return updated;
     } catch (err) {
-      toast.error(err.message || 'Failed to update notes');
+      toast.error(err.response?.data?.message || err.message || 'Failed to update asset');
       throw err;
     }
   };
@@ -53,7 +53,7 @@ export default function useAsset(id) {
       toast.success('Asset assigned successfully');
       return updated;
     } catch (err) {
-      toast.error(err.message || 'Failed to assign asset');
+      toast.error(err.response?.data?.message || err.message || 'Failed to assign asset');
       throw err;
     }
   };
@@ -66,7 +66,7 @@ export default function useAsset(id) {
       toast.success('Asset returned to stock');
       return updated;
     } catch (err) {
-      toast.error(err.message || 'Failed to return asset');
+      toast.error(err.response?.data?.message || err.message || 'Failed to return asset');
       throw err;
     }
   };
@@ -79,7 +79,7 @@ export default function useAsset(id) {
       toast.success('Asset decommissioned and retired');
       return updated;
     } catch (err) {
-      toast.error(err.message || 'Failed to retire asset');
+      toast.error(err.response?.data?.message || err.message || 'Failed to retire asset');
       throw err;
     }
   };
@@ -90,7 +90,7 @@ export default function useAsset(id) {
       toast.success('Asset permanently deleted');
       return true;
     } catch (err) {
-      toast.error(err.message || 'Failed to delete asset');
+      toast.error(err.response?.data?.message || err.message || 'Failed to delete asset');
       throw err;
     }
   };

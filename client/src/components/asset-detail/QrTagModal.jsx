@@ -1,9 +1,15 @@
-import React, { useRef } from 'react';
+import React, { useRef, useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, Printer } from 'lucide-react';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 export default function QrTagModal({ isOpen, onClose, asset }) {
   const printRef = useRef(null);
+
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(dialogRef, isOpen && !!asset, onClose);
 
   if (!isOpen || !asset) return null;
 
@@ -63,7 +69,7 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
             }
             .model {
               font-size: 10px;
-              color: #9ca3af;
+              color: #6b7280;
             }
           </style>
         </head>
@@ -85,14 +91,15 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-surface border border-border rounded-2xl shadow-xl overflow-hidden">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-sm bg-surface border border-border rounded-2xl shadow-xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-base/50">
           <div>
-            <h2 className="text-base font-semibold text-primary">Asset QR Tag</h2>
+            <h2 id={titleId} className="text-base font-semibold text-primary">Asset QR Tag</h2>
             <p className="text-xs text-secondary mt-0.5">Scan to identify this asset</p>
           </div>
           <button
+            aria-label="Close"
             onClick={onClose}
             className="p-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors"
           >
@@ -121,7 +128,7 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
                 {asset.serialNumber}
               </p>
               {asset.model && (
-                <p className="text-[10px] text-gray-400">{asset.model}</p>
+                <p className="text-[10px] text-gray-500">{asset.model}</p>
               )}
             </div>
           </div>
@@ -144,7 +151,7 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
           <button
             type="button"
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors"
           >
             <Printer className="w-4 h-4" />
             Print Tag

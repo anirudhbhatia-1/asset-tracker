@@ -1,4 +1,4 @@
-import { scanSerial } from '../api/assetsApi';
+import { checkSerialExists } from '../api/assetsApi';
 
 /**
  * Generates a random serial string matching pattern SN-[A-Z]{3}[0-9]{3}
@@ -21,30 +21,27 @@ export function generateSerialPattern() {
 }
 
 /**
- * Generates and checks uniqueness against backend via GET /api/serial/scan/:serial.
- * Retries automatically if collision occurs.
+ * Generates a serial and checks uniqueness via GET /api/assets/serial-exists.
+ * Retries on collision. Throws if no unused serial could be confirmed (e.g. the
+ * check keeps failing) rather than returning an unchecked one.
  */
 export async function generateUniqueSerial(maxRetries = 10) {
+  let lastError = null;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const candidate = generateSerialPattern();
     try {
-      const res = await scanSerial(candidate);
-      const assetData = res.data?.data || res.data;
-      // If scanSerial returns 200/found asset, collision exists! Try again.
-      if (!assetData || !assetData.id) {
+      if (!(await checkSerialExists(candidate))) {
         return candidate;
       }
     } catch (err) {
-      // If scanSerial returns 404 ("No asset found for this serial number"), candidate is unique!
-      if (err?.status === 404 || err?.message?.toLowerCase().includes('no asset found') || err?.response?.status === 404) {
-        return candidate;
-      }
-      // If some other network/server error occurred on the check, we still check or retry
-      if (attempt === maxRetries) {
-        return candidate;
-      }
+      lastError = err;
     }
   }
-  // Fallback if max retries exceeded
-  return generateSerialPattern();
+  const error = new Error(
+    lastError
+      ? (lastError.response?.data?.message || lastError.message || 'Could not check serial uniqueness')
+      : 'Could not find an unused serial number'
+  );
+  error.cause = lastError;
+  throw error;
 }

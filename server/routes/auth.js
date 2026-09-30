@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { body } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const { validateSession } = require('../middleware/validateSession');
@@ -6,7 +7,20 @@ const authService = require('../services/authService');
 
 const router = express.Router();
 
-router.post('/login', [
+// Slows password guessing; successful logins don't use up the allowance, so a
+// shared office network isn't locked out by normal use.
+const createPasswordLoginLimiter = (overrides = {}) => rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: true, message: 'Too many failed login attempts. Please try again in 15 minutes.', code: 429 },
+  ...overrides,
+});
+const passwordLoginLimiter = createPasswordLoginLimiter();
+
+router.post('/login', passwordLoginLimiter, [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').notEmpty().withMessage('Password is required'),
   validateRequest
@@ -51,3 +65,4 @@ router.patch('/change-password', [
 });
 
 module.exports = router;
+module.exports.createPasswordLoginLimiter = createPasswordLoginLimiter;

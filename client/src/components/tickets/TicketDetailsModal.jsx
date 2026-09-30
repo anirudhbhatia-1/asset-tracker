@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { X, Check, Loader2, Package, Search, ArrowRightLeft, History } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getAssets } from '../../api/assetsApi';
 import { useTickets } from '../../hooks/useTickets';
 import { formatDateTime } from '../../utils/formatters';
+import { TicketAgeBadge } from './TicketStatusBadge';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -82,6 +84,11 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
     }
   };
 
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(dialogRef, isOpen && !!ticket, onClose);
+
   if (!isOpen || !ticket) return null;
 
   const handleSubmit = async (e) => {
@@ -119,25 +126,26 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   };
 
   const getEventIcon = (type) => {
-    if (type === 'created') return <Package className="w-3 h-3 text-white" />;
-    if (type === 'transferred') return <ArrowRightLeft className="w-3 h-3 text-white" />;
-    if (type === 'resolved' || type === 'rejected' || type === 'closed') return <Check className="w-3 h-3 text-white" />;
-    return <History className="w-3 h-3 text-white" />;
+    if (type === 'created') return <Package className="w-3 h-3 text-on-accent" />;
+    if (type === 'transferred') return <ArrowRightLeft className="w-3 h-3 text-on-accent" />;
+    if (type === 'resolved' || type === 'rejected' || type === 'closed') return <Check className="w-3 h-3 text-on-accent" />;
+    return <History className="w-3 h-3 text-on-accent" />;
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-primary">Ticket #{ticket.id}</h2>
+            <h2 id={titleId} className="text-lg font-semibold text-primary">Ticket #{ticket.id}</h2>
             <StatusBadge status={ticket.status} />
+            <TicketAgeBadge ticket={ticket} />
           </div>
-          <button onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -159,7 +167,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
               </div>
               <div>
                 <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Date</h3>
-                <p className="text-sm text-primary">{new Date(ticket.created_at).toLocaleDateString()}</p>
+                <p className="text-sm text-primary">{formatDateTime(ticket.created_at)}</p>
               </div>
             </div>
 
@@ -274,7 +282,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                   >
                     <option value="">-- No asset selected --</option>
                     {assets.map(a => (
-                      <option key={a.id} value={a.id}>{a.name} ({a.serial_number})</option>
+                      <option key={a.id} value={a.id}>{a.name} ({a.serialNumber})</option>
                     ))}
                   </select>
                 </div>
@@ -374,7 +382,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                         }
                       }}
                       disabled={submitting}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors cursor-pointer"
                     >
                       {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                       Confirm Resolution
@@ -393,7 +401,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
               form="resolve-form"
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (showTransferMode ? <ArrowRightLeft className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
               {showTransferMode ? 'Confirm Transfer' : 'Save Changes'}
@@ -402,7 +410,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
           {!isHandlingAdmin && (
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               Close
             </button>

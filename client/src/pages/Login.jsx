@@ -116,7 +116,7 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-accent hover:bg-accent/90 text-white rounded-xl font-semibold shadow-lg shadow-accent/25 hover:shadow-accent/40 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 mt-4"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-accent hover:bg-accent/90 text-on-accent rounded-xl font-semibold shadow-lg shadow-accent/25 hover:shadow-accent/40 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 mt-4"
           >
             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
           </button>

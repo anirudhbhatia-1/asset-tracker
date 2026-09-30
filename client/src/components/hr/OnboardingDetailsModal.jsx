@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { X, Loader2, Check, Package, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getAssets } from '../../api/assetsApi';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 const StatusBadge = ({ status }) => {
   const styles = {
     pending: 'bg-raised text-secondary border-border',
     in_progress: 'bg-warning/10 text-warning border-warning/20',
     arranged: 'bg-success/10 text-success border-success/20',
-    completed: 'bg-success text-white border-success',
+    completed: 'bg-success text-on-accent border-success',
     cancelled: 'bg-error/10 text-error border-error/20'
   };
   return (
@@ -97,21 +98,26 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
     }
   };
 
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(dialogRef, isOpen && !!request, onClose);
+
   if (!isOpen || !request) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative w-full max-w-3xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-primary">Onboarding #{request.id}</h2>
+            <h2 id={titleId} className="text-lg font-semibold text-primary">Onboarding #{request.id}</h2>
             <StatusBadge status={fullData?.status || request.status} />
           </div>
-          <button onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -198,7 +204,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                                 <button
                                   onClick={() => handleFulfillItem(item.id)}
                                   disabled={!selectedAssetId}
-                                  className="px-3 py-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-medium rounded-md disabled:opacity-50 transition-colors"
+                                  className="px-3 py-1.5 bg-accent hover:bg-accent/90 text-on-accent text-xs font-medium rounded-md disabled:opacity-50 transition-colors"
                                 >
                                   Fulfill
                                 </button>
@@ -260,7 +266,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
 
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-secondary hover:bg-secondary/90 rounded-lg shadow-sm transition-colors"
+            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-on-accent bg-secondary hover:bg-secondary/90 rounded-lg shadow-sm transition-colors"
           >
             Close
           </button>

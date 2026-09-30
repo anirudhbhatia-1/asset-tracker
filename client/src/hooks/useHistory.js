@@ -13,7 +13,7 @@ export default function useHistory(limit = 20) {
       const res = await getHistory(limit);
       setHistory(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
-      setError(err.message || 'Failed to load history events');
+      setError(err.response?.data?.message || err.message || 'Failed to load history events');
     } finally {
       if (!isBackground) setLoading(false);
     }

@@ -139,10 +139,20 @@ const getEmployeeAssets = async (id) => {
   return result.rows.map(mapAssetMini);
 };
 
+// Domains whose addresses may get a login, from LOGIN_EMAIL_DOMAINS
+// (comma-separated); defaults to the original company.com and thinkvibes.com.
+const getLoginEmailDomains = (environment = process.env) => (
+  (environment.LOGIN_EMAIL_DOMAINS || 'company.com,thinkvibes.com')
+    .split(',')
+    .map((domain) => domain.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean)
+);
+
 const validateCorporateEmail = (email) => {
-  const allowedDomains = ['@company.com', '@thinkvibes.com'];
-  if (!email || !allowedDomains.some(domain => email.toLowerCase().endsWith(domain))) {
-    const err = new Error('Login access can only be granted to corporate emails (@company.com or @thinkvibes.com)');
+  const allowedDomains = getLoginEmailDomains();
+  const emailDomain = String(email || '').toLowerCase().split('@')[1];
+  if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+    const err = new Error(`Login access can only be granted to corporate emails (${allowedDomains.map((domain) => `@${domain}`).join(' or ')})`);
     err.statusCode = 403;
     throw err;
   }
@@ -418,6 +428,7 @@ const grantGoogleAccess = async (id) => {
 };
 
 module.exports = {
+  getLoginEmailDomains,
   getEmployees,
   getEmployeeById,
   getEmployeeAssets,

@@ -26,7 +26,7 @@ export default function WebcamFeed({ videoRef, isScanning, onStop }) {
           <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-danger to-transparent shadow-[0_0_12px_#f43f5e] animate-scanline" />
 
           {/* Center aiming dot */}
-          <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/60 animate-ping" />
+          <div className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-ping" />
         </div>
       </div>
 
@@ -41,7 +41,7 @@ export default function WebcamFeed({ videoRef, isScanning, onStop }) {
           <button
             type="button"
             onClick={onStop}
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-base/80 hover:bg-surface backdrop-blur-md border border-border/60 text-xs font-medium text-secondary hover:text-white transition-colors cursor-pointer shadow-sm"
+            className="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-base/80 hover:bg-surface backdrop-blur-md border border-border/60 text-xs font-medium text-secondary hover:text-primary transition-colors cursor-pointer shadow-sm"
           >
             <Camera className="w-3.5 h-3.5 text-accent" />
             <span>Switch to Viewfinder</span>

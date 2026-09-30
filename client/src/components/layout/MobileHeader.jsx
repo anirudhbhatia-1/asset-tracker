@@ -14,8 +14,9 @@ export default function MobileHeader({ onOpenSidebar }) {
         </span>
       </div>
       <button
+        aria-label="Open navigation menu"
         onClick={onOpenSidebar}
-        className="p-2 -mr-2 rounded-lg text-secondary hover:text-white hover:bg-raised transition-colors"
+        className="p-2 -mr-2 rounded-lg text-secondary hover:text-primary hover:bg-raised transition-colors"
       >
         <Menu className="w-6 h-6" />
       </button>

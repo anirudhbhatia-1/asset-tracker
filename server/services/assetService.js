@@ -58,6 +58,13 @@ const mapAsset = (row) => {
   };
 };
 
+const serialExists = async (serial) => {
+  const { rows } = await pool.query(
+    'SELECT 1 FROM assets WHERE LOWER(serial_number) = LOWER($1) LIMIT 1', [serial]
+  );
+  return rows.length > 0;
+};
+
 const getAssets = async (filters = {}) => {
   const conditions = [];
   const params = [];
@@ -428,9 +435,22 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null)
     throw err;
   }
 
+  if (current.status === 'in-use' && Number(current.assignedTo) === Number(employeeId)) {
+    const err = new Error('Asset is already assigned to this employee');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const dateToSet = assignedDate || new Date().toISOString().substring(0, 10);
 
   await withTransaction(async (client) => {
+    // Reassigning straight from one person to another: record the hand-back
+    // first so the audit trail shows who held it before.
+    if (current.status === 'in-use' && current.assignedTo) {
+      await historyService.logEvent(id, 'returned', actorUser, current.assignedTo,
+        `Reassigned to ${emp.rows[0].name}`, null, client);
+    }
+
     await client.query(`
       UPDATE assets
       SET status = 'in-use',
@@ -527,6 +547,21 @@ const retireAsset = async (id, note, confirm, actorUser = null) => {
     `, [id]);
 
     await historyService.logEvent(id, 'retired', actorUser, previousAssignee, note || 'Asset decommissioned and retired', null, client);
+
+    // Accessories (e.g. adaptors) are not retired with their laptop; release
+    // any still held by the old assignee back to stock (or to their client).
+    const { rows: released } = await client.query(
+      `UPDATE assets
+       SET status = CASE WHEN asset_type = 'client' THEN 'returned' ELSE 'available' END,
+           assigned_to = NULL, assigned_date = NULL, updated_at = NOW()
+       WHERE parent_id = $1 AND status = 'in-use'
+       RETURNING id`,
+      [id]
+    );
+    for (const sub of released) {
+      await historyService.logEvent(sub.id, 'returned', actorUser, previousAssignee,
+        `Released because parent asset #${id} was retired`, null, client);
+    }
   });
 
   return getAssetById(id);
@@ -585,6 +620,7 @@ const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
 };
 
 module.exports = {
+  serialExists,
   getAssets,
   getAssetById,
   getAssetBySerial,

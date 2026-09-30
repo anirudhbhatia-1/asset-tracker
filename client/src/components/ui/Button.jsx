@@ -12,7 +12,7 @@ export default function Button({
   className = '',
   title,
 }) {
-  const baseClasses = 'inline-flex items-center justify-center font-medium transition-all duration-150 rounded-lg shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base';
+  const baseClasses = 'inline-flex items-center justify-center font-medium transition-all duration-150 rounded-lg shrink-0 cursor-pointer';
 
   const sizeClasses = {
     sm: 'h-8 px-3 text-xs gap-1.5 min-h-[44px] sm:min-h-[32px]',
@@ -21,10 +21,10 @@ export default function Button({
   };
 
   const variantClasses = {
-    primary: 'bg-accent hover:bg-accent active:bg-indigo-700 text-white shadow-sm focus:ring-accent',
-    secondary: 'bg-surface hover:bg-raised active:bg-base text-primary border border-border hover:border-border shadow-sm focus:ring-secondary',
-    danger: 'bg-rose-600 hover:bg-danger active:bg-rose-700 text-white shadow-sm focus:ring-danger',
-    ghost: 'bg-transparent hover:bg-surface/80 active:bg-surface text-secondary hover:text-white focus:ring-secondary',
+    primary: 'bg-accent hover:bg-accent active:bg-accent-hover text-on-accent shadow-sm',
+    secondary: 'bg-surface hover:bg-raised active:bg-base text-primary border border-border hover:border-border shadow-sm',
+    danger: 'bg-danger hover:bg-danger/90 active:bg-danger text-on-accent shadow-sm',
+    ghost: 'bg-transparent hover:bg-surface/80 active:bg-surface text-secondary hover:text-primary',
   };
 
   const disabledClasses = (disabled || loading)

@@ -55,6 +55,49 @@ const getTickets = async (user, filters = {}) => {
   return rows;
 };
 
+// One ticket, with the same visibility as the list: resolvers and Directors
+// see any ticket, everyone else only their own. Unknown and hidden tickets
+// both return 404 so ticket ids can't be probed.
+const getTicketById = async (id, user) => {
+  const { rows } = await db.pool.query(`
+    SELECT t.*,
+           c.name as category_name,
+           a.name as asset_name,
+           e.name as employee_name,
+           e.email as employee_email,
+           'TK-' || LPAD(t.id::text, 4, '0') as human_readable_id
+    FROM tickets t
+    LEFT JOIN categories c ON t.category_id = c.id
+    LEFT JOIN assets a ON t.asset_id = a.id
+    LEFT JOIN employees e ON t.employee_id = e.id
+    WHERE t.id = $1
+  `, [id]);
+  const ticket = rows[0];
+  const isDirector = user.role === 'director' || user.isDirector;
+  if (!ticket || (!isDirector && !hasPermission(user, 'tickets:resolve') && ticket.employee_id !== user.id)) {
+    const err = new Error('Ticket not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  return ticket;
+};
+
+// Tickets raised about an asset, or resolved by handing it out, for the
+// asset detail timeline.
+const getTicketsForAsset = async (assetId) => {
+  const { rows } = await db.pool.query(`
+    SELECT t.id, t.type, t.title, t.status, t.created_at, t.updated_at,
+           t.asset_id, t.resolved_asset_id, t.current_admin_type,
+           e.name AS employee_name,
+           'TK-' || LPAD(t.id::text, 4, '0') AS human_readable_id
+    FROM tickets t
+    LEFT JOIN employees e ON t.employee_id = e.id
+    WHERE t.asset_id = $1 OR t.resolved_asset_id = $1
+    ORDER BY t.created_at DESC
+  `, [assetId]);
+  return rows;
+};
+
 const createTicket = async (user, payload) => {
   const { type, title, description, assetId, categoryId, targetAdminType } = payload;
   const employeeId = user.id;
@@ -101,6 +144,21 @@ const updateTicket = async (id, payload, adminUser) => {
   const current = currentRows[0];
   
   const newStatus = status || current.status;
+
+  // Same rule as transfers: only the owning queue (or a Director) may work a
+  // ticket, and closing it out as resolved/rejected needs tickets:resolve.
+  const isDirector = adminUser.role === 'director' || adminUser.isDirector;
+  if (!isDirector && (!adminUser.adminType || adminUser.adminType !== current.current_admin_type)) {
+    const err = new Error('You can only update tickets that are currently in your queue.');
+    err.statusCode = 403;
+    throw err;
+  }
+  if (['resolved', 'rejected'].includes(newStatus) && newStatus !== current.status
+      && !hasPermission(adminUser, 'tickets:resolve')) {
+    const err = new Error("Resolving or rejecting tickets requires the 'tickets:resolve' permission.");
+    err.statusCode = 403;
+    throw err;
+  }
   const newNotes = resolutionNotes !== undefined ? resolutionNotes : current.resolution_notes;
   const newAssetId = resolvedAssetId !== undefined ? resolvedAssetId : current.resolved_asset_id;
   
@@ -269,6 +327,8 @@ const confirmTicket = async (id, employeeUser, action, note) => {
 };
 
 module.exports = {
+  getTicketById,
+  getTicketsForAsset,
   getStatusEventType,
   getTickets,
   createTicket,

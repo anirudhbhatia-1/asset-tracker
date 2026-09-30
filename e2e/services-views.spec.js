@@ -12,7 +12,8 @@ test.describe('Services Views (Tickets, Onboarding, Locations)', () => {
   test('should render Support Tickets view without errors', async ({ page }) => {
     await page.goto('/tickets');
     await expect(page.getByText('Support Tickets')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Raise Ticket' })).toBeVisible();
+    // The header always offers it; an empty list shows a second one.
+    await expect(page.getByRole('button', { name: 'Raise Ticket' }).first()).toBeVisible();
   });
 
   test('should render HR Onboarding view without errors', async ({ page }) => {

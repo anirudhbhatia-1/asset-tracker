@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { X, Check } from 'lucide-react';
 import Badge from '../ui/Badge';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 const COLOR_OPTIONS = [
   { label: 'Indigo', value: '#6366f1' },
@@ -38,6 +39,11 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
     }
   }, [isOpen, initialData]);
 
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(dialogRef, isOpen, onClose);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -55,16 +61,16 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
       <div className="absolute inset-0 bg-base/80 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative bg-base border border-border/80 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative bg-base border border-border/80 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="text-xl font-bold text-primary">
+          <h2 id={titleId} className="text-xl font-bold text-primary">
             {initialData ? 'Edit Category' : 'Create Category'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-secondary hover:text-white hover:bg-surface transition-colors"
+            className="p-2 rounded-xl text-secondary hover:text-primary hover:bg-surface transition-colors"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -140,7 +146,7 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
                   type="button"
                   onClick={() => setFormData({ ...formData, color: c.value })}
                   className={`h-10 rounded-xl flex items-center justify-center transition-all ${
-                    formData.color === c.value ? 'ring-2 ring-white ring-offset-2 ring-offset-base scale-105' : 'hover:scale-105'
+                    formData.color === c.value ? 'ring-2 ring-primary ring-offset-2 ring-offset-base scale-105' : 'hover:scale-105'
                   }`}
                   style={{ backgroundColor: c.value }}
                   title={c.label}
@@ -166,7 +172,7 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !formData.name.trim()}
-            className="px-5 py-2.5 rounded-xl bg-accent hover:bg-accent text-sm font-semibold text-white transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2.5 rounded-xl bg-accent hover:bg-accent text-sm font-semibold text-on-accent transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {isSubmitting ? 'Saving...' : 'Save Category'}
           </button>

@@ -63,7 +63,14 @@ app.use(errorHandler);
 
 let server;
 if (require.main === module) {
-  server = app.listen(PORT, () => {
+  server = app.listen(PORT, (err) => {
+    // Express 5 reports listen failures (e.g. port in use) here, not as a throw.
+    if (err) {
+      console.error(err.code === 'EADDRINUSE'
+        ? `Port ${PORT} is already in use. Is another copy of the API running? Stop it, or set PORT to a free port.`
+        : `Could not start the API: ${err.message}`);
+      process.exit(1);
+    }
     console.log(`Server listening on port ${PORT}`);
     const googleProblem = getGoogleAuthConfigProblem();
     if (googleProblem) {

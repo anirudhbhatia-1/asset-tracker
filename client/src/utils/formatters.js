@@ -95,3 +95,26 @@ export function getWarrantyDaysLeft(warrantyExpiryDate) {
   return `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} ago`;
 }
 
+
+/**
+ * Compact warranty indicator for list views. Returns { label, tone, title }
+ * where tone is 'danger' | 'warning' | 'success' | 'muted'. Days are counted
+ * the same way as getWarrantyStatus, so amber matches its 60-day window.
+ */
+export function getWarrantyBadge(warrantyExpiryDate, now = new Date()) {
+  const expiry = warrantyExpiryDate ? new Date(warrantyExpiryDate) : null;
+  if (!expiry || !isValid(expiry)) {
+    return { label: 'No warranty', tone: 'muted', title: 'No warranty expiry date recorded' };
+  }
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
+  const title = `Warranty expires ${format(expiry, 'MMM dd, yyyy')}`;
+
+  if (diffDays < 0) return { label: 'Expired', tone: 'danger', title: `Warranty expired ${format(expiry, 'MMM dd, yyyy')}` };
+  if (diffDays === 0) return { label: 'Expires today', tone: 'warning', title };
+  if (diffDays <= 60) return { label: `${diffDays}d left`, tone: 'warning', title };
+  if (diffDays < 365) return { label: `${Math.floor(diffDays / 30)}mo left`, tone: 'success', title };
+  return { label: `${Math.floor(diffDays / 365)}y left`, tone: 'success', title };
+}

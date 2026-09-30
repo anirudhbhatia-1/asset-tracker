@@ -2,6 +2,9 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import app from '../index';
 import { pool } from '../db';
+import { hashSessionToken } from '../services/sessionToken';
+
+const EMPLOYEE_TOKEN = 'test_employee_token_cat';
 
 describe('Category & Location Permission Integration Tests', () => {
   let adminToken;
@@ -18,17 +21,18 @@ describe('Category & Location Permission Integration Tests', () => {
     const empRes = await pool.query("SELECT id, email FROM employees WHERE role = 'employee' LIMIT 1");
     if (empRes.rows.length > 0) {
       const emp = empRes.rows[0];
-      const tokenRes = await pool.query(
-        "INSERT INTO sessions (token, employee_id, expires_at) VALUES ('test_employee_token_cat', $1, NOW() + INTERVAL '1 hour') RETURNING token",
-        [emp.id]
+      // Sessions store a hash; the client presents the raw token.
+      await pool.query(
+        "INSERT INTO sessions (token, employee_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')",
+        [hashSessionToken(EMPLOYEE_TOKEN), emp.id]
       );
-      employeeToken = tokenRes.rows[0].token;
+      employeeToken = EMPLOYEE_TOKEN;
     }
   });
 
   afterAll(async () => {
     if (employeeToken) {
-      await pool.query("DELETE FROM sessions WHERE token = 'test_employee_token_cat'");
+      await pool.query('DELETE FROM sessions WHERE token = $1', [hashSessionToken(EMPLOYEE_TOKEN)]);
     }
   });
 

@@ -158,7 +158,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                   onClick={() => setAssetType('company')}
                   className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     assetType === 'company'
-                      ? 'bg-accent text-white shadow-sm'
+                      ? 'bg-accent text-on-accent shadow-sm'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -170,7 +170,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                   onClick={() => setAssetType('client')}
                   className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     assetType === 'client'
-                      ? 'bg-accent text-white shadow-sm'
+                      ? 'bg-accent text-on-accent shadow-sm'
                       : 'text-secondary hover:text-primary'
                   }`}
                 >
@@ -269,8 +269,9 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
             </div>
             <button
               type="button"
+              aria-label="Copy serial number"
               onClick={handleCopySerial}
-              className="p-2 rounded-lg text-secondary hover:text-white hover:bg-surface transition-colors shrink-0 cursor-pointer"
+              className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-surface transition-colors shrink-0 cursor-pointer"
               title="Copy serial number"
             >
               {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}

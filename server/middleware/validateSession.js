@@ -1,4 +1,5 @@
 const { pool } = require('../db');
+const { hashSessionToken } = require('../services/sessionToken');
 
 // This is only used for employees with role_id IS NULL (pre-role-assignment). It is NOT a live mirror of the role_permissions table — do not treat it as authoritative once a Director has customized a system role via the Role Matrix.
 const DEFAULT_ROLE_PERMISSIONS = {
@@ -100,7 +101,7 @@ const validateSession = async (req, res, next) => {
       LEFT JOIN permissions p ON rp.permission_id = p.id
       WHERE s.token = $1 AND s.expires_at > NOW() AND e.deleted_at IS NULL
       GROUP BY s.employee_id, e.id, r.id, s.expires_at
-    `, [token]);
+    `, [hashSessionToken(token)]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: true, message: 'Unauthorized - Invalid or expired session token', code: 401 });

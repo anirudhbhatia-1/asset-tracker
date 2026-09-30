@@ -1,64 +1,51 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==========================================
-# AssetTrack SQLite Database Backup Script
+# AssetTrack Postgres (Supabase) Backup
 # ==========================================
-# Best run via a daily cron job.
-# Example: 0 2 * * * /path/to/assettrack/scripts/backup_db.sh
+# Dumps the production database with pg_dump (PostgreSQL client tools 17+
+# must be installed on the machine running this). Best run daily via cron:
+#   0 2 * * * /path/to/assettrack/scripts/backup_db.sh >> /var/log/assettrack-backup.log 2>&1
+#
+# Settings (environment variables):
+#   DATABASE_URL     connection string; if unset it is read from server/.env
+#   BACKUP_DIR       where dumps are written (default /var/backups/assettrack)
+#   RETENTION_DAYS   dumps older than this are deleted (default 30)
+#
+# Restore a dump into an EMPTY database with:
+#   pg_restore --no-owner --no-privileges -d "$TARGET_DATABASE_URL" assettrack_<timestamp>.dump
+set -euo pipefail
 
-# Configuration
-# Path to your live database file
-DB_FILE="/var/www/assettrack/server/data/assets.db"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/assettrack}"
+RETENTION_DAYS="${RETENTION_DAYS:-30}"
 
-# Directory where backups will be stored
-BACKUP_DIR="/var/backups/assettrack"
+if [ -z "${DATABASE_URL:-}" ] && [ -f "$SCRIPT_DIR/../server/.env" ]; then
+  DATABASE_URL="$(grep -E '^DATABASE_URL=' "$SCRIPT_DIR/../server/.env" | tail -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//')"
+fi
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "ERROR: DATABASE_URL is not set and was not found in server/.env" >&2
+  exit 1
+fi
+if ! command -v pg_dump >/dev/null 2>&1; then
+  echo "ERROR: pg_dump is not installed (install the PostgreSQL client tools)." >&2
+  exit 1
+fi
 
-# Number of days to retain backups
-RETENTION_DAYS=30
-
-# Ensure the backup directory exists
 mkdir -p "$BACKUP_DIR"
+TIMESTAMP="$(date +"%Y-%m-%d_%H-%M-%S")"
+BACKUP_FILE="$BACKUP_DIR/assettrack_$TIMESTAMP.dump"
 
-# Generate a timestamp (YYYY-MM-DD_HH-MM-SS)
-TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-BACKUP_NAME="assets_backup_$TIMESTAMP"
-BACKUP_ARCHIVE="$BACKUP_DIR/$BACKUP_NAME.tar.gz"
+echo "[$(date)] Starting backup to $BACKUP_FILE"
+# Custom format is compressed and restorable table-by-table with pg_restore.
+# Only the application schema is dumped, not Supabase's internal schemas.
+pg_dump "$DATABASE_URL" --format=custom --schema=public --no-owner --no-privileges --file="$BACKUP_FILE.partial"
+mv "$BACKUP_FILE.partial" "$BACKUP_FILE"
 
-echo "[$(date)] Starting backup of $DB_FILE..."
-
-# Check if the database file exists
-if [ ! -f "$DB_FILE" ]; then
-    echo "ERROR: Database file not found at $DB_FILE!"
-    exit 1
+if [ ! -s "$BACKUP_FILE" ]; then
+  echo "ERROR: backup file is empty: $BACKUP_FILE" >&2
+  exit 1
 fi
+echo "[$(date)] Backup complete: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
 
-# We use the SQLite online backup API to safely snapshot the database
-# without corrupting it if it's currently being written to.
-# This creates a temporary snapshot file.
-TEMP_BACKUP="/tmp/$BACKUP_NAME.db"
-
-sqlite3 "$DB_FILE" ".backup '$TEMP_BACKUP'"
-
-if [ $? -eq 0 ]; then
-    # Compress the snapshot into the backup directory
-    tar -czf "$BACKUP_ARCHIVE" -C /tmp "$BACKUP_NAME.db"
-    
-    if [ $? -eq 0 ]; then
-        echo "[$(date)] Backup successfully created: $BACKUP_ARCHIVE"
-        
-        # Clean up the temporary uncompressed snapshot
-        rm -f "$TEMP_BACKUP"
-        
-        # Enforce retention policy (delete backups older than RETENTION_DAYS)
-        echo "[$(date)] Cleaning up backups older than $RETENTION_DAYS days..."
-        find "$BACKUP_DIR" -name "assets_backup_*.tar.gz" -type f -mtime +$RETENTION_DAYS -delete
-        echo "[$(date)] Cleanup complete."
-        exit 0
-    else
-        echo "ERROR: Failed to compress backup."
-        rm -f "$TEMP_BACKUP"
-        exit 1
-    fi
-else
-    echo "ERROR: SQLite .backup command failed."
-    exit 1
-fi
+echo "[$(date)] Deleting backups older than $RETENTION_DAYS days"
+find "$BACKUP_DIR" -name 'assettrack_*.dump' -type f -mtime +"$RETENTION_DAYS" -delete

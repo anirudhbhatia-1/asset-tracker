@@ -50,6 +50,26 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
     );
   };
 
+  // Sortable column header: the button carries the keyboard interaction and
+  // aria-sort announces the current order to screen readers.
+  const renderSortableHeader = (field, label) => (
+    <th
+      key={field}
+      scope="col"
+      aria-sort={sortField === field ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className="px-6 py-3.5 hover:text-primary transition-colors"
+    >
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className="group/th flex items-center gap-1.5 uppercase tracking-wider font-semibold cursor-pointer rounded"
+      >
+        <span>{label}</span>
+        {renderSortIcon(field)}
+      </button>
+    </th>
+  );
+
   if (loading) {
     return <SkeletonTable rows={8} />;
   }
@@ -71,81 +91,22 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
       <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none md:hidden z-10" />
       <div className="overflow-x-auto pb-1">
         <table className="w-full text-left border-collapse min-w-[800px]">
+          <caption className="sr-only">Hardware assets. Column headers with sort buttons reorder the list.</caption>
           <thead>
             <tr className="bg-surface/90 border-b border-border/80 text-xs font-semibold uppercase tracking-wider text-secondary select-none">
-              <th className="px-6 py-3.5 w-12 text-center">Cat</th>
-
-              <th
-                onClick={() => handleSort('name')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Asset Name / Model</span>
-                  {renderSortIcon('name')}
-                </div>
+              <th scope="col" className="px-6 py-3.5 w-12 text-center">
+                <abbr title="Category" className="no-underline">Cat</abbr>
               </th>
 
-              <th
-                onClick={() => handleSort('serialNumber')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Serial Number</span>
-                  {renderSortIcon('serialNumber')}
-                </div>
-              </th>
+              {renderSortableHeader('name', 'Asset Name / Model')}
+              {renderSortableHeader('serialNumber', 'Serial Number')}
+              {renderSortableHeader('status', 'Status')}
+              {renderSortableHeader('warrantyExpiryDate', 'Warranty')}
+              {renderSortableHeader('location', 'Location')}
+              {renderSortableHeader('assigneeName', 'Assigned To')}
+              {renderSortableHeader('assignedDate', 'Assigned Date')}
 
-              <th
-                onClick={() => handleSort('status')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Status</span>
-                  {renderSortIcon('status')}
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort('warrantyExpiryDate')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Warranty</span>
-                  {renderSortIcon('warrantyExpiryDate')}
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort('location')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Location</span>
-                  {renderSortIcon('location')}
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort('assigneeName')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Assigned To</span>
-                  {renderSortIcon('assigneeName')}
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort('assignedDate')}
-                className="px-6 py-3.5 cursor-pointer group/th hover:text-primary transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Assigned Date</span>
-                  {renderSortIcon('assignedDate')}
-                </div>
-              </th>
-
-              <th className="px-6 py-3.5 text-right">Actions</th>
+              <th scope="col" className="px-6 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 bg-surface/40">

@@ -3,11 +3,17 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { User, Mail, Building2, MapPin, UserPlus } from 'lucide-react';
 import useLocations from '../../hooks/useLocations';
+import useRoles, { defaultRoleValue } from '../../hooks/useRoles';
+import { rolePayload } from '../../api/employeesApi';
+import { useAuth } from '../../context/AuthContext';
 
 const DEPARTMENTS = ['Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing', 'Sales'];
 
 export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
   const { locations } = useLocations(isOpen);
+  const { hasPermission } = useAuth();
+  const canGrantAccess = hasPermission('employees:grant-access');
+  const { roles } = useRoles(isOpen && canGrantAccess);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [department, setDepartment] = useState('');
@@ -29,10 +35,14 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
       setAddress('');
       setError('');
       setGrantAccess(false);
-      setRole('employee');
       setTemporaryPassword('');
     }
   }, [isOpen]);
+
+  // Default to the Employee role once the role list is known.
+  useEffect(() => {
+    if (isOpen) setRole(defaultRoleValue(roles));
+  }, [isOpen, roles]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,7 +61,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
         location,
         address,
         grantAccess,
-        role: grantAccess ? role : undefined,
+        ...(grantAccess ? rolePayload(role) : {}),
       });
       
       // If a temp password came back, show it instead of closing
@@ -61,7 +71,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
         onClose();
       }
     } catch (err) {
-      setError(err.message || 'Failed to add employee. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Failed to add employee. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -198,6 +208,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
         })()}
 
         {/* Grant Login Access Toggle */}
+        {canGrantAccess && (
         <div className="pt-2 border-t border-border">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -218,13 +229,14 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
                 onChange={(e) => setRole(e.target.value)}
                 className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
               >
-                <option value="employee">Employee</option>
-                <option value="hr">HR</option>
-                <option value="admin">Admin</option>
+                {roles.map((r) => (
+                  <option key={r.value} value={r.value}>{r.name}</option>
+                ))}
               </select>
             </div>
           )}
         </div>
+        )}
 
         {/* Footer Actions */}
         <div className="pt-4 border-t border-border flex justify-end gap-3 mt-8">

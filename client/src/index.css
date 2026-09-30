@@ -10,9 +10,13 @@
   --color-secondary: var(--theme-text-secondary);
   --color-accent: var(--theme-accent);
   --color-accent-hover: var(--theme-accent-hover);
+  /* Text/icons drawn on a solid accent or status fill (bg-accent, bg-success, ...). */
+  --color-on-accent: var(--theme-on-accent);
   --color-success: var(--theme-success);
   --color-warning: var(--theme-warning);
   --color-danger: var(--theme-danger);
+  /* Alias: several screens use `error` for the same red. */
+  --color-error: var(--theme-danger);
   --color-info-blue: var(--theme-info-blue);
   --color-info-purple: var(--theme-info-purple);
 }
@@ -26,13 +30,16 @@
     --theme-border: #DEE5F0;
     --theme-text-primary: #14213A;
     --theme-text-secondary: #62718A;
-    --theme-accent: #4F6EF7;
-    --theme-accent-hover: #3E5DE8;
-    --theme-success: #0F9F7A;
-    --theme-warning: #D88218;
-    --theme-danger: #D9485F;
-    --theme-info-blue: #3478F6;
-    --theme-info-purple: #7759D8;
+    /* Accent/status hues are dark enough for AA (4.5:1) text on their own
+       10% tints over bg-base, and for white text on the solid fill. */
+    --theme-accent: #2F54F6;
+    --theme-accent-hover: #2445DB;
+    --theme-on-accent: #FFFFFF;
+    --theme-success: #0B755A;
+    --theme-warning: #955A11;
+    --theme-danger: #C32841;
+    --theme-info-blue: #0B5BEF;
+    --theme-info-purple: #6F4FD6;
   }
   
   :root.dark {
@@ -44,6 +51,9 @@
     --theme-text-secondary: #9BAAC1;
     --theme-accent: #7892FF;
     --theme-accent-hover: #95A9FF;
+    /* Dark-theme accents are light tints, so white on them fails AA; use the
+       page background colour for text on solid fills instead. */
+    --theme-on-accent: #0E1728;
     --theme-success: #26B890;
     --theme-warning: #F2A43B;
     --theme-danger: #F06C80;
@@ -52,7 +62,7 @@
   }
 
   body {
-    @apply bg-base text-primary font-sans antialiased selection:bg-accent selection:text-white transition-colors duration-200;
+    @apply bg-base text-primary font-sans antialiased selection:bg-accent selection:text-on-accent transition-colors duration-200;
     background-image:
       radial-gradient(circle at 88% -12%, color-mix(in srgb, var(--theme-accent) 9%, transparent), transparent 29rem),
       linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 38%, transparent), transparent 18rem);
@@ -60,9 +70,17 @@
 
   button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
+  /* Keyboard focus ring for every interactive element; :focus-visible keeps
+     it off for mouse clicks. */
   :focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--theme-accent) 38%, transparent);
+    outline: 2px solid var(--theme-accent);
     outline-offset: 2px;
+  }
+
+  /* Readable placeholders (Tailwind's default is 50% of the text colour). */
+  ::placeholder {
+    color: var(--theme-text-secondary);
+    opacity: 1;
   }
 }
 

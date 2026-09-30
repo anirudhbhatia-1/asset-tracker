@@ -1,5 +1,9 @@
 # AssetTrack — Real-World Cloud vs. Bare Metal Cost Estimation Guide
 
+> **Historical document.** This describes the original plan and parts of it no longer match
+> the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
+> configuration and API are documented in [README.md](../README.md).
+
 **Document Version:** 1.0  
 **Date:** August 5, 2026  
 **Target Audience:** CTOs, IT Directors, Financial Controllers, DevOps Leads  

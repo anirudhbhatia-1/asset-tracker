@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import useFocusTrap from '../../hooks/useFocusTrap';
@@ -11,26 +11,20 @@ export default function Modal({
   maxWidth = 'max-w-lg', // 'max-w-md' | 'max-w-lg' | 'max-w-xl' | 'max-w-2xl'
 }) {
   const modalRef = useRef(null);
-  useFocusTrap(modalRef, isOpen);
+  const titleId = useId();
+  // Traps Tab inside the dialog and closes it on Escape
+  useFocusTrap(modalRef, isOpen, onClose);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
     // Lock body scroll while modal is open
     document.body.style.overflow = 'hidden';
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -39,6 +33,7 @@ export default function Modal({
       {/* Backdrop with blur per Design 4 */}
       <div
         onClick={onClose}
+        aria-hidden="true"
         className="fixed inset-0 bg-base/75 backdrop-blur-sm transition-opacity duration-200 animate-fadeIn"
       />
 
@@ -47,12 +42,12 @@ export default function Modal({
         ref={modalRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         className={`relative w-full ${maxWidth} bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-200 animate-scaleUp z-10`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-surface/90">
-          <h3 id="modal-title" className="text-base font-semibold text-primary">
+          <h3 id={titleId} className="text-base font-semibold text-primary">
             {title}
           </h3>
           <button

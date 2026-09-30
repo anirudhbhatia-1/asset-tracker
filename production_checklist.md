@@ -1,28 +1,61 @@
-# AssetTrack v1.0 Production Deployment Checklist
+# AssetTrack Production Checklist
 
-Before exposing AssetTrack to the internal network or the public internet, verify the following:
+Work through this before each production deploy. See README.md for what each
+setting does.
 
-## 1. Environment Configuration
-- [ ] Ensure `.env` is NOT checked into source control. *(Verified: `.gitignore` includes `.env`)*
-- [x] Set `NODE_ENV=production` on the production server. *(Handled by `ecosystem.config.js` or `server/.env.production.example`)*
-- [x] Update `VITE_API_BASE_URL` in the frontend `.env` to point to the production backend (e.g., `https://assettrack.company.internal/api`).
-- [x] Set a strong, randomly generated secret for authentication (if implemented) in the backend `.env`. *(Template provided in `server/.env.production.example`)*
+## 1. Configuration
 
-## 2. Security & HTTPS
-- [x] **HTTPS/TLS**: The application must be served over HTTPS. Use a reverse proxy (like Nginx or Caddy) to handle SSL certificates (e.g., Let's Encrypt or an internal CA). *(Boilerplate provided in `nginx.conf.example`)*
-- [x] **Firewall**: Ensure only necessary ports (80, 443) are exposed if using a reverse proxy. The Node.js application port (e.g., 3000) should be bound to `localhost` or restricted by security groups. *(Nginx proxies to `127.0.0.1:3001` in the example)*
-- [x] **CORS**: Verify `cors` middleware in `server.js` is configured to ONLY allow requests from your specific frontend origin, instead of `*`. *(Verified in `server/index.js` using `CLIENT_ORIGIN`)*
+- [ ] API environment (hosting platform variables, or `server/.env` on a VM):
+  `NODE_ENV=production`, `DATABASE_URL` (Supabase **session pooler**, port 5432),
+  `CLIENT_ORIGIN` (the web app's exact origin), `GOOGLE_CLIENT_ID`,
+  `GOOGLE_ALLOWED_DOMAIN=thinkvibes.com`, `LOGIN_EMAIL_DOMAINS=thinkvibes.com`.
+- [ ] `TRUST_PROXY_HOPS=1` if the API sits behind one reverse proxy (so login
+  rate limits see real client IPs).
+- [ ] Optional: `DATABASE_SSL_CA_FILE` pointing at Supabase's CA certificate
+  (Dashboard → Database → SSL) to verify the database certificate.
+- [ ] Web app built with the production values: `VITE_API_BASE_URL` (if the API
+  is not served under the same origin at `/api`) and `VITE_GOOGLE_CLIENT_ID`.
+- [ ] The production origin is listed under **Authorized JavaScript origins**
+  for the Google OAuth client.
+- [ ] After deploy, `GET /api/google/config` returns `"enabled": true` and
+  `GET /api/health` returns `"database": "connected"`.
+- [ ] No `.env` file, database dump or spreadsheet export is committed
+  (`.gitignore` covers them — check `git status` before pushing).
 
-## 3. Database Management (SQLite)
-- [ ] Ensure the SQLite database file (`assettrack.sqlite` or similar) is stored outside of the ephemeral deployment directory, or in a persistent volume, so data is not lost during application restarts or updates.
-- [x] **Backups**: Setup a daily cron job to back up the SQLite database file. *(Script provided in `scripts/backup_db.sh`)*
-  - Example cron: `0 2 * * * /var/www/assettrack/scripts/backup_db.sh`
+## 2. Database
 
-## 4. Process Management
-- [x] Use a process manager like **PM2** or a container orchestrator like **Docker/Kubernetes** to run the backend server. *(Config provided in `ecosystem.config.js`)*
-  - Command: `pm2 start ecosystem.config.js --env production`
-- [x] Ensure the Node.js process is configured to automatically restart on crash or server reboot. *(Handled by PM2 `autorestart: true`)*
+- [ ] Back up first: `scripts/backup_db.sh` (needs PostgreSQL client tools 17+).
+- [ ] Apply every migration in `supabase/migrations/` that production does not
+  have yet, oldest first, and check the result. Never apply files from
+  `supabase/rollbacks/` unless deliberately undoing a change.
+- [ ] Schedule the backup daily (cron example in the script header) and test a
+  restore into a scratch database at least once.
 
-## 5. Build & Serve
-- [ ] Run `npm run build` in the `client/` directory to generate the optimized static bundle.
-- [x] Serve the `client/dist/` directory using a static file server (e.g., Nginx) or configure the Node.js backend to serve the static files in production. *(Handled by `nginx.conf.example`)*
+## 3. Accounts
+
+- [ ] No real account uses a shared or default password. The seeded test
+  password (`password`) must not exist in production.
+- [ ] Only the people who need it have the Director role.
+- [ ] The GitHub repository is private.
+
+## 4. Security & HTTPS
+
+- [ ] Served over HTTPS only (camera scanning and Google sign-in need it).
+  `nginx.conf.example` shows a reverse-proxy setup with HSTS.
+- [ ] Only ports 80/443 are exposed; the API listens on localhost or a private
+  network.
+
+## 5. Running
+
+- [ ] The API runs under a process manager or platform that restarts it on
+  crash (`pm2 start ecosystem.config.js --env production` on a VM).
+- [ ] The web app (`client/dist`) is served as static files with a fallback to
+  `index.html` for client-side routes.
+- [ ] Startup logs show `Server listening on port …` and the Google sign-in
+  status line.
+
+## 6. After deploy
+
+- [ ] Log in with a real account; open Dashboard, Inventory, Tickets,
+  Onboarding and Scanner.
+- [ ] Deploys that change session storage sign everyone out once — tell users.

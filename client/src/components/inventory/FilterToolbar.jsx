@@ -1,8 +1,7 @@
 import React from 'react';
 import Badge from '../ui/Badge';
-import { Filter, X } from 'lucide-react';
-
 import useLocations from '../../hooks/useLocations';
+import { STATUS_OPTIONS, WARRANTY_OPTIONS } from './filterOptions';
 
 export default function FilterToolbar({
   categories = [],
@@ -14,16 +13,14 @@ export default function FilterToolbar({
   onSelectLocation,
   selectedWarranty = 'all',
   onSelectWarranty,
-  onClearFilters,
 }) {
   const { locations } = useLocations();
-  const hasActiveFilters = selectedCategoryId !== 'all' || selectedStatus !== 'all' || selectedLocation !== 'all' || selectedWarranty !== 'all';
   const safeCategories = Array.isArray(categories) ? categories : [];
 
   return (
     <div className="bg-surface/60 border border-border/60 rounded-xl p-4 space-y-3.5 shadow-sm">
-      {/* Top row: Category chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
+      {/* Top row: Category chips (wrap so none are cut off on small screens) */}
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-secondary inline-flex items-center gap-1.5 shrink-0 mr-2 uppercase tracking-wider">
           Category:
         </span>
@@ -33,7 +30,7 @@ export default function FilterToolbar({
           onClick={() => onSelectCategory('all')}
           className={`px-3 py-1 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer ${
             selectedCategoryId === 'all'
-              ? 'bg-accent text-white shadow-sm ring-2 ring-indigo-500/30 font-semibold'
+              ? 'bg-accent text-on-accent shadow-sm ring-2 ring-accent/30 font-semibold'
               : 'bg-surface text-secondary border border-border hover:border-border'
           }`}
         >
@@ -49,7 +46,7 @@ export default function FilterToolbar({
               onClick={() => onSelectCategory(cat.id)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-all shrink-0 inline-flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? 'bg-accent text-white shadow-sm ring-2 ring-indigo-500/30 font-semibold'
+                  ? 'bg-accent text-on-accent shadow-sm ring-2 ring-accent/30 font-semibold'
                   : 'bg-surface text-secondary border border-border hover:border-border'
               }`}
             >
@@ -60,8 +57,8 @@ export default function FilterToolbar({
         })}
       </div>
 
-      {/* Bottom row: Status dropdown, Location dropdown, Clear filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/50 text-xs">
+      {/* Bottom row: Status, Location, Warranty dropdowns (clearing lives in the active-filters row) */}
+      <div className="pt-2 border-t border-border/50 text-xs">
         <div className="flex flex-wrap items-center gap-3">
           {/* Status Dropdown */}
           <div className="flex items-center gap-2">
@@ -75,10 +72,9 @@ export default function FilterToolbar({
               className="min-w-[120px] bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
             >
               <option value="all">All Statuses</option>
-              <option value="available">🟢 Available</option>
-              <option value="in-use">🔵 In Use</option>
-              <option value="retired">⚪ Retired</option>
-              <option value="returned">↩️ Returned to Client</option>
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -114,25 +110,12 @@ export default function FilterToolbar({
               className="min-w-[120px] bg-surface border border-border rounded-lg px-2.5 py-1.5 text-primary focus:outline-none focus:ring-1 focus:ring-accent text-xs cursor-pointer"
             >
               <option value="all">All Warranty</option>
-              <option value="in-warranty">🛡️ In Warranty</option>
-              <option value="expiring-soon">⚠️ Expiring Soon</option>
-              <option value="expired">❌ Expired</option>
-              <option value="no-warranty">⚪ No Warranty Data</option>
+              {WARRANTY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
+              ))}
             </select>
           </div>
         </div>
-
-        {/* Clear Filters Button */}
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={onClearFilters}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-danger bg-danger/10 hover:bg-danger/20 border border-danger/20 transition-colors cursor-pointer ml-auto"
-          >
-            <X className="w-3.5 h-3.5" />
-            <span>Clear Filters</span>
-          </button>
-        )}
       </div>
     </div>
   );

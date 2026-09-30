@@ -3,8 +3,16 @@ import { getAssets } from '../api/assetsApi';
 import { getCategories } from '../api/categoriesApi';
 import { getEmployees } from '../api/employeesApi';
 import { getWarrantyStatus } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
+
+const EMPTY_LIST_RESPONSE = { data: { data: [] } };
 
 export default function useMetrics() {
+  const { hasPermission } = useAuth();
+  // Supporting lists are optional: a role that can read assets but not the
+  // employee directory must still get its dashboard, just without that data.
+  const canReadCategories = hasPermission('categories:read');
+  const canReadEmployees = hasPermission('employees:read');
   const [data, setData] = useState({
     assets: [],
     categories: [],
@@ -20,8 +28,8 @@ export default function useMetrics() {
       const [assetsRes, categoriesRes, employeesRes] = await Promise.all([
         // Client-owned assets are tracked separately and never count as company inventory.
         getAssets({ assetType: 'company' }),
-        getCategories(),
-        getEmployees(),
+        canReadCategories ? getCategories() : EMPTY_LIST_RESPONSE,
+        canReadEmployees ? getEmployees() : EMPTY_LIST_RESPONSE,
       ]);
 
       setData({
@@ -30,11 +38,11 @@ export default function useMetrics() {
         employees: employeesRes.data?.data || (Array.isArray(employeesRes.data) ? employeesRes.data : []),
       });
     } catch (err) {
-      setError(err.message || 'Failed to fetch dashboard metrics');
+      setError(err.response?.data?.message || err.message || 'Failed to fetch dashboard metrics');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canReadCategories, canReadEmployees]);
 
   useEffect(() => {
     fetchMetrics();

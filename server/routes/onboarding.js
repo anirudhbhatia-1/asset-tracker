@@ -148,7 +148,7 @@ router.patch('/:id/items/:itemId/fulfill', [
   validateRequest
 ], async (req, res, next) => {
   try {
-    const item = await onboardingService.fulfillItem(Number(req.params.id), Number(req.params.itemId), req.body.assetId || null);
+    const item = await onboardingService.fulfillItem(Number(req.params.id), Number(req.params.itemId), req.body.assetId || null, req.user);
     if (!item) {
       return res.status(404).json({ error: true, message: 'Item not found in this request', code: 404 });
     }

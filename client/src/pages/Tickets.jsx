@@ -1,23 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Plus, Ticket as TicketIcon, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { ticketsApi } from '../api/ticketsApi';
 import { useTickets } from '../hooks/useTickets';
 import CreateTicketModal from '../components/forms/CreateTicketModal';
 import TicketDetailsModal from '../components/tickets/TicketDetailsModal';
+import StatusBadge, { TicketAgeBadge } from '../components/tickets/TicketStatusBadge';
+import { formatDate } from '../utils/formatters';
+import { onActivateKey } from '../utils/a11y';
+import PageHeader from '../components/ui/PageHeader';
 
-const StatusBadge = ({ status }) => {
-  const styles = {
-    open: 'bg-error/10 text-error border-error/20',
-    in_progress: 'bg-warning/10 text-warning border-warning/20',
-    resolved: 'bg-success/10 text-success border-success/20',
-    rejected: 'bg-raised text-secondary border-border'
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wider ${styles[status]}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-};
+const ADMIN_TYPE_LABELS = { it: 'IT', hardware: 'Hardware', hr: 'HR' };
+
+const FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'resolved', label: 'Resolved/Closed' },
+];
 
 const Tickets = () => {
   const { user, hasPermission } = useAuth();
@@ -31,19 +32,69 @@ const Tickets = () => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [filter, setFilter] = useState('all');
   const [queueScope, setQueueScope] = useState('my_queue'); // 'my_queue' | 'all' | 'my_tickets'
+  // Which scope the current `tickets` list belongs to, so the deep-link
+  // lookup below never searches a stale or still-loading list.
+  const [loadedScope, setLoadedScope] = useState(null);
+
+  // Deep link from notifications: /tickets?ticket=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('ticket');
+  const handledDeepLinkRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
     let scope;
     if (queueScope === 'all') scope = 'all';
     else if (queueScope === 'my_tickets') scope = 'my_tickets';
     else scope = undefined; // default: my_queue
-    fetchTickets({ scope });
+    setLoadedScope(null);
+    fetchTickets({ scope }).then(() => {
+      if (!cancelled) setLoadedScope(queueScope);
+    });
+    return () => { cancelled = true; };
   }, [fetchTickets, queueScope]);
+
+  const clearDeepLink = useCallback(() => {
+    setSearchParams(prev => {
+      if (!prev.has('ticket')) return prev;
+      const next = new URLSearchParams(prev);
+      next.delete('ticket');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    if (!deepLinkId) {
+      handledDeepLinkRef.current = null;
+      return;
+    }
+    if (handledDeepLinkRef.current === deepLinkId || loadedScope !== queueScope) return;
+
+    const match = tickets.find(t => String(t.id) === deepLinkId);
+    if (match) {
+      handledDeepLinkRef.current = deepLinkId;
+      setSelectedTicket(match);
+      return;
+    }
+    // Not in the current view (e.g. another queue): fetch just that ticket.
+    handledDeepLinkRef.current = deepLinkId;
+    ticketsApi.getById(deepLinkId)
+      .then((ticket) => setSelectedTicket(ticket))
+      .catch(() => {
+        toast.error(`Ticket #${deepLinkId} was not found or is no longer visible to you.`);
+        clearDeepLink();
+      });
+  }, [deepLinkId, tickets, loadedScope, queueScope, clearDeepLink]);
+
+  const closeTicketDetails = useCallback(() => {
+    setSelectedTicket(null);
+    clearDeepLink();
+  }, [clearDeepLink]);
 
   const filteredTickets = tickets.filter(t => {
     if (filter === 'all') return true;
     if (filter === 'active') return t.status === 'open' || t.status === 'in_progress';
-    if (filter === 'resolved') return t.status === 'resolved' || t.status === 'rejected';
+    if (filter === 'resolved') return t.status === 'resolved' || t.status === 'closed' || t.status === 'rejected';
     return true;
   });
 
@@ -51,40 +102,34 @@ const Tickets = () => {
     <div className="max-w-6xl mx-auto space-y-6">
       
       {/* Header Area */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <TicketIcon className="w-6 h-6 text-accent" />
-            Support Tickets
-          </h1>
-          <p className="text-secondary text-sm mt-1">
-            {isAdminOrHr && queueScope !== 'my_tickets' ? 'Manage employee requests and issues.' : 'Track your IT support requests.'}
-          </p>
-        </div>
-        
-        {canRaiseTicket && (
+      <PageHeader
+        icon={TicketIcon}
+        title="Support Tickets"
+        subtitle={isAdminOrHr && queueScope !== 'my_tickets' ? 'Manage employee requests and issues.' : 'Track your IT support requests.'}
+        actions={canRaiseTicket && (
           <button
+            type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg font-medium shadow-sm transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-on-accent rounded-lg font-medium shadow-sm transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Raise Ticket
           </button>
         )}
-      </div>
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
-          {['all', 'active', 'resolved'].map(f => (
+          {FILTERS.map(f => (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors cursor-pointer ${
-                filter === f ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                filter === f.value ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
               }`}
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </div>
@@ -93,7 +138,8 @@ const Tickets = () => {
           <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
             <span className="px-2 text-xs font-medium uppercase tracking-wider text-secondary">View:</span>
             {[
-              { value: 'my_queue', label: `My Queue (${user.adminType === 'it' ? 'IT' : user.adminType === 'hardware' ? 'Hardware' : 'HR'})` },
+              // No admin type means no queue is assigned; don't guess one.
+              { value: 'my_queue', label: user?.adminType ? `My Queue (${ADMIN_TYPE_LABELS[user.adminType] || user.adminType})` : 'My Queue' },
               { value: 'all', label: 'All Tickets' },
               ...(isHr ? [{ value: 'my_tickets', label: 'My Raised Tickets' }] : []),
             ].map(scope => (
@@ -127,15 +173,15 @@ const Tickets = () => {
         <div className="relative">
           <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none z-10 md:hidden" />
         <div className="overflow-x-auto pb-1">
-          <table className="w-full text-left text-sm whitespace-nowrap">
+          <table aria-label="Support tickets" className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-base border-b border-border text-secondary">
               <tr>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">ID</th>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Title</th>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Type</th>
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
-                {isAdminOrHr && queueScope !== 'my_tickets' && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Employee</th>}
-                <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Date</th>
+                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">ID</th>
+                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Title</th>
+                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Type</th>
+                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
+                {isAdminOrHr && queueScope !== 'my_tickets' && <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Employee</th>}
+                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -154,7 +200,17 @@ const Tickets = () => {
               ) : filteredTickets.length === 0 ? (
                 <tr>
                   <td colSpan={isAdminOrHr && queueScope !== 'my_tickets' ? 6 : 5} className="px-6 py-12 text-center text-secondary">
-                    No tickets found.
+                    <p>No tickets found.</p>
+                    {canRaiseTicket && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-on-accent rounded-lg text-sm font-medium shadow-sm transition-all cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Raise Ticket
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -162,6 +218,8 @@ const Tickets = () => {
                   <tr 
                     key={ticket.id} 
                     onClick={() => setSelectedTicket(ticket)}
+                    tabIndex={0}
+                    onKeyDown={onActivateKey(() => setSelectedTicket(ticket))}
                     className="hover:bg-raised/30 transition-colors cursor-pointer group"
                   >
                     <td className="px-6 py-4 font-mono text-xs text-secondary group-hover:text-accent">
@@ -172,14 +230,19 @@ const Tickets = () => {
                       <div className="text-xs text-secondary truncate max-w-xs mt-0.5">{ticket.description || 'No description'}</div>
                     </td>
                     <td className="px-6 py-4 capitalize text-secondary">{ticket.type}</td>
-                    <td className="px-6 py-4"><StatusBadge status={ticket.status} /></td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={ticket.status} />
+                        <TicketAgeBadge ticket={ticket} />
+                      </div>
+                    </td>
                     {isAdminOrHr && queueScope !== 'my_tickets' && (
                       <td className="px-6 py-4 text-secondary">
                         {ticket.employee_name || `Employee #${ticket.employee_id}`}
                       </td>
                     )}
                     <td className="px-6 py-4 text-secondary">
-                      {new Date(ticket.created_at).toLocaleDateString()}
+                      {formatDate(ticket.created_at)}
                     </td>
                   </tr>
                 ))
@@ -199,7 +262,7 @@ const Tickets = () => {
       <TicketDetailsModal 
         isOpen={!!selectedTicket} 
         ticket={selectedTicket} 
-        onClose={() => setSelectedTicket(null)} 
+        onClose={closeTicketDetails} 
         onUpdate={updateTicket} 
       />
     </div>

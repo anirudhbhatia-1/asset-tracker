@@ -14,7 +14,7 @@ export default function useCategories() {
       const res = await getCategories();
       setCategories(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
-      setError(err.message || 'Failed to load categories');
+      setError(err.response?.data?.message || err.message || 'Failed to load categories');
     } finally {
       setLoading(false);
     }

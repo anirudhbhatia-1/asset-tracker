@@ -9,7 +9,7 @@ const iconMap = {
   info:    <Info className="w-4 h-4 text-accent shrink-0 mt-0.5" />,
 };
 
-export default function NotificationPanel({ isOpen, onClose, notifications, loading }) {
+export default function NotificationPanel({ isOpen, onClose, notifications, loading, onMarkRead }) {
   const panelRef = useRef(null);
   const navigate = useNavigate();
 
@@ -18,6 +18,8 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
     if (!isOpen) return;
 
     const handler = (e) => {
+      // The bell toggles the panel itself; closing here too would reopen it.
+      if (e.target.closest?.('#notification-bell')) return;
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         onClose();
       }
@@ -27,12 +29,20 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen, onClose]);
 
+  // Clicking an item counts as reading it (same localStorage marker as
+  // opening the panel), then follows its deep link and closes the panel.
+  const handleItemClick = (n) => {
+    onMarkRead?.();
+    onClose();
+    if (n.link) navigate(n.link);
+  };
+
   if (!isOpen) return null;
 
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-surface border border-border/80 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right"
+      className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-surface border border-border/80 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-base/50">
@@ -40,12 +50,13 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
           <Bell className="w-4 h-4 text-accent" />
           <span className="text-sm font-bold text-primary">Notifications</span>
           {notifications.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-accent text-white text-[10px] font-bold leading-none">
+            <span className="px-1.5 py-0.5 rounded-full bg-accent text-on-accent text-[10px] font-bold leading-none">
               {notifications.length}
             </span>
           )}
         </div>
         <button
+          aria-label="Close"
           onClick={onClose}
           className="p-1 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
         >
@@ -71,16 +82,15 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
           <div className="py-12 text-center">
             <Bell className="w-8 h-8 text-secondary/40 mx-auto mb-2" />
             <p className="text-sm font-medium text-secondary">You're all caught up!</p>
-            <p className="text-xs text-secondary/60 mt-1">No new notifications right now.</p>
+            <p className="text-xs text-secondary mt-1">No new notifications right now.</p>
           </div>
         ) : (
           notifications.map((n) => (
             <button
               key={n.id}
-              onClick={() => {
-                if (n.link) navigate(n.link);
-                onClose();
-              }}
+              type="button"
+              onClick={() => handleItemClick(n)}
+              title={n.link ? 'Open' : undefined}
               className="w-full text-left px-4 py-3.5 hover:bg-raised/40 transition-colors flex gap-3 group"
             >
               {iconMap[n.type] || iconMap.info}
@@ -90,7 +100,7 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
                   <ExternalLink className="w-3 h-3 text-secondary opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
                 </div>
                 <p className="text-xs text-secondary mt-0.5 leading-relaxed">{n.message}</p>
-                <span className="text-[10px] text-secondary/50 mt-1 block">
+                <span className="text-[10px] text-secondary mt-1 block">
                   {formatDateTime(n.createdAt)}
                 </span>
               </div>
@@ -102,7 +112,7 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
       {/* Footer */}
       {notifications.length > 0 && (
         <div className="px-4 py-2.5 border-t border-border/60 bg-base/30">
-          <p className="text-[10px] text-secondary/50 text-center">
+          <p className="text-[10px] text-secondary text-center">
             Showing last 7 days · Refreshes every 30s
           </p>
         </div>

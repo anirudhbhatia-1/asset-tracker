@@ -11,15 +11,15 @@ import useLocations from '../../hooks/useLocations';
 import WebcamFeed from '../scanner/WebcamFeed';
 import LaserViewfinder from '../scanner/LaserViewfinder';
 import SerialSimulator from '../scanner/SerialSimulator';
-import { scanSerial } from '../../api/assetsApi';
-import { Wand2, Plus, ArrowLeft, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode, Cpu } from 'lucide-react';
+import { scanSerial, checkSerialExists } from '../../api/assetsApi';
+import { Wand2, Plus, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode, Cpu } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AddAssetForm({ initialData, isEdit = false, onSaveSuccess }) {
   const navigate = useNavigate();
   const { categories, loading: categoriesLoading } = useCategories();
   const { employees, loading: employeesLoading } = useEmployees();
-  const { locations, loading: locationsLoading } = useLocations();
+  const { locations } = useLocations();
 
   // Form fields
   const [name, setName] = useState(initialData?.name || '');
@@ -53,7 +53,8 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [color, setColor] = useState(initialData?.color || '');
   const [clientName, setClientName] = useState(initialData?.clientName || '');
   const [receivedOn, setReceivedOn] = useState(initialData?.receivedOn || '');
-  const [returnDate, setReturnDate] = useState(initialData?.returnDate || '');
+  // No input edits this yet; the stored value is round-tripped on save.
+  const [returnDate] = useState(initialData?.returnDate || '');
 
   // Optional Immediate Allocation (Only for new registrations)
   const [assignImmediately, setAssignImmediately] = useState(false);
@@ -102,7 +103,20 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         setIsScannerModalOpen(false);
         toast.success(`Scanned new serial: ${serialText}`);
       } else {
-        toast.error('Error verifying scanned serial');
+        // The scanner lookup needs scanner:read and is rate-limited; fall back
+        // to the plain uniqueness check so the scanned serial can still be used.
+        try {
+          if (await checkSerialExists(serialText.trim())) {
+            toast.error(`An asset with serial ${serialText.trim()} is already registered`);
+          } else {
+            setSerialNumber(serialText.trim());
+            setErrors((prev) => ({ ...prev, serialNumber: null }));
+            setIsScannerModalOpen(false);
+            toast.success(`Scanned new serial: ${serialText}`);
+          }
+        } catch (checkErr) {
+          toast.error(checkErr.response?.data?.message || 'Error verifying scanned serial');
+        }
       }
     } finally {
       setScanChecking(false);
@@ -141,7 +155,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
       updateSubAsset(subScanTarget, 'serialNumber', serialText.trim());
       setIsSubScannerModalOpen(false);
       toast.success(`Scanned serial for accessory: ${serialText.trim()}`);
-    } catch (err) {
+    } catch {
       toast.error('Error capturing scanned serial');
     } finally {
       setSubScanChecking(false);
@@ -181,7 +195,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
       setErrors((prev) => ({ ...prev, serialNumber: null }));
       toast.success(`Auto-generated unique serial: ${uniqueSN}`);
     } catch (err) {
-      toast.error('Failed to generate unique serial number');
+      toast.error(err.message || 'Failed to generate unique serial number');
     } finally {
       setGeneratingSerial(false);
     }
@@ -275,7 +289,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         navigate(`/inventory/${newAssetId}`);
       }
     } catch (err) {
-      toast.error(err.message || 'Failed to save asset');
+      toast.error(err.response?.data?.message || err.message || 'Failed to save asset');
     } finally {
       setSubmitting(false);
     }
@@ -291,6 +305,21 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const isKbMouse = catName.includes('keyboard') || catName.includes('mouse');
   const isClient = assetType === 'client';
 
+  // Jump links for the long form; only sections currently rendered are listed.
+  const formSections = [
+    { id: 'asset-section-identity', label: 'Specifications & Identity' },
+    { id: 'asset-section-financial', label: 'Financial & Operational' },
+    categoryId && { id: 'asset-section-extended', label: 'Extended Specs' },
+    !isEdit && { id: 'asset-section-allocation', label: 'Allocation' },
+    !isEdit && { id: 'asset-section-accessories', label: 'Accessories' },
+  ].filter(Boolean);
+
+  const scrollToSection = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const errorCount = Object.values(errors).filter(Boolean).length;
+
   const filteredEmployees = safeEmployees.filter((emp) => {
     if (!employeeSearch.trim()) return true;
     const q = employeeSearch.toLowerCase();
@@ -303,8 +332,23 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 bg-surface rounded-2xl border border-border/80 p-6 sm:p-8 shadow-sm max-w-4xl mx-auto">
+      {/* Section index */}
+      <nav aria-label="Form sections" className="flex flex-wrap items-center gap-2 -mt-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-secondary mr-1">Jump to:</span>
+        {formSections.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => scrollToSection(section.id)}
+            className="px-3 py-1 rounded-full text-xs font-medium bg-base text-secondary border border-border hover:text-primary hover:border-accent/40 transition-colors cursor-pointer"
+          >
+            {section.label}
+          </button>
+        ))}
+      </nav>
+
       {/* Form Section 1: Core Specifications */}
-      <div className="space-y-6">
+      <div id="asset-section-identity" className="space-y-6 scroll-mt-24">
         <div className="border-b border-border/60 pb-3">
           <h2 className="text-lg font-bold text-primary flex items-center gap-2">
             <Tag className="w-5 h-5 text-accent" />
@@ -390,7 +434,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 onClick={() => setAssetType('company')}
                 className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors ${
                   assetType === 'company'
-                    ? 'bg-accent text-white shadow-sm'
+                    ? 'bg-accent text-on-accent shadow-sm'
                     : 'text-secondary hover:text-primary hover:bg-surface'
                 }`}
               >
@@ -401,7 +445,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 onClick={() => setAssetType('client')}
                 className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors ${
                   assetType === 'client'
-                    ? 'bg-accent text-white shadow-sm'
+                    ? 'bg-accent text-on-accent shadow-sm'
                     : 'text-secondary hover:text-primary hover:bg-surface'
                 }`}
               >
@@ -560,7 +604,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
       </div>
 
       {/* Form Section 2: Financial & Operational Details */}
-      <div className="space-y-6 pt-4 border-t border-border/60">
+      <div id="asset-section-financial" className="space-y-6 pt-4 border-t border-border/60 scroll-mt-24">
         <div className="border-b border-border/60 pb-3">
           <h2 className="text-lg font-bold text-primary flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-accent" />
@@ -640,7 +684,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
       {/* Form Section: Dynamic Extended Specifications */}
       {categoryId && (
-        <div className="space-y-6 pt-4 border-t border-border/60">
+        <div id="asset-section-extended" className="space-y-6 pt-4 border-t border-border/60 scroll-mt-24">
           <div className="border-b border-border/60 pb-3">
             <h2 className="text-lg font-bold text-primary flex items-center gap-2">
               <Cpu className="w-5 h-5 text-accent" />
@@ -741,7 +785,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
       {/* Form Section 3: Optional Immediate Allocation per PRD 6.7.3 */}
       {!isEdit && (
-        <div className="space-y-6 pt-4 border-t border-border/60">
+        <div id="asset-section-allocation" className="space-y-6 pt-4 border-t border-border/60 scroll-mt-24">
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
             <div>
               <h2 className="text-lg font-bold text-primary flex items-center gap-2">
@@ -814,7 +858,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                           <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                             isSelected ? 'border-accent bg-accent' : 'border-border'
                           }`}>
-                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-on-accent" />}
                           </div>
                         </button>
                       );
@@ -866,7 +910,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
       {/* Accessories / Sub-Assets */}
       {!isEdit && (
-        <div className="space-y-4 pt-6 border-t border-border/60">
+        <div id="asset-section-accessories" className="space-y-4 pt-6 border-t border-border/60 scroll-mt-24">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-primary flex items-center gap-2">
@@ -908,13 +952,14 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 />
                 <button
                   type="button"
+                  aria-label="Scan barcode / QR for serial number"
                   onClick={() => openSubScanner(i)}
                   className="p-2 rounded-lg bg-surface border border-border text-secondary hover:text-accent hover:border-accent/40 transition-colors shrink-0"
                   title="Scan barcode / QR for serial number"
                 >
                   <QrCode className="w-4 h-4" />
                 </button>
-                <button type="button" onClick={() => removeSubAsset(i)}
+                <button type="button" aria-label="Remove Accessory" onClick={() => removeSubAsset(i)}
                   className="p-2 text-secondary hover:text-danger rounded-lg transition-colors" title="Remove Accessory">
                   <AlertCircle className="w-4 h-4" />
                 </button>
@@ -923,27 +968,6 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
           ))}
         </div>
       )}
-
-      {/* Footer Submission Actions */}
-      <div className="pt-6 border-t border-border flex items-center justify-end gap-4">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => navigate('/inventory')}
-          disabled={submitting}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          loading={submitting}
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>{isEdit ? 'Save Changes' : 'Register Asset'}</span>
-        </Button>
-      </div>
 
       <Modal
         isOpen={isScannerModalOpen}
@@ -1043,6 +1067,40 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
           </div>
         </div>
       </Modal>
+
+      {/* Sticky save bar — the form's only submit control. Sits above the
+          fixed mobile tab bar (4rem + safe area) and at the viewport bottom on md+. */}
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 z-20 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 px-6 sm:px-8 py-3 sm:py-4 bg-surface/95 backdrop-blur-md border-t border-border rounded-b-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <p className={`text-xs flex items-center gap-1.5 ${errorCount ? 'text-danger' : 'text-secondary'}`} aria-live="polite">
+          {errorCount ? (
+            <>
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{errorCount === 1 ? '1 field needs attention.' : `${errorCount} fields need attention.`}</span>
+            </>
+          ) : (
+            <span>Fields marked <span className="text-danger">*</span> are required.</span>
+          )}
+        </p>
+        <div className="flex items-center justify-end gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => navigate('/inventory')}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            loading={submitting}
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>{isEdit ? 'Save Changes' : 'Register Asset'}</span>
+          </Button>
+        </div>
+      </div>
     </form>
   );
 }

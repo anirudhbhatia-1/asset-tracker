@@ -1,132 +1,178 @@
 # AssetTrack — IT Asset Management & Service Portal
 
-AssetTrack is an enterprise-grade internal web application engineered for IT Administrators, HR Professionals, and Employees. It provides end-to-end hardware inventory management, self-service IT ticketing, and streamlined HR onboarding workflows across multiple regional offices (Bangalore, Mumbai, Delhi, Hyderabad).
+Internal web app for Thinkvibes: hardware inventory (company- and client-owned),
+assignment and audit history, IT/Hardware/HR support tickets, and HR onboarding.
 
----
+## Stack
 
-## Tech Stack & Architecture Overview
+| Part | Technology |
+|---|---|
+| Frontend (`client/`) | React 19, Vite 8, React Router 7, Tailwind CSS 4, lucide-react, axios, react-hot-toast |
+| Backend (`server/`) | Node 20+, Express 5, `pg` (raw parameterized SQL, no ORM), express-validator, express-rate-limit, bcrypt, exceljs, multer, google-auth-library |
+| Database | Supabase Postgres in production; embedded Postgres (PGlite) for local development |
+| Tests | Vitest + Supertest (server), Vitest (client), Playwright (end-to-end) |
 
-### Core Technologies
-- **Frontend (`/client`)**: React 18 (Vite), Tailwind CSS v4, Lucide Icons, Axios, React Router v6, React Hot Toast
-- **Backend (`/server`)**: Node.js v20+, Express v5, `pg` (Postgres driver), `express-validator`
-- **Database**: Supabase Postgres (via connection pooler)
-- **Testing**: Vitest (`vitest`) & Supertest (`supertest`) across frontend unit tests and backend API integration tests
+Frontend code follows **API layer → hooks → components**: `client/src/api/*` wraps
+axios, `client/src/hooks/*` handle loading/error state, pages and components render.
+Backend code follows **routes → services**: routes validate input and check
+permissions, services hold the business logic and SQL.
 
-### Architectural Pattern: Pattern 2 (Axios -> Hooks -> Components)
-The frontend architecture enforces **Pattern 2: API Layer $\rightarrow$ Custom Hooks $\rightarrow$ Component UI**:
-1. **API Layer (`/client/src/api/`)**: Centralized Axios wrappers (`assetsApi.js`, `employeesApi.js`, `categoriesApi.js`, `historyApi.js`) handling base URLs, serialization, and error response transformations.
-2. **State & Mutation Hooks (`/client/src/hooks/`)**: Custom React hooks (`useAsset.js`, `useAssets.js`, `useEmployees.js`, `useCategories.js`, `useHistory.js`) encapsulating data fetching, loading/skeleton state, error states, and optimistic UI updates/refreshes.
-3. **Component Layer (`/client/src/components/` & `/client/src/pages/`)**: Pure UI presentation components rendering dark-mode flat UIs, loading skeletons, empty states with CTAs, and triggering hook actions (`assignAsset`, `returnAsset`, `retireAsset`).
+## Getting started
 
----
-
-## Getting Started
-
-### Prerequisites
-- Node.js 20.x LTS or higher
-- npm 10.x or higher
-
-### One-Command Setup & Launch (Monorepo Root)
-The monorepo root includes `concurrently` for seamless development startup:
+Requirements: Node.js 20+ and npm.
 
 ```bash
-# 1. Install root dependencies and trigger recursive postinstall for both client & server
-npm install
-
-# 2. Copy example environment files
+npm install && npm install --prefix server && npm install --prefix client
 cp server/.env.example server/.env
 cp client/.env.example client/.env
-
-# 3. Start both backend API server (port 3001) and frontend Vite server (port 5173) simultaneously
-npm run dev
+npm run dev                                  # local database + API (3001) + web (5173)
 ```
 
-Open `http://localhost:5173` in your browser. The application is secured via JWT authentication. The database is automatically seeded with users across all three roles.
+Open http://localhost:5173.
 
-### Test Accounts
-You can log in with any of the following accounts (the password for all test accounts is `password`):
-- **Admin**: `admin@company.com` (Full access to Inventory, Scanning, and Settings)
-- **Employee**: `employee@company.com` (Access to personal Dashboard and IT Ticketing)
-- **HR**: `hr@company.com` (Access to new hire Onboarding workflows)
+`npm run dev` starts three processes:
 
-### Running Automated Suite (Unit & Integration Tests)
-Run the 100% passing test suite across both server and client:
-```bash
-# Run server unit tests (assetService) and API integration tests (Supertest)
-npm test --prefix server
+- **DB** — a local Postgres (PGlite) on `127.0.0.1:54322`, stored in
+  `server/.devdb/` (git-ignored). On first run it applies every file in
+  `supabase/migrations/` and seeds categories, locations and test accounts. New
+  migration files are applied automatically on the next start.
+- **SERVER** — the Express API on port 3001 (nodemon).
+- **CLIENT** — Vite on port 5173, proxying `/api` to the API.
 
-# Run client unit tests (serialGenerator & formatters)
-npm test --prefix client
+Development never touches production data: `server/.env` points at the local
+database. Keep the production connection string out of development settings.
+
+### Local test accounts
+
+All use the password `password`. They exist **only in the local database**.
+
+| Email | Role |
+|---|---|
+| admin@company.com | Director (all permissions) |
+| itadmin@company.com | Admin, IT queue |
+| hardwareadmin@company.com | Admin, Hardware queue |
+| hr@company.com | HR |
+| employee@company.com | Employee |
+
+### Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Local DB + API + web app |
+| `npm run db:reset` | Wipe and rebuild the local database, then start it |
+| `npm test` | Server tests (needs the local database running) |
+| `npm test --prefix client` | Client unit tests |
+| `npx playwright test` | End-to-end tests (reuses a running `npm run dev`, or starts one) |
+| `npm run build` | Production build of the web app into `client/dist` |
+
+## Configuration
+
+Server settings live in `server/.env` (see `server/.env.example` and
+`server/.env.production.example`). On hosting platforms, set them as
+environment variables instead.
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Postgres connection string (Supabase **session pooler**, port 5432, in production) |
+| `NODE_ENV` | `production` in production (enables SSL to the database, strict Google settings) |
+| `PORT` | API port (default 3001) |
+| `CLIENT_ORIGIN` | Web app origin allowed by CORS |
+| `TRUST_PROXY_HOPS` | Set to `1` behind a single reverse proxy so rate limits see real client IPs |
+| `GOOGLE_CLIENT_ID` | Google sign-in client ID; must equal the client's `VITE_GOOGLE_CLIENT_ID` |
+| `GOOGLE_ALLOWED_DOMAIN` | Workspace domain allowed to sign in with Google, e.g. `thinkvibes.com` (required in production unless `GOOGLE_ALLOW_EXTERNAL_ACCOUNTS=true`) |
+| `LOGIN_EMAIL_DOMAINS` | Comma-separated domains that may be given a login (default `company.com,thinkvibes.com`) |
+| `DATABASE_SSL_CA_FILE` | Optional path to Supabase's CA certificate to verify the database certificate |
+| `DB_POOL_MAX` | Optional database pool size (default 10) |
+
+Client settings (`client/.env`, read at build time): `VITE_API_BASE_URL`
+(default `/api`) and `VITE_GOOGLE_CLIENT_ID`.
+
+`GET /api/google/config` reports whether Google sign-in is enabled and, if not,
+which setting is missing. The API also logs this at startup.
+
+## Security model
+
+- Login by email/password (bcrypt) or Google (ID token verified server-side).
+  Sessions are random tokens stored as SHA-256 hashes, valid 8 hours; changing
+  a password, role or email signs that user out. Password login is limited to
+  10 failed attempts per 15 minutes per address.
+- Permissions are keys such as `assets:read` or `tickets:resolve`, grouped into
+  roles (Director, Admin, HR, Employee, plus custom roles) in the `roles`,
+  `permissions` and `role_permissions` tables. Directors bypass all checks.
+  Nobody can grant a role with permissions they do not hold themselves, and only
+  Directors can create or manage Directors.
+- Ticket updates are limited to the ticket's own queue; resolving or rejecting
+  requires `tickets:resolve`.
+
+## Domain rules
+
+- Asset statuses: `available`, `in-use`, `retired`, and `returned` (client-owned
+  assets handed back to the client). Client-owned assets are kept for their
+  records but excluded from company totals, category counts and assignment
+  pickers; Inventory has a Company / Client / All switch.
+- Every lifecycle change is written to `asset_history` in the same transaction.
+  History is never deleted — deleting an asset keeps its history rows.
+- Accessories (`parent_id`, e.g. adaptors) follow their laptop when it is
+  assigned or returned, and are released when it is retired.
+- Costs are stored in paise (`cost_cents`) and shown in rupees.
+- Onboarding requests are linked to the new hire by email; fulfilled assets are
+  assigned automatically once the employee record exists.
+
+## Bulk data
+
+- **Excel** (Inventory → Import/Export): the legacy 4-sheet workbook
+  (Laptops, Headphones, Keyboard Mouse, Client Laptops). Import maps sheet
+  types to categories, reads free-text statuses, generates serials for "NA",
+  and records handovers when a serial repeats.
+- **CSV** (Add Asset → Bulk upload): one asset per row using the template at
+  `client/public/asset-import-template.csv`. The file is checked first and
+  nothing is saved until you confirm.
+
+## API
+
+All routes are under `/api` and, except auth/Google/health, require
+`Authorization: Bearer <token>`.
+
+| Area | Endpoints |
+|---|---|
+| Auth | `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`, `PATCH /auth/change-password`, `GET /google/config`, `POST /google/login` |
+| Assets | `GET /assets` (filters: `q`, `status`, `categoryId`, `location`, `warranty`, `assetType`, `parentId`), `POST /assets`, `GET/PATCH/DELETE /assets/:id`, `POST /assets/:id/assign`, `POST /assets/:id/return`, `POST /assets/:id/retire`, `GET /assets/:id/history`, `GET /assets/:id/tickets`, `GET /assets/serial-exists`, `GET /assets/export`, `POST /assets/import`, `POST /assets/import-csv?dryRun=true` |
+| Scanner | `GET /serial/scan/:serial` (rate-limited) |
+| Employees | `GET /employees`, `GET /employees/departments`, `GET/PATCH /employees/me`, `GET/PATCH/DELETE /employees/:id`, `GET /employees/:id/assets`, `POST /employees`, `PATCH /employees/:id/role`, `POST /employees/:id/grant-access`, `POST /employees/:id/assign-assets` |
+| Roles | `GET/POST /roles`, `GET/PUT/DELETE /roles/:id` |
+| Categories & locations | `GET/POST /categories`, `GET/PUT/DELETE /categories/:id`, `GET/POST /locations`, `PUT /locations/:id/addresses` |
+| Tickets | `GET/POST /tickets`, `GET/PATCH /tickets/:id`, `GET /tickets/:id/history`, `PATCH /tickets/:id/transfer`, `PATCH /tickets/:id/confirm-close`, `PATCH /tickets/:id/reopen` |
+| Onboarding | `GET/POST /onboarding`, `GET /onboarding/hr-metrics`, `GET/PUT /onboarding/:id`, `PUT /onboarding/:id/status`, `PATCH /onboarding/:id/items/:itemId/fulfill` |
+| Other | `GET /history`, `GET /notifications`, `GET /health` |
+
+Responses use `{ data, message }` (lists add `total`); errors use
+`{ error: true, message, code }`.
+
+## Database changes
+
+Schema changes are SQL files in `supabase/migrations/`, named
+`YYYYMMDDHHMMSS_description.sql`. The local database applies new files on start;
+production changes are applied deliberately (take a backup first).
+`supabase/rollbacks/` holds manual undo scripts that are never applied
+automatically.
+
+## Deployment
+
+See [production_checklist.md](production_checklist.md). In short: build the web
+app with the production `VITE_*` values, run the API with `NODE_ENV=production`
+and the variables above, apply pending migrations, and schedule
+`scripts/backup_db.sh`.
+
+## Project structure
+
+```
+client/            React app (api/, hooks/, components/, pages/, utils/)
+server/            Express API (routes/, services/, middleware/, scripts/, tests/)
+supabase/          migrations/ (schema history) and rollbacks/
+e2e/               Playwright tests
+scripts/           backup_db.sh
+docs/              design specs and guides (see note at the top of each)
 ```
 
----
-
-## API Endpoints Table
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/dashboard/metrics` | Summary KPIs (total, assigned, available, maintenance, total valuation) |
-| `GET` | `/api/assets` | List all assets with optional filtering (`status`, `categoryId`, `location`, `q`) |
-| `POST` | `/api/assets` | Register a new asset (auto-checks unique serial & creates audit log) |
-| `GET` | `/api/assets/:id` | Fetch single asset details with complete chronological audit timeline |
-| `PUT` | `/api/assets/:id` | Update asset metadata (name, category, cost, location, notes) |
-| `DELETE` | `/api/assets/:id` | Permanently delete asset record (`confirm: true` required in body) |
-| `POST` | `/api/assets/:id/assign` | Assign available asset to employee (`status` transitions to `in-use`) |
-| `POST` | `/api/assets/:id/return` | Return assigned asset back to IT stock (`status` transitions to `available`) |
-| `POST` | `/api/assets/:id/retire` | Decommission asset (`confirm: true` required, `status` transitions to `retired`) |
-| `GET` | `/api/assets/:id/history` | Get full chronological audit trail (`history` table) for an asset |
-| `GET` | `/api/employees` | List all active employees (`?location=`, `?department=`, `?q=`) |
-| `GET` | `/api/employees/:id` | Fetch employee details along with all currently assigned assets |
-| `POST` | `/api/employees` | Create a new employee directory entry |
-| `DELETE` | `/api/employees/:id` | Soft-delete employee (`deleted_at = CURRENT_TIMESTAMP`) |
-| `PATCH` | `/api/employees/:id/role` | Update an employee's role (admin/hr/employee) |
-| `POST` | `/api/employees/:id/grant-access` | Grant login access (creates a user account for the employee) |
-| `POST` | `/api/auth/login` | Authenticate and retrieve a session token |
-| `POST` | `/api/auth/logout` | Invalidate current session token |
-| `GET` | `/api/tickets` | List IT tickets (supports RBAC isolation) |
-| `POST` | `/api/tickets` | Create a new IT ticket |
-| `PATCH` | `/api/tickets/:id/resolve` | Resolve an IT ticket (Admin only) |
-| `GET` | `/api/onboarding` | List onboarding requests (HR/Admin only) |
-| `POST` | `/api/onboarding` | Create a new onboarding request |
-| `PATCH` | `/api/onboarding/:id/arrange` | Arrange IT assets for a new hire |
-| `GET` | `/api/categories` | List hardware classification categories with counts |
-| `POST` | `/api/categories` | Create new classification category (`name`, `badgeChar`, `color`) |
-| `DELETE` | `/api/categories/:id` | Delete category (blocked if active assets reference it) |
-| `GET` | `/api/history` | Global activity feed across all devices (with limit/pagination) |
-| `GET` | `/api/serial/scan/:serial` | Check serial number uniqueness during barcode or manual entry |
-
----
-
-## Assumptions & Design Decisions Log
-
-Every technical implementation strictly conforms to the foundational engineering memory records:
-1. **Decision 1 (Soft Deletes vs Hard Deletes)**: Employees are **soft-deleted** (`deleted_at` timestamp) to preserve historical integrity for audit trails and past asset assignments. Assets are **hard-deleted** when explicitly removed (`deleteAsset`), but their audit trails are logged right before deletion.
-2. **Decision 2 (Supabase Postgres via `pg`)**: All database operations execute asynchronously using `pg` connection pools and atomic `db.withTransaction()` blocks, preventing race conditions or partial state updates during multi-table lifecycle mutations.
-3. **Decision 3 (Audit Logging Philosophy)**: Every asset lifecycle event (`created`, `assigned`, `returned`, `retired`, `updated`, `deleted`) is logged atomically within the same database transaction as the asset status update, guaranteeing zero drift between `assets.status` and `history`.
-4. **Decision 4 (Assigned Asset Constraints)**: If an asset is `assigned` during creation (`status: 'in-use'`), both a `created` and `assigned` event are written atomically. Retired assets (`status: 'retired'`) are locked and cannot be re-assigned or returned (`Rule 1`).
-5. **Decision 5 (Flat Dark UI & Skeletons)**: UIs avoid heavy drop shadows (`Rule 10`), using crisp 1px borders (`border-slate-700/60`), muted slate backgrounds (`bg-slate-800`), and smooth pulse skeletons (`SkeletonCard`) instead of spinning loaders during data queries.
-6. **Decision 6 (Offline & Background Polling)**: The global `OfflineBanner` alerts users when network connectivity is lost. `useHistory` polls activity logs every 60 seconds and re-fetches on window focus (`isBackground: true`) without jarring full-screen loading flickers.
-
----
-
-## Project Structure
-```
-comppro/ (Monorepo Root)
-├── package.json          # Root scripts (`npm run dev` via concurrently)
-├── client/               # React 18 / Tailwind v4 Vite Frontend
-│   ├── src/
-│   │   ├── api/          # Axios API wrappers
-│   │   ├── components/   # UI components (dashboard, inventory, asset-detail, employees, layout, ui)
-│   │   ├── hooks/        # State management hooks (useAssets, useAsset, useEmployees, useCategories, useHistory)
-│   │   ├── pages/        # Route pages (Dashboard, Inventory, AssetDetail, AddEditAsset, Employees, Categories)
-│   │   └── utils/        # Utilities (serialGenerator, formatters)
-│   └── package.json
-├── server/               # Node.js Express Backend
-│   ├── middleware/       # Error handler & request validators
-│   ├── routes/           # REST endpoints (assets, dashboard, employees, categories, history, serial)
-│   ├── services/         # Business logic & Postgres transactions (assetService, historyService, etc.)
-│   ├── tests/            # Vitest unit & Supertest integration tests
-│   └── db.js             # Postgres pool initialization & connection helper
-├── backups/              # Automatic daily/manual database backups directory
-└── README.md
-```
+The `AssetTrack_*.md` planning documents and `LEARN.md` describe the original
+plan and may not match the current code; this README is the source of truth.

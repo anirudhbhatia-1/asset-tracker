@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const db = require('../db');
+const { hashSessionToken } = require('./sessionToken');
 const { expandPermissions, getDefaultPermissionsForRole } = require('../middleware/validateSession');
 
 const buildSessionUser = (user) => {
@@ -53,7 +54,7 @@ const createSessionForEmployee = async (employeeId) => {
 
   await db.pool.query(
     'INSERT INTO sessions (token, employee_id, expires_at) VALUES ($1, $2, $3)',
-    [token, user.id, expiresAt]
+    [hashSessionToken(token), user.id, expiresAt]
   );
 
   return { token, user };
@@ -83,7 +84,7 @@ const login = async (email, password) => {
 
 const logout = async (token) => {
   if (token) {
-    await db.pool.query('DELETE FROM sessions WHERE token = $1', [token]);
+    await db.pool.query('DELETE FROM sessions WHERE token = $1', [hashSessionToken(token)]);
   }
 };
 

@@ -175,6 +175,11 @@ export default function InventoryBreakdown({
                     onMouseEnter={() => setHoveredIndex(i)}
                     onMouseLeave={() => setHoveredIndex(null)}
                     onClick={() => handleNavigateToInventory(segment)}
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleNavigateToInventory(segment); }}
+                    onFocus={() => setHoveredIndex(i)}
+                    onBlur={() => setHoveredIndex(null)}
                     className={`flex items-center justify-between p-2.5 rounded-xl border border-transparent transition-all cursor-pointer group ${opacityClass} ${
                       isHovered ? 'bg-raised border-border/80 shadow-sm scale-[1.01]' : 'hover:bg-raised/50'
                     }`}
@@ -191,7 +196,7 @@ export default function InventoryBreakdown({
 
                     <div className="flex items-center gap-3 text-sm shrink-0">
                       <span className="text-primary font-semibold font-mono">{segment.count}</span>
-                      <span className="text-secondary/80 w-10 text-right font-medium">{segment.percentage}%</span>
+                      <span className="text-secondary w-10 text-right font-medium">{segment.percentage}%</span>
                       <ArrowRight className="w-3.5 h-3.5 text-accent opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
                     </div>
                   </div>

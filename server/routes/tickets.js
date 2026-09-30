@@ -1,5 +1,5 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const { validateSession, requireRole, requirePermission } = require('../middleware/validateSession');
 const ticketService = require('../services/ticketService');
@@ -20,6 +20,20 @@ router.get('/', requirePermission('tickets:read'), async (req, res, next) => {
       total: tickets.length,
       message: 'OK'
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/tickets/:id — one ticket (deep links from notifications)
+router.get('/:id', [
+  requirePermission('tickets:read'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const ticket = await ticketService.getTicketById(Number(req.params.id), req.user);
+    res.status(200).json({ data: ticket, message: 'OK' });
   } catch (err) {
     next(err);
   }

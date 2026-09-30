@@ -158,7 +158,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
       >
         <div className="space-y-4">
           <p className="text-sm text-secondary">
-            Are you sure you want to unassign <span className="font-semibold text-white">{asset.name}</span> ({asset.serialNumber}) from <span className="font-semibold text-white">{asset.assigneeName}</span> and {isClientAsset ? `mark it as returned to ${asset.clientName || 'the client'}? It will no longer be available to assign.` : 'mark it as available in inventory?'}
+            Are you sure you want to unassign <span className="font-semibold text-primary">{asset.name}</span> ({asset.serialNumber}) from <span className="font-semibold text-primary">{asset.assigneeName}</span> and {isClientAsset ? `mark it as returned to ${asset.clientName || 'the client'}? It will no longer be available to assign.` : 'mark it as available in inventory?'}
           </p>
 
           <div>
@@ -204,7 +204,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           </div>
 
           <p className="text-sm text-secondary">
-            Retiring asset: <span className="font-semibold text-white">{asset.name}</span> ({asset.serialNumber}).
+            Retiring asset: <span className="font-semibold text-primary">{asset.name}</span> ({asset.serialNumber}).
           </p>
 
           <div>
@@ -251,7 +251,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           </div>
 
           <p className="text-sm text-secondary">
-            To confirm deletion, please type <span className="font-mono font-bold text-white bg-base px-1.5 py-0.5 rounded border border-border">{asset.name}</span> exactly below:
+            To confirm deletion, please type <span className="font-mono font-bold text-primary bg-base px-1.5 py-0.5 rounded border border-border">{asset.name}</span> exactly below:
           </p>
 
           <input

@@ -196,6 +196,7 @@ export default function LocationsTab() {
                   />
                   <button
                     type="button"
+                    aria-label="Remove address"
                     onClick={() => removeAddressField(idx)}
                     className="mt-2 p-1.5 text-danger hover:bg-danger/10 rounded-lg transition-colors shrink-0"
                     title="Remove address"

@@ -7,8 +7,12 @@ import { exportAssetsExcel, getImportErrorMessage, importAssetsExcel } from '../
 import toast from 'react-hot-toast';
 import SearchBar from '../components/inventory/SearchBar';
 import FilterToolbar from '../components/inventory/FilterToolbar';
+import ActiveFilters from '../components/inventory/ActiveFilters';
 import AssetTable from '../components/inventory/AssetTable';
 import AssetGrid from '../components/inventory/AssetGrid';
+import EmptyState from '../components/ui/EmptyState';
+import PageHeader from '../components/ui/PageHeader';
+import ImportResultsPanel from '../components/inventory/ImportResultsPanel';
 import { Plus, RefreshCw, List, LayoutGrid, Download, Upload, Loader2 } from 'lucide-react';
 
 export default function Inventory() {
@@ -108,6 +112,13 @@ export default function Inventory() {
 
   const { assets, loading: assetsLoading, error, refresh } = useAssets(filters);
 
+  const hasActiveFilters = Boolean(searchQuery) || selectedCategoryId !== 'all' || selectedStatus !== 'all'
+    || selectedLocation !== 'all' || selectedWarranty !== 'all';
+  // With no filters, an empty list means nothing is registered yet — offer to
+  // add assets rather than to clear filters.
+  const showNoAssetsYet = !assetsLoading && !categoriesLoading && !error && !hasActiveFilters
+    && (!Array.isArray(assets) || assets.length === 0);
+
   const handleClearFilters = () => {
     setSearchQuery('');
     setSelectedCategoryId('all');
@@ -116,6 +127,15 @@ export default function Inventory() {
     setSelectedWarranty('all');
     // Clearing filters keeps the chosen ownership view.
     setSearchParams(ownership === 'company' ? {} : { ownership }, { replace: true });
+  };
+
+  // Removing one active-filter chip goes through the same handler as its control.
+  const handleRemoveFilter = (key) => {
+    if (key === 'q') handleSearchChange('');
+    else if (key === 'categoryId') handleSelectCategory('all');
+    else if (key === 'status') handleSelectStatus('all');
+    else if (key === 'location') handleSelectLocation('all');
+    else if (key === 'warranty') handleSelectWarranty('all');
   };
 
   const handleExport = async () => {
@@ -158,44 +178,50 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">Hardware Inventory</h1>
-          <p className="text-sm text-secondary mt-1">
-            Browse, filter, search, and manage the lifecycle of all registered hardware devices.
-          </p>
-        </div>
-        
-        <div className="flex items-center flex-wrap gap-3 gap-y-3">
-          <div className="flex items-center bg-surface border border-border rounded-xl p-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                viewMode === 'list' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
-              }`}
-              title="List View"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                viewMode === 'grid' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
-              }`}
-              title="Grid View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
-          
+      {/* Page Header — "Add Asset" lives in the global TopBar */}
+      <PageHeader
+        title="Hardware Inventory"
+        subtitle="Browse, filter, search, and manage the lifecycle of all registered hardware devices."
+        actions={
+        /* Secondary actions grouped into one toolbar so the header doesn't wrap */
+        <div
+          role="toolbar"
+          aria-label="Inventory actions"
+          className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1 shadow-sm"
+        >
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            aria-pressed={viewMode === 'list'}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              viewMode === 'list' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
+            }`}
+            title="List View"
+            aria-label="List view"
+          >
+            <List className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('grid')}
+            aria-pressed={viewMode === 'grid'}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              viewMode === 'grid' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
+            }`}
+            title="Grid View"
+            aria-label="Grid view"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+
+          <span className="w-px h-5 bg-border mx-1" aria-hidden="true" />
+
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer"
             title="Refresh list"
+            aria-label="Refresh list"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${assetsLoading ? 'animate-spin text-accent' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
@@ -214,11 +240,13 @@ export default function Inventory() {
                 type="button"
                 onClick={handleImportClick}
                 disabled={importing}
-                className="inline-flex items-center gap-2 px-3 py-2.5 text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-sm"
+                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer disabled:opacity-50"
+                title="Import Excel"
+                aria-label="Import Excel"
               >
                 {importing
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
-                  : <Upload className="w-3.5 h-3.5 text-secondary" />}
+                  : <Upload className="w-3.5 h-3.5" />}
                 <span className="hidden sm:inline">{importing ? 'Importing...' : 'Import Excel'}</span>
               </button>
             </>
@@ -228,58 +256,27 @@ export default function Inventory() {
             <button
               type="button"
               onClick={handleExport}
-              className="inline-flex items-center gap-2 px-3 py-2.5 text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border rounded-xl transition-colors cursor-pointer shadow-sm"
+              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer"
+              title="Export Excel"
+              aria-label="Export Excel"
             >
-              <Download className="w-3.5 h-3.5 text-secondary" />
+              <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Export Excel</span>
             </button>
           )}
-
-          {canCreateAssets && (
-            <Link
-              to="/inventory/new"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-white transition-colors shadow-md shadow-accent/20 shrink-0"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Add Asset</span>
-            </Link>
-          )}
         </div>
-      </div>
+        }
+      />
 
       {importResult && (
-        <div className="bg-success/10 border border-success/20 text-success rounded-xl p-3.5 text-sm flex items-center justify-between shadow-sm">
-          <div>
-            <span>✅ <strong>{importResult.imported}</strong> assets imported successfully.</span>
-            {importResult.skipped?.length > 0 && (
-              <span className="text-warning ml-3">
-                ⚠️ {importResult.skipped.length} skipped: {importResult.skipped.slice(0, 3).join(', ')}
-                {importResult.skipped.length > 3 && ` +${importResult.skipped.length - 3} more`}
-              </span>
-            )}
-            {(importResult.categoriesCreated?.length > 0 || importResult.generatedSerials > 0 || importResult.handovers > 0) && (
-              <p className="text-xs text-secondary mt-1">
-                {importResult.categoriesCreated?.length > 0 && `New categories: ${importResult.categoriesCreated.join(', ')}. `}
-                {importResult.generatedSerials > 0 && `${importResult.generatedSerials} serials generated for items without one. `}
-                {importResult.handovers > 0 && `${importResult.handovers} handovers recorded in asset history.`}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setImportResult(null)}
-            className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-lg hover:bg-surface transition-colors cursor-pointer"
-          >
-            Dismiss
-          </button>
-        </div>
+        <ImportResultsPanel result={importResult} onDismiss={() => setImportResult(null)} />
       )}
 
       {/* Error banner if fetching failed */}
       {error && (
         <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-sm text-danger flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={refresh} className="underline text-xs hover:text-white cursor-pointer">
+          <button onClick={refresh} className="underline text-xs hover:text-primary cursor-pointer">
             Retry
           </button>
         </div>
@@ -300,7 +297,7 @@ export default function Inventory() {
               aria-selected={ownership === value}
               onClick={() => handleSelectOwnership(value)}
               className={`px-3.5 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
-                ownership === value ? 'bg-accent text-white shadow-sm' : 'text-secondary hover:text-primary'
+                ownership === value ? 'bg-accent text-on-accent shadow-sm' : 'text-secondary hover:text-primary'
               }`}
             >
               {label}
@@ -327,12 +324,47 @@ export default function Inventory() {
           onSelectLocation={handleSelectLocation}
           selectedWarranty={selectedWarranty}
           onSelectWarranty={handleSelectWarranty}
-          onClearFilters={handleClearFilters}
+        />
+        <ActiveFilters
+          searchQuery={searchQuery}
+          selectedCategoryId={selectedCategoryId}
+          selectedStatus={selectedStatus}
+          selectedLocation={selectedLocation}
+          selectedWarranty={selectedWarranty}
+          categories={categories}
+          onRemove={handleRemoveFilter}
+          onClearAll={handleClearFilters}
         />
       </div>
 
       {/* Asset Data Table */}
-      {viewMode === 'list' ? (
+      {showNoAssetsYet ? (
+        <EmptyState
+          title={ownership === 'client' ? 'No client assets yet' : 'No assets yet'}
+          description={
+            ownership === 'client'
+              ? 'No client-owned assets have been recorded.'
+              : 'No hardware has been registered in the inventory.'
+          }
+        >
+          {canCreateAssets && (
+            <>
+              <Link
+                to="/inventory/new"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-accent hover:bg-accent/90 text-on-accent shadow-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Asset</span>
+              </Link>
+              {canImportAssets && (
+                <p className="text-xs text-secondary mt-3">
+                  Adding many at once? Use <strong className="text-primary">Bulk upload (CSV)</strong> on the Add Asset page.
+                </p>
+              )}
+            </>
+          )}
+        </EmptyState>
+      ) : viewMode === 'list' ? (
         <AssetTable
           assets={assets}
           loading={assetsLoading || categoriesLoading}

@@ -2,6 +2,8 @@ import api from './axiosInstance';
 
 export const ticketsApi = {
   getAll: (params) => api.get('/tickets', { params }).then(res => res.data.data),
+
+  getById: (id) => api.get(`/tickets/${id}`).then(res => res.data.data),
   
   create: (data) => api.post('/tickets', data).then(res => res.data.data),
   

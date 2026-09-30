@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Activity, Users, Package, Ticket, ChevronRight, Layers } from 'lucide-react';
+import { ShieldCheck, Users, Package, Ticket, ChevronRight, Layers } from 'lucide-react';
 import Dashboard from './Dashboard';
+import ExecutiveOverview from '../components/dashboard/ExecutiveOverview';
 import HrDashboard from './HrDashboard';
 import EmployeeDashboard from './EmployeeDashboard';
 
@@ -15,19 +16,19 @@ export default function DirectorDashboard() {
         <div>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-accent" />
-            <h2 className="text-2xl font-extrabold text-primary tracking-tight">Executive Super-Dashboard</h2>
+            <h1 className="text-2xl font-extrabold text-primary tracking-tight">Executive Super-Dashboard</h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-accent/20 text-accent uppercase tracking-wider border border-accent/40">
               System Director
             </span>
           </div>
           <p className="text-sm text-secondary mt-1">
-            System-wide visibility, module-level dashboard view switching, and access control matrix controls.
+            Cross-team summary, per-team dashboard views, and access control.
           </p>
         </div>
 
         <Link
           to="/settings/roles"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-accent/20 shrink-0"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-on-accent text-sm font-semibold rounded-xl transition-all shadow-md shadow-accent/20 shrink-0"
         >
           <ShieldCheck className="w-4 h-4" />
           <span>Role Matrix Builder</span>
@@ -42,7 +43,7 @@ export default function DirectorDashboard() {
             onClick={() => setActiveTab('executive')}
             className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all ${
               activeTab === 'executive'
-                ? 'bg-accent text-white shadow-sm'
+                ? 'bg-accent text-on-accent shadow-sm'
                 : 'text-secondary hover:text-primary hover:bg-surface'
             }`}
           >
@@ -54,7 +55,7 @@ export default function DirectorDashboard() {
             onClick={() => setActiveTab('admin')}
             className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all ${
               activeTab === 'admin'
-                ? 'bg-accent text-white shadow-sm'
+                ? 'bg-accent text-on-accent shadow-sm'
                 : 'text-secondary hover:text-primary hover:bg-surface'
             }`}
           >
@@ -66,7 +67,7 @@ export default function DirectorDashboard() {
             onClick={() => setActiveTab('hr')}
             className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all ${
               activeTab === 'hr'
-                ? 'bg-accent text-white shadow-sm'
+                ? 'bg-accent text-on-accent shadow-sm'
                 : 'text-secondary hover:text-primary hover:bg-surface'
             }`}
           >
@@ -78,7 +79,7 @@ export default function DirectorDashboard() {
             onClick={() => setActiveTab('employee')}
             className={`flex items-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold transition-all ${
               activeTab === 'employee'
-                ? 'bg-accent text-white shadow-sm'
+                ? 'bg-accent text-on-accent shadow-sm'
                 : 'text-secondary hover:text-primary hover:bg-surface'
             }`}
           >
@@ -88,12 +89,12 @@ export default function DirectorDashboard() {
         </nav>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content — embedded dashboards hide their own title so this page has one header */}
       <div className="mt-4">
-        {activeTab === 'executive' && <Dashboard />}
-        {activeTab === 'admin' && <Dashboard />}
-        {activeTab === 'hr' && <HrDashboard />}
-        {activeTab === 'employee' && <EmployeeDashboard />}
+        {activeTab === 'executive' && <ExecutiveOverview />}
+        {activeTab === 'admin' && <Dashboard embedded />}
+        {activeTab === 'hr' && <HrDashboard embedded />}
+        {activeTab === 'employee' && <EmployeeDashboard embedded />}
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ export default function EmptyState({
   description = 'There are no items matching your current criteria.',
   actionText,
   onAction,
+  children,
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 px-4 text-center rounded-xl bg-surface/40 border border-dashed border-border/70">
@@ -19,11 +20,12 @@ export default function EmptyState({
         <button
           type="button"
           onClick={onAction}
-          className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-accent hover:bg-accent text-white shadow-sm transition-colors cursor-pointer"
+          className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-accent hover:bg-accent text-on-accent shadow-sm transition-colors cursor-pointer"
         >
           {actionText}
         </button>
       )}
+      {children}
     </div>
   );
 }

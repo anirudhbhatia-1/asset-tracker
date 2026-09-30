@@ -24,6 +24,7 @@ export default function CategoryCard({ category, onEdit, onDelete, canManage = t
           {canManage && (
             <div className="flex items-center gap-1">
               <button
+                aria-label="Edit Category"
                 onClick={() => onEdit(category)}
                 className="p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-raised transition-colors"
                 title="Edit Category"
@@ -31,6 +32,7 @@ export default function CategoryCard({ category, onEdit, onDelete, canManage = t
                 <Edit2 className="w-4 h-4" />
               </button>
               <button
+                aria-label="Delete Category"
                 onClick={() => onDelete(category)}
                 className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised transition-colors"
                 title="Delete Category"
@@ -54,7 +56,7 @@ export default function CategoryCard({ category, onEdit, onDelete, canManage = t
 
       <Link
         to={`/inventory?categoryId=${category.id}`}
-        className="inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-raised/50 hover:bg-accent text-primary hover:text-white text-sm font-semibold transition-colors cursor-pointer"
+        className="inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-raised/50 hover:bg-accent text-primary hover:text-on-accent text-sm font-semibold transition-colors cursor-pointer"
       >
         <span>View Inventory</span>
         <ArrowRight className="w-4 h-4" />

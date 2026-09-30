@@ -1,47 +1,40 @@
 import React from 'react';
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
-import { Settings as SettingsIcon, Tags, Globe, MapPin, ShieldCheck } from 'lucide-react';
+import { Settings as SettingsIcon, Tags, MapPin, ShieldCheck } from 'lucide-react';
 import CategoriesTab from '../components/categories/CategoriesTab';
 import LocationsTab from '../components/settings/LocationsTab';
 import RolesTab from '../components/settings/RolesTab';
 import { useAuth } from '../context/AuthContext';
 import ProtectedRoute from '../components/layout/ProtectedRoute';
+import PageHeader from '../components/ui/PageHeader';
 
 const Settings = () => {
   const location = useLocation();
   const { hasPermission } = useAuth();
 
+  // Google Workspace directory sync is not implemented yet, so it has no tab
+  // here; add it back once there is a real configuration screen.
   const tabs = [
-    { name: 'Google Workspace', path: '/settings/google', icon: Globe, permissionKey: 'settings:read' },
     { name: 'Roles & Permissions', path: '/settings/roles', icon: ShieldCheck, permissionKey: 'roles:read' },
     { name: 'Categories', path: '/settings/categories', icon: Tags, permissionKey: 'categories:read' },
     { name: 'Locations', path: '/settings/locations', icon: MapPin, permissionKey: 'locations:read' },
   ];
-
-  const defaultSettingsPath = hasPermission('settings:read')
-    ? 'google'
-    : hasPermission('roles:read')
-      ? 'roles'
-      : hasPermission('categories:read')
-        ? 'categories'
-        : 'locations';
 
   const visibleTabs = tabs.filter(tab => {
     if (!tab.permissionKey) return true;
     return hasPermission(tab.permissionKey);
   });
 
+  // Unknown or bare /settings paths land on the first tab this user can open.
+  const defaultSettingsPath = visibleTabs[0]?.path || '/';
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
-      <div>
-        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
-          <SettingsIcon className="w-6 h-6 text-accent" />
-          System Settings
-        </h2>
-        <p className="text-sm text-secondary mt-1">
-          Manage roles, permissions matrix, categories, locations, and application preferences.
-        </p>
-      </div>
+      <PageHeader
+        icon={SettingsIcon}
+        title="System Settings"
+        subtitle="Manage roles, permissions matrix, categories, locations, and application preferences."
+      />
 
       {/* Tabs Navigation */}
       <div className="border-b border-border/60">
@@ -70,17 +63,6 @@ const Settings = () => {
       {/* Tab Content */}
       <div className="mt-6">
         <Routes>
-          <Route element={<ProtectedRoute requiredPermission="settings:read" />}>
-            <Route path="google" element={
-              <div className="bg-surface border border-border rounded-xl p-8 text-center text-secondary animate-fadeIn">
-                <Globe className="w-12 h-12 text-secondary mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-primary">Google Workspace Sync</h3>
-                <p className="text-sm text-secondary mt-1 max-w-md mx-auto">
-                  OAuth configuration and manual/cron sync controls are disabled in this phase.
-                </p>
-              </div>
-            } />
-          </Route>
           <Route element={<ProtectedRoute requiredPermission="roles:read" />}>
             <Route path="roles" element={<RolesTab />} />
           </Route>

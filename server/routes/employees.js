@@ -2,6 +2,7 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const employeeService = require('../services/employeeService');
+const onboardingService = require('../services/onboardingService');
 const assetService = require('../services/assetService');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -101,6 +102,16 @@ router.get('/:id/assets', [
   }
 });
 
+// A new hire's onboarding assets are assigned once their record exists. The
+// employee is already saved, so a failure here is logged, not returned.
+const linkOnboarding = async (employee, actorUser) => {
+  try {
+    await onboardingService.assignFulfilledItemsToEmployee(employee, actorUser);
+  } catch (err) {
+    console.error(`Could not assign onboarding assets to employee #${employee.id}:`, err.message);
+  }
+};
+
 // POST /api/employees — create employee
 router.post('/', [
   requirePermission('employees:create'),
@@ -121,15 +132,21 @@ router.post('/', [
     let effectiveRoleOrId = roleId || role || 'employee';
 
     if (grantAccess) {
+      // Creating a login is its own permission, separate from adding a directory entry.
+      if (!hasPermission(req.user, 'employees:grant-access')) {
+        return res.status(403).json({ error: true, message: "Forbidden - Requires 'employees:grant-access' to create a login", code: 403 });
+      }
       const { employee, temporaryPassword } = await employeeService.createEmployeeWithAccess({
         ...employeeData,
         roleId: typeof effectiveRoleOrId === 'number' ? effectiveRoleOrId : null,
         role: typeof effectiveRoleOrId === 'string' ? effectiveRoleOrId : null,
       }, req.user);
+      await linkOnboarding(employee, req.user);
       return res.status(201).json({ data: employee, temporaryPassword, message: 'Employee created with login access' });
     }
 
     const created = await employeeService.createEmployee(req.body);
+    await linkOnboarding(created, req.user);
     res.status(201).json({ data: created, message: 'Employee created successfully' });
   } catch (err) {
     next(err);

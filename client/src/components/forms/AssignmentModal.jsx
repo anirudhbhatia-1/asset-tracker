@@ -121,7 +121,7 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                       isSelected ? 'border-accent bg-accent' : 'border-border'
                     }`}>
-                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-on-accent" />}
                     </div>
                   </button>
                 );

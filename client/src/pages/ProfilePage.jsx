@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import StatusPill from '../components/ui/StatusPill';
 import Badge from '../components/ui/Badge';
+import PageHeader from '../components/ui/PageHeader';
 import toast from 'react-hot-toast';
 
 const roleColors = {
@@ -113,10 +114,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary tracking-tight">My Profile</h1>
-        <p className="text-sm text-secondary mt-1">Your account information and assigned assets.</p>
-      </div>
+      <PageHeader title="My Profile" subtitle="Your account information and assigned assets." />
 
       {/* Profile Card */}
       <div className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden">
@@ -155,9 +153,10 @@ export default function ProfilePage() {
                     />
                     <button
                       type="button"
+                      aria-label="Save name"
                       onClick={handleSaveName}
                       disabled={savingName}
-                      className="p-1.5 rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg bg-accent text-on-accent hover:bg-accent/90 disabled:opacity-50 transition-colors cursor-pointer"
                       title="Save name"
                     >
                       {savingName
@@ -167,6 +166,7 @@ export default function ProfilePage() {
                     </button>
                     <button
                       type="button"
+                      aria-label="Cancel"
                       onClick={handleCancelEditName}
                       disabled={savingName}
                       className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors cursor-pointer"
@@ -180,8 +180,9 @@ export default function ProfilePage() {
                     <span className="text-sm font-medium text-primary">{profile?.name || '—'}</span>
                     <button
                       type="button"
+                      aria-label="Edit name"
                       onClick={handleStartEditName}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-secondary hover:text-accent hover:bg-accent/10 transition-all cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded-md text-secondary hover:text-accent hover:bg-accent/10 transition-all cursor-pointer"
                       title="Edit name"
                     >
                       <Pencil className="w-3.5 h-3.5" />

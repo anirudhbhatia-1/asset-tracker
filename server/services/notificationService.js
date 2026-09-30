@@ -27,7 +27,7 @@ const getEmployeeNotifications = async (employeeId) => {
       type: row.event_type === 'resolved' ? 'success' : 'warning',
       title: row.event_type === 'resolved' ? 'Ticket Resolved' : 'Ticket Rejected',
       message: `Your ticket "${row.title}" has been ${row.event_type}.`,
-      link: '/tickets',
+      link: `/tickets?ticket=${row.ticket_id}`,
       createdAt: row.created_at,
     });
   }
@@ -46,7 +46,7 @@ const getEmployeeNotifications = async (employeeId) => {
       type: 'info',
       title: 'Action Required: Confirm Resolution',
       message: `Please confirm if ticket "${row.title}" was resolved to your satisfaction.`,
-      link: '/tickets',
+      link: `/tickets?ticket=${row.id}`,
       createdAt: new Date(),
     });
   }
@@ -107,7 +107,7 @@ const getAdminNotifications = async (adminEmployee) => {
         type: 'info',
         title: 'New Ticket in Your Queue',
         message: `"${row.title}" — ${row.type} ticket waiting for action.`,
-        link: '/tickets',
+        link: `/tickets?ticket=${row.id}`,
         createdAt: row.created_at,
       });
     }
@@ -131,7 +131,7 @@ const getAdminNotifications = async (adminEmployee) => {
         type: 'warning',
         title: 'Ticket Transferred to You',
         message: `Ticket "${row.title}" has been transferred to your queue.`,
-        link: '/tickets',
+        link: `/tickets?ticket=${row.id}`,
         createdAt: row.created_at,
       });
     }
@@ -153,7 +153,7 @@ const getAdminNotifications = async (adminEmployee) => {
       type: 'info',
       title: 'New Onboarding Request',
       message: `New hire "${row.new_hire_name}" needs hardware to be arranged.`,
-      link: '/onboarding',
+      link: `/onboarding?request=${row.id}`,
       createdAt: row.created_at,
     });
   }
@@ -194,7 +194,7 @@ const getHrNotifications = async (employeeId) => {
       type: meta.type,
       title: meta.title,
       message: `Onboarding for "${row.new_hire_name}" is now ${row.status.replace('_', ' ')}.`,
-      link: '/onboarding',
+      link: `/onboarding?request=${row.id}`,
       createdAt: row.updated_at,
     });
   }
@@ -216,7 +216,7 @@ const getHrNotifications = async (employeeId) => {
       type: 'warning',
       title: 'Onboarding Awaiting Action',
       message: `Request for "${row.new_hire_name}" is still pending admin review.`,
-      link: '/onboarding',
+      link: `/onboarding?request=${row.id}`,
       createdAt: row.created_at,
     });
   }

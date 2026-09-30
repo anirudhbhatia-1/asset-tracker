@@ -1,5 +1,9 @@
 # AssetTrack — Technical Architecture Guide
 
+> **Historical document.** This describes the original plan and parts of it no longer match
+> the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
+> configuration and API are documented in [README.md](../README.md).
+
 **Document Version:** 2.0  
 **Date:** August 5, 2026  
 **Stack:** React 18 (Vite) + Node.js / Express 5 + PostgreSQL (Supabase / `pg`)  

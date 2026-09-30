@@ -67,7 +67,7 @@ export default function SerialSimulator({ onSimulateScan, disabled }) {
           <button
             type="submit"
             disabled={!selectedSerial || disabled}
-            className="w-full mt-3 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent text-white text-xs font-semibold transition-colors shadow-md disabled:opacity-40 cursor-pointer"
+            className="w-full mt-3 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent text-on-accent text-xs font-semibold transition-colors shadow-md disabled:opacity-40 cursor-pointer"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>Simulate Barcode Scan</span>

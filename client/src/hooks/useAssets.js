@@ -16,7 +16,7 @@ export default function useAssets(filters = {}) {
       const res = await getAssets(filters);
       setAssets(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
-      setError(err.message || 'Failed to load assets');
+      setError(err.response?.data?.message || err.message || 'Failed to load assets');
     } finally {
       setLoading(false);
     }

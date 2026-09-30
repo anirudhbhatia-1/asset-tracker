@@ -3,10 +3,10 @@ import { ShieldCheck, User, Key } from 'lucide-react';
 import api from '../../api/axiosInstance';
 
 const roleStyles = {
-  director: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
-  admin: 'bg-red-500/10 text-red-500 border-red-500/30',
-  hr:    'bg-amber-500/10 text-amber-500 border-amber-500/30',
-  employee: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
+  director: 'bg-info-purple/10 text-info-purple border-info-purple/30',
+  admin: 'bg-danger/10 text-danger border-danger/30',
+  hr:    'bg-warning/10 text-warning border-warning/30',
+  employee: 'bg-info-blue/10 text-info-blue border-info-blue/30',
 };
 
 export default function RoleManagementPanel({ employees = [], onRoleChange }) {
@@ -58,14 +58,14 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
             No employees have login accounts yet.
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table aria-label="Employee roles" className="w-full text-sm">
             <thead className="bg-base/40 border-b border-border text-xs text-secondary uppercase tracking-wider">
               <tr>
-                <th className="px-5 py-3 text-left font-medium">Employee</th>
-                <th className="px-5 py-3 text-left font-medium">Email</th>
-                <th className="px-5 py-3 text-left font-medium">Department</th>
-                <th className="px-5 py-3 text-left font-medium">Current Role</th>
-                <th className="px-5 py-3 text-left font-medium">Change Role</th>
+                <th scope="col" className="px-5 py-3 text-left font-medium">Employee</th>
+                <th scope="col" className="px-5 py-3 text-left font-medium">Email</th>
+                <th scope="col" className="px-5 py-3 text-left font-medium">Department</th>
+                <th scope="col" className="px-5 py-3 text-left font-medium">Current Role</th>
+                <th scope="col" className="px-5 py-3 text-left font-medium">Change Role</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">

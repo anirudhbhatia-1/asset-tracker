@@ -15,7 +15,7 @@ const OnboardingStatusBadge = ({ status }) => {
     pending: 'bg-raised text-secondary border-border',
     in_progress: 'bg-warning/10 text-warning border-warning/20',
     arranged: 'bg-success/10 text-success border-success/20',
-    completed: 'bg-success text-white border-success',
+    completed: 'bg-success text-on-accent border-success',
     cancelled: 'bg-error/10 text-error border-error/20'
   };
   return (
@@ -25,7 +25,8 @@ const OnboardingStatusBadge = ({ status }) => {
   );
 };
 
-export default function HrDashboard() {
+// `embedded` hides the page title when rendered inside another dashboard (Director view).
+export default function HrDashboard({ embedded = false }) {
   const { user, hasPermission } = useAuth();
   const canCreateOnboarding = hasPermission('onboarding:create');
   const canUpdateOnboarding = hasPermission('onboarding:update');
@@ -68,13 +69,15 @@ export default function HrDashboard() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-1.5">People operations</p>
-        <h1 className="text-2xl sm:text-[1.7rem] font-bold text-primary tracking-[-0.035em]">Welcome, {user?.name || 'HR Partner'}</h1>
-        <p className="text-sm text-secondary mt-1.5">
-          Manage onboarding hardware requests and view your assigned assets.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-1.5">People operations</p>
+          <h1 className="text-2xl sm:text-[1.7rem] font-bold text-primary tracking-[-0.035em]">Welcome, {user?.name || 'HR Partner'}</h1>
+          <p className="text-sm text-secondary mt-1.5">
+            Manage onboarding hardware requests and view your assigned assets.
+          </p>
+        </div>
+      )}
 
       {/* HR Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -118,7 +121,7 @@ export default function HrDashboard() {
             {canCreateOnboarding && (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-on-accent text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> New Hire
               </button>
@@ -129,7 +132,7 @@ export default function HrDashboard() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === f ? 'bg-primary text-white border-primary' : 'bg-base text-secondary border-border hover:border-primary/30'}`}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === f ? 'bg-primary text-surface border-primary' : 'bg-base text-secondary border-border hover:border-primary/30'}`}
               >
                 {f}
               </button>

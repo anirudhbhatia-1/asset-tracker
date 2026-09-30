@@ -1,16 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Plus, Users, Search, AlertCircle, Building2, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useOnboarding } from '../hooks/useOnboarding';
+import { onboardingApi } from '../api/onboardingApi';
 import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
 import OnboardingDetailsModal from '../components/hr/OnboardingDetailsModal';
+import { onActivateKey } from '../utils/a11y';
+import PageHeader from '../components/ui/PageHeader';
 
 const StatusBadge = ({ status }) => {
   const styles = {
     pending: 'bg-raised text-secondary border-border',
     in_progress: 'bg-warning/10 text-warning border-warning/20',
     arranged: 'bg-success/10 text-success border-success/20',
-    completed: 'bg-success text-white border-success',
+    completed: 'bg-success text-on-accent border-success',
     cancelled: 'bg-error/10 text-error border-error/20'
   };
   return (
@@ -27,10 +32,60 @@ const Onboarding = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [filter, setFilter] = useState('active'); // pending, in_progress, arranged
+  const [requestsLoaded, setRequestsLoaded] = useState(false);
+
+  // Deep link from notifications: /onboarding?request=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('request');
+  const handledDeepLinkRef = useRef(null);
 
   useEffect(() => {
-    fetchRequests();
+    let cancelled = false;
+    fetchRequests().then(() => {
+      if (!cancelled) setRequestsLoaded(true);
+    });
+    return () => { cancelled = true; };
   }, [fetchRequests]);
+
+  const clearDeepLink = useCallback(() => {
+    setSearchParams(prev => {
+      if (!prev.has('request')) return prev;
+      const next = new URLSearchParams(prev);
+      next.delete('request');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    if (!deepLinkId) {
+      handledDeepLinkRef.current = null;
+      return;
+    }
+    if (!requestsLoaded || handledDeepLinkRef.current === deepLinkId) return;
+    handledDeepLinkRef.current = deepLinkId;
+
+    const match = requests.find(r => String(r.id) === deepLinkId);
+    if (match) {
+      setSelectedRequest(match);
+      return;
+    }
+    // Not in the loaded list: fetch it directly. Ignore the answer if the
+    // user has moved on to a different link in the meantime.
+    onboardingApi.getById(deepLinkId)
+      .then(req => {
+        if (req && handledDeepLinkRef.current === deepLinkId) setSelectedRequest(req);
+      })
+      .catch(() => {
+        if (handledDeepLinkRef.current !== deepLinkId) return;
+        toast.error(`Onboarding request #${deepLinkId} was not found.`);
+        clearDeepLink();
+      });
+  }, [deepLinkId, requests, requestsLoaded, clearDeepLink]);
+
+  const closeRequestDetails = useCallback(() => {
+    setSelectedRequest(null);
+    clearDeepLink();
+  }, [clearDeepLink]);
 
   const filteredRequests = requests.filter(r => {
     if (filter === 'all') return true;
@@ -43,27 +98,21 @@ const Onboarding = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       
       {/* Header Area */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <Users className="w-6 h-6 text-accent" />
-            HR Onboarding
-          </h1>
-          <p className="text-secondary text-sm mt-1">
-            {hasPermission('onboarding:fulfill') ? 'Manage IT setup for incoming employees.' : 'Submit and track hardware requests for new hires.'}
-          </p>
-        </div>
-        
-        {hasPermission('onboarding:create') && (
+      <PageHeader
+        icon={Users}
+        title="HR Onboarding"
+        subtitle={hasPermission('onboarding:fulfill') ? 'Manage IT setup for incoming employees.' : 'Submit and track hardware requests for new hires.'}
+        actions={hasPermission('onboarding:create') && (
           <button
+            type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg font-medium shadow-sm transition-all"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-on-accent rounded-lg font-medium shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
             New Hire Request
           </button>
         )}
-      </div>
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
@@ -96,15 +145,15 @@ const Onboarding = () => {
         <div className="relative">
           <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none z-10 md:hidden" />
           <div className="overflow-x-auto pb-1">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table aria-label="Onboarding requests" className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-base border-b border-border text-secondary">
                 <tr>
-                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">New Hire</th>
-                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Role / Dept</th>
-                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Joining Date</th>
-                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
-                  {hasPermission('onboarding:fulfill') && <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Requested By</th>}
-                  <th className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Submitted</th>
+                  <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">New Hire</th>
+                  <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Role / Dept</th>
+                  <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Joining Date</th>
+                  <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
+                  {hasPermission('onboarding:fulfill') && <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Requested By</th>}
+                  <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Submitted</th>
                 </tr>
               </thead>
             <tbody className="divide-y divide-border">
@@ -131,6 +180,8 @@ const Onboarding = () => {
                   <tr 
                     key={req.id} 
                     onClick={() => setSelectedRequest(req)}
+                    tabIndex={0}
+                    onKeyDown={onActivateKey(() => setSelectedRequest(req))}
                     className="hover:bg-raised/30 transition-colors cursor-pointer group"
                   >
                     <td className="px-6 py-4">
@@ -177,7 +228,7 @@ const Onboarding = () => {
       <OnboardingDetailsModal 
         isOpen={!!selectedRequest} 
         request={selectedRequest} 
-        onClose={() => setSelectedRequest(null)} 
+        onClose={closeRequestDetails} 
         getRequestDetails={getRequestDetails}
         onUpdateStatus={updateStatus}
         onFulfillItem={fulfillItem}

@@ -1,5 +1,9 @@
 # AssetTrack — Comprehensive User Flow & Feature Specification Guide
 
+> **Historical document.** This describes the original plan and parts of it no longer match
+> the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
+> configuration and API are documented in [README.md](README.md).
+
 **Document Version:** 1.0  
 **Date:** August 4, 2026  
 **Stack:** React (Vite) + Node.js / Express + Supabase Postgres  

@@ -3,6 +3,8 @@ import api from './axiosInstance';
 export const getAssets = (filters = {}) => api.get('/assets', { params: filters });
 export const getAsset = (id) => api.get(`/assets/${id}`);
 export const getAssetHistory = (id) => api.get(`/assets/${id}/history`);
+// Tickets raised about the asset or fulfilled by handing it out (timeline).
+export const getAssetTickets = (id) => api.get(`/assets/${id}/tickets`);
 export const createAsset = (payload) => api.post('/assets', payload);
 // The API exposes partial asset updates as PATCH. Keeping this wrapper aligned
 // prevents both the edit page and inline detail editor from receiving a 404.
@@ -14,6 +16,12 @@ export const retireAssetApi = (id, note) => api.post(`/assets/${id}/retire`, { n
 export const bulkAssignAssets = (employeeId, assetIds, note) =>
   api.post(`/employees/${employeeId}/assign-assets`, { assetIds, note });
 export const scanSerial = (serial) => api.get(`/serial/scan/${encodeURIComponent(serial)}`);
+// Uniqueness check for the Add Asset form (assets:create, not rate-limited
+// like the scanner lookup). Resolves to true/false.
+export const checkSerialExists = async (serial) => {
+  const res = await api.get('/assets/serial-exists', { params: { serial } });
+  return Boolean(res.data?.data?.exists);
+};
 export const getChildAssets = (parentId) => api.get('/assets', { params: { parentId } });
 
 export const exportAssetsExcel = () =>

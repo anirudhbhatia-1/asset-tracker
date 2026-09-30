@@ -3,6 +3,7 @@ const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const assetService = require('../services/assetService');
 const historyService = require('../services/historyService');
+const ticketService = require('../services/ticketService');
 const { validateSession, requireRole, requirePermission } = require('../middleware/validateSession');
 const multer = require('multer');
 const path = require('path');
@@ -51,6 +52,22 @@ router.get('/', requirePermission('assets:read'), async (req, res, next) => {
       total: assets.length,
       message: 'OK',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/assets/serial-exists?serial=… — uniqueness check for the Add Asset
+// form (auto-generated serials). Needs only assets:create, unlike the
+// rate-limited scanner lookup.
+router.get('/serial-exists', requirePermission('assets:create'), async (req, res, next) => {
+  try {
+    const serial = typeof req.query.serial === 'string' ? req.query.serial.trim() : '';
+    if (!serial) {
+      return res.status(400).json({ error: true, message: 'serial query parameter is required' });
+    }
+    const exists = await assetService.serialExists(serial);
+    res.status(200).json({ data: { exists }, message: 'OK' });
   } catch (err) {
     next(err);
   }
@@ -132,6 +149,21 @@ router.get('/:id', [
   }
 });
 
+// GET /api/assets/:id/tickets — tickets linked to this asset (timeline)
+router.get('/:id/tickets', [
+  requirePermission('assets:read'),
+  requirePermission('tickets:read'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const tickets = await ticketService.getTicketsForAsset(Number(req.params.id));
+    res.status(200).json({ data: tickets, total: tickets.length, message: 'OK' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/assets/:id/history — get full history for one asset
 router.get('/:id/history', [
   requirePermission('assets:read'),
@@ -156,7 +188,7 @@ router.post('/', [
   body('name').notEmpty().withMessage('Asset name is required').trim().isLength({ max: 150 }),
   body('serialNumber').notEmpty().withMessage('Serial number is required').trim().isLength({ max: 100 }),
   body('categoryId').notEmpty().withMessage('Category ID is required').isInt({ min: 1 }),
-  body('status').optional().isIn(['available', 'in-use', 'maintenance', 'retired', 'returned']).withMessage('Invalid status'),
+  body('status').optional().isIn(['available', 'in-use', 'retired', 'returned']).withMessage('Invalid status'),
   body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Must be valid ISO date'),
   body('costCents').optional({ nullable: true }).isInt({ min: 0 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim(),
@@ -203,7 +235,7 @@ router.patch('/:id', [
   body('name').optional().notEmpty().withMessage('Asset name cannot be empty').trim().isLength({ max: 150 }),
   body('serialNumber').optional().notEmpty().withMessage('Serial number cannot be empty').trim().isLength({ max: 100 }),
   body('categoryId').optional().isInt({ min: 1 }),
-  body('status').optional().isIn(['available', 'in-use', 'maintenance', 'retired', 'returned']).withMessage('Invalid status'),
+  body('status').optional().isIn(['available', 'in-use', 'retired', 'returned']).withMessage('Invalid status'),
   body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601(),
   body('costCents').optional({ nullable: true }).isInt({ min: 0 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim(),

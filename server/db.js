@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { Pool } = require('pg');
 require('./loadEnv');
 
@@ -6,14 +7,26 @@ const pool = new Pool({
   // Ensure we're not exhausting connection limits from Supabase
   // Supabase free tier connection limit is typically 60 for the transaction pool,
   // but using session pooler we have more leeway. 10 is sensible for a local/node app.
-  max: 10,
+  max: Number(process.env.DB_POOL_MAX) || 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
 
-// If deploying to production or a remote Supabase DB, SSL is required for the Session Pooler
-if (process.env.NODE_ENV === 'production') {
-  pool.options.ssl = { rejectUnauthorized: false };
+// Production connects to Supabase over SSL. With DATABASE_SSL_CA_FILE (the CA
+// certificate from Supabase: Dashboard → Database → SSL) the server's
+// certificate is verified; without it the connection is encrypted but the
+// certificate is not checked.
+const buildSslOptions = (environment = process.env, readFile = fs.readFileSync) => {
+  if (environment.NODE_ENV !== 'production') return undefined;
+  if (environment.DATABASE_SSL_CA_FILE) {
+    return { rejectUnauthorized: true, ca: readFile(environment.DATABASE_SSL_CA_FILE, 'utf8') };
+  }
+  return { rejectUnauthorized: false };
+};
+
+const sslOptions = buildSslOptions();
+if (sslOptions) {
+  pool.options.ssl = sslOptions;
 }
 
 // Optional helper for running transactions simply
@@ -33,6 +46,7 @@ async function withTransaction(callback) {
 }
 
 module.exports = {
+  buildSslOptions,
   pool,
   withTransaction,
   query: (text, params) => pool.query(text, params)

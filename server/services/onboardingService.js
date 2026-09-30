@@ -127,7 +127,22 @@ const updateRequestStatus = async (id, status, user) => {
   return rows[0];
 };
 
-const fulfillItem = async (requestId, itemId, assetId) => {
+// Links an onboarding request to the new hire's employee record by email.
+// Returns the employee id, or null while the new hire has no record yet.
+const resolveLinkedEmployee = async (request) => {
+  if (request.linked_employee_id) return request.linked_employee_id;
+  if (!request.new_hire_email) return null;
+  const { rows } = await db.pool.query(
+    'SELECT id FROM employees WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL LIMIT 1',
+    [request.new_hire_email]
+  );
+  if (rows.length === 0) return null;
+  await db.pool.query('UPDATE onboarding_requests SET linked_employee_id = $1, updated_at = NOW() WHERE id = $2',
+    [rows[0].id, request.id]);
+  return rows[0].id;
+};
+
+const fulfillItem = async (requestId, itemId, assetId, actorUser = null) => {
   // First, verify the request and see if there is a linked employee
   const req = await getRequestById(requestId);
   if (!req) {
@@ -144,14 +159,17 @@ const fulfillItem = async (requestId, itemId, assetId) => {
     throw err;
   }
 
-  // Cross-feature sync: if it wasn't already fulfilled with this asset and employee exists, assign it!
-  if (assetId && req.linked_employee_id && itemRow.fulfilled_asset_id !== assetId) {
+  // Cross-feature sync: hand the asset to the new hire once they have an
+  // employee record. Until then the item stays reserved on the request and is
+  // assigned when their record is created (assignFulfilledItemsToEmployee).
+  const linkedEmployeeId = await resolveLinkedEmployee(req);
+  if (assetId && linkedEmployeeId && itemRow.fulfilled_asset_id !== assetId) {
     await assetService.assignAsset(
-      assetId, 
-      req.linked_employee_id, 
-      null, 
-      `Fulfilled via Onboarding Request #${requestId}`, 
-      'Admin System'
+      assetId,
+      linkedEmployeeId,
+      null,
+      `Fulfilled via Onboarding Request #${requestId}`,
+      actorUser
     );
   }
 
@@ -175,7 +193,32 @@ const getHrMetrics = async () => {
   return rows[0];
 };
 
+// Called when an employee record is created: links open onboarding requests
+// for that email and assigns any assets already fulfilled on them.
+const assignFulfilledItemsToEmployee = async (employee, actorUser = null) => {
+  const { rows: requests } = await db.pool.query(
+    `SELECT id FROM onboarding_requests
+     WHERE LOWER(new_hire_email) = LOWER($1) AND linked_employee_id IS NULL AND status <> 'cancelled'`,
+    [employee.email]
+  );
+  for (const request of requests) {
+    await db.pool.query('UPDATE onboarding_requests SET linked_employee_id = $1, updated_at = NOW() WHERE id = $2',
+      [employee.id, request.id]);
+    const { rows: items } = await db.pool.query(
+      `SELECT i.fulfilled_asset_id FROM onboarding_request_items i
+       JOIN assets a ON a.id = i.fulfilled_asset_id
+       WHERE i.onboarding_request_id = $1 AND a.status = 'available'`,
+      [request.id]
+    );
+    for (const item of items) {
+      await assetService.assignAsset(item.fulfilled_asset_id, employee.id, null,
+        `Fulfilled via Onboarding Request #${request.id}`, actorUser);
+    }
+  }
+};
+
 module.exports = {
+  assignFulfilledItemsToEmployee,
   getRequests,
   getRequestById,
   createRequest,

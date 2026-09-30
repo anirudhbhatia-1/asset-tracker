@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
-import { CheckCircle2, AlertCircle, ArrowRight, RefreshCw, MapPin, User, Building2, Tag } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ArrowRight, RefreshCw, MapPin, User, Building2, Tag, UserPlus, CornerDownLeft } from 'lucide-react';
 
-export default function ScanResultCard({ asset, error, onClear }) {
+// Quick actions depend on the asset's status and what the viewer may do:
+// "Open details" needs assets:read, Assign/Return need assets:assign.
+export default function ScanResultCard({ asset, error, onClear, canOpenDetails = false, canAssign = false, onAssign, onReturn, actionBusy = false }) {
   if (!asset && !error) return null;
 
   if (error) {
@@ -35,6 +37,9 @@ export default function ScanResultCard({ asset, error, onClear }) {
       </div>
     );
   }
+
+  const showAssign = canAssign && onAssign && asset.status === 'available';
+  const showReturn = canAssign && onReturn && asset.status === 'in-use';
 
   return (
     <div className="w-full max-w-xl mx-auto bg-surface/90 backdrop-blur-md rounded-2xl border border-success/40 p-6 shadow-xl animate-fadeIn relative overflow-hidden text-left">
@@ -111,15 +116,41 @@ export default function ScanResultCard({ asset, error, onClear }) {
         </div>
       )}
 
-      <div className="flex justify-end gap-3">
-        <Link
-          to={`/inventory/${asset.id}`}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent text-white text-xs font-semibold transition-all shadow-lg shadow-accent/20 cursor-pointer"
-        >
-          <span>Go to Asset Details</span>
-          <ArrowRight className="w-4 h-4" />
-        </Link>
-      </div>
+      {(canOpenDetails || showAssign || showReturn) && (
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+          {showAssign && (
+            <button
+              type="button"
+              onClick={onAssign}
+              disabled={actionBusy}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-surface hover:bg-raised text-primary text-xs font-semibold border border-border transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4 text-accent" />
+              <span>Assign</span>
+            </button>
+          )}
+          {showReturn && (
+            <button
+              type="button"
+              onClick={onReturn}
+              disabled={actionBusy}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-surface hover:bg-raised text-primary text-xs font-semibold border border-border transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <CornerDownLeft className="w-4 h-4 text-warning" />
+              <span>{asset.assetType === 'client' ? 'Return to client' : 'Return to stock'}</span>
+            </button>
+          )}
+          {canOpenDetails && (
+            <Link
+              to={`/inventory/${asset.id}`}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent text-on-accent text-xs font-semibold transition-all shadow-lg shadow-accent/20 cursor-pointer"
+            >
+              <span>Open details</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -9,14 +9,20 @@ import BulkAssignModal from '../components/forms/BulkAssignModal';
 import RoleManagementPanel from '../components/dashboard/RoleManagementPanel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
+import PageHeader from '../components/ui/PageHeader';
 import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package } from 'lucide-react';
+import { onActivateKey } from '../utils/a11y';
 
 const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing'];
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
 
 export default function Employees() {
   const { user, hasPermission } = useAuth();
-  const isAdmin = hasPermission('employees:grant-access') || hasPermission('roles:manage');
+  const canGrantAccess = hasPermission('employees:grant-access');
+  const canManageRoles = hasPermission('roles:manage');
+  const canCreate = hasPermission('employees:create');
+  const canEdit = hasPermission('employees:manage');
+  const canAssignAssets = hasPermission('employees:assign-assets');
   const { employees, loading, error, refresh, addEmployee, updateEmployee, deleteEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline } = useEmployees();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'roles'
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,8 +51,8 @@ export default function Employees() {
   };
 
   useEffect(() => {
-    if (!isAdmin && activeTab === 'roles') setActiveTab('directory');
-  }, [isAdmin, activeTab]);
+    if (!canManageRoles && activeTab === 'roles') setActiveTab('directory');
+  }, [canManageRoles, activeTab]);
 
   const safeEmployees = Array.isArray(employees) ? employees : [];
 
@@ -72,6 +78,7 @@ export default function Employees() {
   }, [safeEmployees, searchTerm, selectedDepartment, selectedAccess]);
 
   const handleRowClick = (emp) => {
+    if (!canEdit) return;
     setSelectedEmployee(emp);
     setIsEditModalOpen(true);
   };
@@ -91,29 +98,25 @@ export default function Employees() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight flex items-center gap-2.5">
-            <Users className="w-6 h-6 text-accent" />
-            <span>Employee Directory ({safeEmployees.length})</span>
-          </h1>
-          <p className="text-sm text-secondary mt-1">
-            Browse company staff, view allocated hardware, or manage system roles.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 self-start sm:self-auto">
-          <button type="button" onClick={refresh} className="p-2.5 rounded-xl bg-surface hover:bg-raised text-secondary border border-border transition-colors shadow-sm cursor-pointer" title="Refresh">
+      <PageHeader
+        icon={Users}
+        title={`Employee Directory (${safeEmployees.length})`}
+        subtitle="Browse company staff, view allocated hardware, or manage system roles."
+        actions={<>
+          <button type="button" aria-label="Refresh" onClick={refresh} className="p-2.5 rounded-xl bg-surface hover:bg-raised text-secondary border border-border transition-colors shadow-sm cursor-pointer" title="Refresh">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-accent' : ''}`} />
           </button>
-          <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
-            <UserPlus className="w-4 h-4" />
-            <span>Add Employee</span>
-          </Button>
-        </div>
-      </div>
+          {canCreate && (
+            <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
+              <UserPlus className="w-4 h-4" />
+              <span>Add Employee</span>
+            </Button>
+          )}
+        </>}
+      />
 
       {/* Tab Switcher */}
-      {isAdmin && (
+      {canManageRoles && (
         <div className="flex items-center gap-1 bg-base p-1 rounded-xl border border-border w-fit">
           {[
             { id: 'directory', label: 'Directory', icon: Users },
@@ -175,7 +178,7 @@ export default function Employees() {
                   onClick={() => setSelectedDepartment(dep)}
                   className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
                     isSelected
-                      ? 'bg-accent text-white border-accent shadow-sm shadow-accent/20'
+                      ? 'bg-accent text-on-accent border-accent shadow-sm shadow-accent/20'
                       : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
                   }`}
                 >
@@ -199,7 +202,7 @@ export default function Employees() {
                   onClick={() => setSelectedAccess(acc)}
                   className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
                     isSelected
-                      ? 'bg-accent text-white border-accent shadow-sm shadow-accent/20'
+                      ? 'bg-accent text-on-accent border-accent shadow-sm shadow-accent/20'
                       : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
                   }`}
                 >
@@ -227,7 +230,7 @@ export default function Employees() {
               ? 'No staff members match your current filters.'
               : 'The company directory is currently empty.'
           }
-          actionText={searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All' ? 'Reset Filters' : 'Add First Employee'}
+          actionText={searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All' ? 'Reset Filters' : (canCreate ? 'Add First Employee' : undefined)}
           onAction={() => {
             if (searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All') {
               setSearchTerm('');
@@ -241,19 +244,24 @@ export default function Employees() {
       ) : (
         <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table aria-label="Employees" className="w-full text-left text-sm">
               <thead className="bg-base/60 border-b border-border text-xs text-secondary uppercase tracking-wider">
                 <tr>
-                  <th className="px-5 py-3.5 font-semibold">Employee</th>
-                  <th className="px-5 py-3.5 font-semibold">Department</th>
-                  <th className="px-5 py-3.5 font-semibold">Location</th>
-                  <th className="px-5 py-3.5 font-semibold">Access Level</th>
-                  <th className="px-5 py-3.5 font-semibold text-right">Actions</th>
+                  <th scope="col" className="px-5 py-3.5 font-semibold">Employee</th>
+                  <th scope="col" className="px-5 py-3.5 font-semibold">Department</th>
+                  <th scope="col" className="px-5 py-3.5 font-semibold">Location</th>
+                  <th scope="col" className="px-5 py-3.5 font-semibold">Access Level</th>
+                  <th scope="col" className="px-5 py-3.5 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {filteredEmployees.map((emp) => (
-                  <tr key={emp.id} onClick={() => handleRowClick(emp)} className="hover:bg-raised/30 transition-colors cursor-pointer group">
+                  <tr
+                    key={emp.id}
+                    onClick={() => handleRowClick(emp)}
+                    tabIndex={canEdit ? 0 : undefined}
+                    onKeyDown={canEdit ? onActivateKey(() => handleRowClick(emp)) : undefined}
+                    className={`hover:bg-raised/30 transition-colors group ${canEdit ? 'cursor-pointer' : ''}`}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-raised border border-border flex items-center justify-center text-xs font-bold text-primary uppercase shrink-0 shadow-sm">
@@ -279,10 +287,10 @@ export default function Employees() {
                             <XCircle className="w-3 h-3" />
                             No Access
                           </span>
-                          {isAdmin && (
+                          {canGrantAccess && (
                             <button
                               onClick={(e) => handleGrantAccessClick(e, emp)}
-                              className="text-[11px] font-semibold text-accent hover:underline px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="text-[11px] font-semibold text-accent hover:underline px-2 py-0.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity"
                             >
                               Grant Access
                             </button>
@@ -291,18 +299,20 @@ export default function Employees() {
                       )}
                     </td>
                     <td className="px-5 py-3 text-right flex items-center justify-end gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setBulkAssignTarget(emp);
-                          setIsBulkAssignOpen(true);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm"
-                        title="Assign Hardware to Employee"
-                      >
-                        <Package className="w-3.5 h-3.5 text-accent" />
-                        Assign Hardware
-                      </button>
+                      {canAssignAssets && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBulkAssignTarget(emp);
+                            setIsBulkAssignOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm"
+                          title="Assign Hardware to Employee"
+                        >
+                          <Package className="w-3.5 h-3.5 text-accent" />
+                          Assign Hardware
+                        </button>
+                      )}
                       <button
                         onClick={(e) => handleAssetsClick(e, emp)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm"
@@ -321,7 +331,7 @@ export default function Employees() {
       </>
       )}
 
-      {activeTab === 'roles' && isAdmin && (
+      {activeTab === 'roles' && canManageRoles && (
         <RoleManagementPanel
           employees={safeEmployees}
           onRoleChange={changeRoleInline}
@@ -336,7 +346,7 @@ export default function Employees() {
         }}
         employee={selectedEmployee}
         onSave={updateEmployee}
-        canEditRole={isAdmin}
+        onChangeRole={changeRole}
       />
 
       <EmployeeAssetDrawer

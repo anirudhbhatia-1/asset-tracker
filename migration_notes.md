@@ -1,5 +1,9 @@
 # AssetTrack Migration Notes — Permission Key Audit (Phase 0 Baseline)
 
+> **Historical document.** This describes the original plan and parts of it no longer match
+> the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
+> configuration and API are documented in [README.md](README.md).
+
 ## Audit Findings for `inventory:*` Key Replacements
 
 The following exact occurrences of `inventory:*` permission key strings were audited across the codebase and must be systematically migrated to `assets:*`:

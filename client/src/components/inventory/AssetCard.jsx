@@ -2,12 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
+import WarrantyBadge from '../ui/WarrantyBadge';
 import { ChevronRight, MapPin, Calendar, User } from 'lucide-react';
-import { getWarrantyStatus } from '../../utils/formatters';
 
 export default function AssetCard({ asset }) {
-  const warrantyStatus = getWarrantyStatus(asset.warrantyExpiryDate);
-
   return (
     <Link
       to={`/inventory/${asset.id}`}
@@ -23,7 +21,7 @@ export default function AssetCard({ asset }) {
           />
           <div className="flex flex-col items-end gap-1.5">
             <StatusPill status={asset.status} />
-            <StatusPill status={warrantyStatus} />
+            <WarrantyBadge expiryDate={asset.warrantyExpiryDate} />
           </div>
         </div>
 

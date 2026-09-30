@@ -96,11 +96,11 @@ export default function RolesTab() {
                   <div className="flex items-center gap-2">
                     <h4 className="text-base font-bold text-primary">{role.name}</h4>
                     {role.isDirector ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/30">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-info-purple/10 text-info-purple border border-info-purple/30">
                         Director
                       </span>
                     ) : role.isSystem ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/30 flex items-center gap-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-info-blue/10 text-info-blue border border-info-blue/30 flex items-center gap-1">
                         <Lock className="w-2.5 h-2.5" /> System Role
                       </span>
                     ) : (
@@ -116,6 +116,7 @@ export default function RolesTab() {
                   {hasPermission('roles:manage') && (
                     <button
                       type="button"
+                      aria-label="Edit role permissions"
                       onClick={() => handleEditRole(role)}
                       className="p-2 rounded-xl text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer"
                       title="Edit role permissions"
@@ -126,6 +127,7 @@ export default function RolesTab() {
                   {!role.isSystem && hasPermission('roles:manage') && (
                     <button
                       type="button"
+                      aria-label="Delete custom role"
                       onClick={() => handleDeleteRole(role)}
                       className="p-2 rounded-xl text-danger hover:bg-danger/10 transition-colors cursor-pointer"
                       title="Delete custom role"
