@@ -4,6 +4,7 @@ import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  getGoogleAuthConfigProblem,
   isGoogleAuthConfigured,
   normalizeAllowedDomain,
   validateGooglePayload,
@@ -56,7 +57,7 @@ describe('Google authentication configuration', () => {
     })).toBe(true);
   });
 
-  it.each(['@', '   ', 'https://company.com', 'company', '-company.com', 'company..com'])(
+  it.each(['@', '   ', 'https://', 'company', '-company.com', 'company..com', 'company.com/path'])(
     'rejects malformed Workspace domains (%s)',
     (domain) => {
       expect(normalizeAllowedDomain(domain)).toBe('');
@@ -255,5 +256,41 @@ describe('Google login route', () => {
     expect((await request(failingApp).get('/limited')).status).toBe(401);
     expect((await request(failingApp).get('/limited')).status).toBe(401);
     expect((await request(failingApp).get('/limited')).status).toBe(429);
+  });
+});
+
+describe('Google sign-in configuration diagnostics', () => {
+  it('names the missing setting that disables Google sign-in', () => {
+    expect(getGoogleAuthConfigProblem({})).toContain('GOOGLE_CLIENT_ID');
+    expect(getGoogleAuthConfigProblem({ GOOGLE_CLIENT_ID: 'id.apps.googleusercontent.com', NODE_ENV: 'production' }))
+      .toContain('GOOGLE_ALLOWED_DOMAIN');
+    expect(getGoogleAuthConfigProblem({
+      GOOGLE_CLIENT_ID: 'id.apps.googleusercontent.com', NODE_ENV: 'production', GOOGLE_ALLOWED_DOMAIN: 'thinkvibes.com',
+    })).toBeNull();
+  });
+
+  it('accepts the domain however it is pasted, but not without a TLD', () => {
+    for (const value of ['thinkvibes.com', '@thinkvibes.com', '"thinkvibes.com"', 'https://thinkvibes.com/', ' ThinkVibes.com ']) {
+      expect(normalizeAllowedDomain(value)).toBe('thinkvibes.com');
+    }
+    expect(normalizeAllowedDomain('@thinkvibes')).toBe('');
+    expect(getGoogleAuthConfigProblem({
+      GOOGLE_CLIENT_ID: 'id.apps.googleusercontent.com', NODE_ENV: 'production', GOOGLE_ALLOWED_DOMAIN: '@thinkvibes',
+    })).toContain('is not a valid domain');
+  });
+
+  it('reports sign-in status without secrets on GET /config', async () => {
+    const app = express();
+    app.use('/api/google', googleRouter);
+    const original = { ...process.env };
+    Object.assign(process.env, { GOOGLE_CLIENT_ID: 'id.apps.googleusercontent.com', NODE_ENV: 'production', GOOGLE_ALLOWED_DOMAIN: 'thinkvibes.com' });
+    try {
+      const response = await request(app).get('/api/google/config');
+      expect(response.body.data).toEqual({ enabled: true, allowedDomain: 'thinkvibes.com', problem: null });
+    } finally {
+      for (const key of ['GOOGLE_CLIENT_ID', 'NODE_ENV', 'GOOGLE_ALLOWED_DOMAIN']) {
+        if (original[key] === undefined) delete process.env[key]; else process.env[key] = original[key];
+      }
+    }
   });
 });

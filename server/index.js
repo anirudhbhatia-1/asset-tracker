@@ -1,9 +1,10 @@
-require('dotenv').config();
+require('./loadEnv');
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const db = require('./db');
 const errorHandler = require('./middleware/errorHandler');
+const { getGoogleAuthConfigProblem, normalizeAllowedDomain } = require('./services/googleService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -64,6 +65,13 @@ let server;
 if (require.main === module) {
   server = app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
+    const googleProblem = getGoogleAuthConfigProblem();
+    if (googleProblem) {
+      console.warn(`Google sign-in is DISABLED: ${googleProblem}`);
+    } else {
+      const domain = normalizeAllowedDomain(process.env.GOOGLE_ALLOWED_DOMAIN);
+      console.log(`Google sign-in enabled${domain ? ` for @${domain} accounts` : ' for any verified Google account'}`);
+    }
   });
 }
 

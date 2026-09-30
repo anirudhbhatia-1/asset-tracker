@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('../loadEnv');
 const db = require('../db');
 
 const DRY_RUN = process.argv.includes('--dry-run');

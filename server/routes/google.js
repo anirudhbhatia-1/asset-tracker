@@ -16,9 +16,18 @@ const createGoogleLoginLimiter = (overrides = {}) => rateLimit({
   ...overrides,
 });
 const googleLoginLimiter = createGoogleLoginLimiter();
-// Original placeholder — kept as-is
+// GET /api/google/config — public status check for deployments: whether
+// Google sign-in is on and, if not, which setting is missing. Exposes no secrets.
 router.get('/config', (req, res) => {
-  res.status(200).json({ data: { client_id: '', domain: '' }, message: 'Google config route stub' });
+  const problem = googleService.getGoogleAuthConfigProblem();
+  res.status(200).json({
+    data: {
+      enabled: !problem,
+      allowedDomain: googleService.normalizeAllowedDomain(process.env.GOOGLE_ALLOWED_DOMAIN) || null,
+      problem,
+    },
+    message: problem ? 'Google sign-in is disabled' : 'Google sign-in is enabled',
+  });
 });
 // POST /api/google/login — Google Identity Services sign-in endpoint
 // Accepts a Google ID token (credential) from the frontend Google button.

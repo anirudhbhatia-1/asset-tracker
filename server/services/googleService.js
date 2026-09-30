@@ -4,7 +4,13 @@ const { createSessionForEmployee } = require('./authService');
 
 const normalizeAllowedDomain = (value) => {
   if (typeof value !== 'string') return '';
-  const domain = value.trim().toLowerCase().replace(/^@/, '');
+  // Tolerate how the value is commonly pasted: "thinkvibes.com", @thinkvibes.com,
+  // https://thinkvibes.com/.
+  const domain = value.trim().toLowerCase()
+    .replace(/^["']|["']$/g, '')
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '')
+    .replace(/^@/, '');
   if (!domain || domain.length > 253 || !domain.includes('.')) return '';
   const labels = domain.split('.');
   if (labels.some((label) => (
@@ -13,20 +19,30 @@ const normalizeAllowedDomain = (value) => {
   return domain;
 };
 
-const isGoogleAuthConfigured = (environment = process.env) => {
+// Explains why Google sign-in is switched off, or returns null when it is on.
+// Logged at startup so a misconfigured deployment is obvious in server logs.
+const getGoogleAuthConfigProblem = (environment = process.env) => {
   const clientId = typeof environment.GOOGLE_CLIENT_ID === 'string'
     ? environment.GOOGLE_CLIENT_ID.trim()
     : '';
-  if (!clientId || clientId.includes('your-google-client-id')) return false;
+  if (!clientId || clientId.includes('your-google-client-id')) {
+    return 'GOOGLE_CLIENT_ID is not set (it must equal the client VITE_GOOGLE_CLIENT_ID)';
+  }
 
   if (environment.NODE_ENV === 'production') {
     const allowedDomain = normalizeAllowedDomain(environment.GOOGLE_ALLOWED_DOMAIN);
     const allowsExternalAccounts = environment.GOOGLE_ALLOW_EXTERNAL_ACCOUNTS === 'true';
-    return Boolean(allowedDomain) || allowsExternalAccounts;
+    if (!allowedDomain && !allowsExternalAccounts) {
+      return environment.GOOGLE_ALLOWED_DOMAIN
+        ? `GOOGLE_ALLOWED_DOMAIN "${environment.GOOGLE_ALLOWED_DOMAIN}" is not a valid domain (use e.g. thinkvibes.com)`
+        : 'NODE_ENV=production requires GOOGLE_ALLOWED_DOMAIN (e.g. thinkvibes.com) or GOOGLE_ALLOW_EXTERNAL_ACCOUNTS=true';
+    }
   }
 
-  return true;
+  return null;
 };
+
+const isGoogleAuthConfigured = (environment = process.env) => !getGoogleAuthConfigProblem(environment);
 
 const validateGooglePayload = (payload, allowedDomain = process.env.GOOGLE_ALLOWED_DOMAIN) => {
   if (!payload?.email || payload.email_verified !== true) {
@@ -109,6 +125,7 @@ const loginWithGoogle = async (idToken, dependencies = {}) => {
 };
 module.exports = {
   normalizeAllowedDomain,
+  getGoogleAuthConfigProblem,
   isGoogleAuthConfigured,
   validateGooglePayload,
   verifyGoogleIdToken,
