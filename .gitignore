@@ -36,6 +36,8 @@ server/.devdb/
 *.xlsx
 *.xls
 *.csv
+# ...except the empty example template served by the app
+!client/public/asset-import-template.csv
 
 # Uploaded files awaiting import
 server/tmp/

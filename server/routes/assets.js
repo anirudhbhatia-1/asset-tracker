@@ -8,6 +8,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { exportAssetsToExcel, importAssetsFromExcel } = require('../services/importExportService');
+const { importAssetsFromCsv } = require('../services/csvImportService');
 
 const upload = multer({
   dest: path.join(__dirname, '../tmp/'),
@@ -17,6 +18,20 @@ const upload = multer({
       cb(null, true);
     } else {
       const err = new Error('Only .xlsx files are accepted');
+      err.statusCode = 400;
+      cb(err);
+    }
+  }
+});
+
+const csvUpload = multer({
+  dest: path.join(__dirname, '../tmp/'),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.toLowerCase().endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      const err = new Error('Only .csv files are accepted');
       err.statusCode = 400;
       cb(err);
     }
@@ -65,6 +80,31 @@ router.post('/import', requirePermission('assets:import'), upload.single('file')
     res.status(200).json({
       data: results,
       message: `Import complete: ${results.imported} imported, ${results.skipped.length} skipped`
+    });
+  } catch (err) {
+    next(err);
+  } finally {
+    if (filePath) {
+      fs.unlink(filePath, () => {});
+    }
+  }
+});
+
+// POST /api/assets/import-csv — bulk add assets from the CSV template.
+// ?dryRun=true validates and simulates the import without saving anything.
+router.post('/import-csv', requirePermission('assets:import'), csvUpload.single('file'), async (req, res, next) => {
+  const filePath = req.file?.path;
+  try {
+    if (!filePath) {
+      return res.status(400).json({ error: true, message: 'No file uploaded' });
+    }
+    const dryRun = req.query.dryRun === 'true';
+    const results = await importAssetsFromCsv(filePath, req.user, { dryRun });
+    res.status(200).json({
+      data: results,
+      message: dryRun
+        ? `Check complete: ${results.imported} ready to import, ${results.errors.length} with errors`
+        : `Import complete: ${results.imported} imported, ${results.errors.length} with errors`,
     });
   } catch (err) {
     next(err);

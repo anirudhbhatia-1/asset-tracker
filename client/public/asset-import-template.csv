@@ -1,0 +1,6 @@
+serial_number,name,category,brand,model,status,assigned_to_email,assigned_date,location,ownership,client_name,purchase_date,cost,vendor,warranty_plan,warranty_expiry_date,warranty_upgrade,processor,ram,storage,screen_size,graphics_card,os,ms_office,anti_virus,color,hardware_type,received_on,return_date,parent_serial,notes
+PF5ZWW41,Lenovo IdeaSlim 3,Laptop,Lenovo,IdeaSlim 3,in-use,employee@company.com,22/06/2026,Bangalore,company,,08/06/2026,82950,Swastik Electronics And Computers,3 Year ADP,14/06/2029,,13th Gen Intel Core i7-13620H,16GB LPDDR5,512 GB SSD,15.3,Intel UHD Graphics,Win 11 Home,Office Home and Student 2021,Sophos,,Laptop,,,,Issued with laptop bag
+8SGX21J75549A1WH45B9999,Adaptor for PF5ZWW41,Adaptor,Lenovo,65W USB-C,in-use,employee@company.com,22/06/2026,Bangalore,company,,08/06/2026,,,,,,,,,,,,,,,Adaptor,,,PF5ZWW41,
+ULAKY313,Lenovo L27i-40,Monitor,Lenovo,L27i-40,available,,,Mumbai,company,,29/09/2023,12510.99,Swastik Electronics And Computers,36 Months,29/09/2026,,,,,27,,,,,,Monitor,,,,In store room
+NA,Boat Rockerz 450 Pro,Audio & Headset,Boat,Rockerz 450 Pro,retired,,,,company,,20/11/2022,1999,,1 year warranty,,,,,,,,,,,Black,Headphone,,,,Broken - no serial on device
+CND2191WWH,HP ZBook Fury 15,Laptop,HP,ZBook Fury 15.6,in-use,employee@company.com,08/09/2023,Delhi,client,Salesforce,,,,,,,,,,,,,,,,Laptop,08/09/2023,,,Client-provided laptop

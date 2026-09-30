@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import BulkCsvUpload from '../components/forms/BulkCsvUpload';
 import useAsset from '../hooks/useAsset';
 import AddAssetForm from '../components/forms/AddAssetForm';
 import { updateAsset as updateAssetApi } from '../api/assetsApi';
 import { SkeletonCard } from '../components/ui/Skeleton';
-import { ArrowLeft, PlusCircle, Edit3 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Edit3, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AddEditAsset() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canBulkUpload = !isEdit && hasPermission('assets:import');
+  const [mode, setMode] = useState('single');
 
   const { asset, loading, error } = useAsset(isEdit ? id : null);
 
@@ -77,12 +82,37 @@ export default function AddEditAsset() {
         </div>
       </div>
 
-      {/* Form Component */}
-      <AddAssetForm
-        initialData={isEdit ? asset : null}
-        isEdit={isEdit}
-        onSaveSuccess={isEdit ? handleSaveEdit : undefined}
-      />
+      {canBulkUpload && (
+        <div className="inline-flex bg-surface border border-border rounded-xl p-1" role="tablist">
+          {[
+            ['single', 'Single asset', PlusCircle],
+            ['bulk', 'Bulk upload (CSV)', FileSpreadsheet],
+          ].map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={mode === value}
+              onClick={() => setMode(value)}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+                mode === value ? 'bg-accent text-white shadow-sm' : 'text-secondary hover:text-primary'
+              }`}
+            >
+              <Icon className="w-4 h-4" /> {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {canBulkUpload && mode === 'bulk' ? (
+        <BulkCsvUpload />
+      ) : (
+        <AddAssetForm
+          initialData={isEdit ? asset : null}
+          isEdit={isEdit}
+          onSaveSuccess={isEdit ? handleSaveEdit : undefined}
+        />
+      )}
     </div>
   );
 }

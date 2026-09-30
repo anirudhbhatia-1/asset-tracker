@@ -31,6 +31,11 @@ const CATEGORIES = [
   ['Monitor', 'M', 'Blue', 'External 4K and UltraWide monitors'],
   ['Keyboard & Mouse', 'K', 'Teal', 'Mechanical keyboards, ergonomics, trackpads'],
   ['Audio & Headset', 'A', 'Purple', 'Noise-canceling headphones, headsets, and microphones'],
+  ['Adaptor', 'A', 'Blue', 'Chargers and power adaptors'],
+  ['Laptop Stand', 'L', 'Indigo', 'Laptop stands and risers'],
+  ['Mobile Phone', 'M', 'Purple', 'Company mobile phones'],
+  ['Monitor Mount', 'M', 'Teal', 'Monitor arms and mounts'],
+  ['USB Hub', 'U', 'Cyan', 'USB hubs and docks'],
 ];
 
 if (process.argv.includes('--reset')) {

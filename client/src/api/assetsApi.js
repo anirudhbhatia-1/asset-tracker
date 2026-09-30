@@ -30,6 +30,16 @@ export const importAssetsExcel = (file) => {
   });
 };
 
+// Bulk add from the CSV template. dryRun checks every row without saving.
+export const importAssetsCsv = (file, { dryRun = false } = {}) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/assets/import-csv', formData, {
+    params: dryRun ? { dryRun: true } : undefined,
+    timeout: 120000,
+  });
+};
+
 export const getImportErrorMessage = (error) => {
   if (error?.code === 'ECONNABORTED') {
     return 'Import timed out. Try a smaller file or contact your administrator.';
