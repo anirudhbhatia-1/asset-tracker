@@ -3,20 +3,21 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { getEmployees } from '../../api/employeesApi';
 import { Search, Calendar, UserPlus, FileText } from 'lucide-react';
+import { todayLocalISO } from '../../utils/dates';
 
 export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(asset?.assignedTo || '');
-  const [assignedDate, setAssignedDate] = useState(new Date().toISOString().substring(0, 10));
+  const [assignedDate, setAssignedDate] = useState(todayLocalISO);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setSelectedEmployeeId(asset?.assignedTo || '');
-    setAssignedDate(new Date().toISOString().substring(0, 10));
+    setAssignedDate(todayLocalISO());
     setNote('');
     setSearchTerm('');
 

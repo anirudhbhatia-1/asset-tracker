@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const ProtectedRoute = ({ allowedRoles, requiredPermission, requiredAnyPermission }) => {
   const { user, hasPermission } = useAuth();
@@ -8,6 +9,16 @@ const ProtectedRoute = ({ allowedRoles, requiredPermission, requiredAnyPermissio
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // The server refuses everything else until a temporary or shared password
+  // is replaced, so show only the change-password screen.
+  if (user.mustChangePassword) {
+    return (
+      <div className="min-h-screen bg-base">
+        <ChangePasswordModal isOpen required onClose={() => {}} />
+      </div>
+    );
   }
 
   // Director / '*' bypass: Evaluated before any role or permission check (Risk Audit #17)

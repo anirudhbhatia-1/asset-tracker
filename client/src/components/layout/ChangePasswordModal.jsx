@@ -6,7 +6,10 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import useFocusTrap from '../../hooks/useFocusTrap';
 
-const ChangePasswordModal = ({ isOpen, onClose }) => {
+// `required`: shown when the account must replace a temporary or shared
+// password; it cannot be dismissed and the only way out is changing it or
+// signing out.
+const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
   const { logout } = useAuth();
   
   const [currentPassword, setCurrentPassword] = useState('');
@@ -63,7 +66,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
   };
 
   const handleClose = () => {
-    if (loading) return;
+    if (loading || required) return;
     setError(null);
     setCurrentPassword('');
     setNewPassword('');
@@ -81,19 +84,28 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
         <div className="px-6 py-4 border-b border-border/60 flex items-center justify-between bg-base/50 shrink-0 rounded-t-2xl">
           <h2 id={titleId} className="text-lg font-bold text-primary flex items-center gap-2">
             <Lock className="w-5 h-5 text-accent" />
-            Change Password
+            {required ? 'Set a New Password' : 'Change Password'}
           </h2>
-          <button
-            aria-label="Close"
-            onClick={handleClose}
-            className="p-2 -mr-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!required && (
+            <button
+              aria-label="Close"
+              onClick={handleClose}
+              className="p-2 -mr-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Body */}
         <div className="p-6 overflow-y-auto flex-1">
+          {required && (
+            <p className="mb-5 text-sm text-secondary">
+              For security, you need to choose a new password before using AssetTrack.
+              Enter your current password, then a new one of at least 8 characters.
+              You will be asked to sign in again afterwards.
+            </p>
+          )}
           {error && (
             <div className="mb-6 p-3 rounded-xl bg-error/10 border border-error/20 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-error shrink-0 mt-0.5" />
@@ -176,11 +188,11 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
         <div className="px-6 py-4 border-t border-border/60 bg-base/50 flex justify-end gap-3 shrink-0 rounded-b-2xl">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={required ? logout : handleClose}
             disabled={loading}
             className="px-4 py-2 text-sm font-semibold text-secondary hover:text-primary hover:bg-raised/60 rounded-xl transition-all disabled:opacity-50"
           >
-            Cancel
+            {required ? 'Sign out' : 'Cancel'}
           </button>
           <button
             type="submit"

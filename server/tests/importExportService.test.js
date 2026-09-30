@@ -15,14 +15,70 @@ import {
   importAssetsFromExcel,
   importCategoryName,
   parseLifecycleText,
-  generatedSerialFor,
+  parseStatusKeyword,
   groupRowsIntoItems,
 } from '../services/importExportService';
+import { parseMoneyToCents, parseImportDate, normalizeHeader } from '../services/importHelpers';
+import { createImportTestDb, STANDARD_CATEGORIES } from './importTestDb';
 
 const temporaryFiles = [];
 
 afterEach(async () => {
   await Promise.all(temporaryFiles.splice(0).map((file) => rm(file, { force: true })));
+});
+
+// Legacy workbook layouts, exactly as the real "Assets and Appliances" sheet
+// spells them (including "Vender" and "Recieved on").
+const LAPTOP_HEADERS = [
+  'Issued To', 'Brand', 'Model', 'Serial Number', 'Date of Invoice', 'Date of Issue', 'Adaptor S/N',
+  'Processor', 'RAM', 'HDD', 'Screen Size', 'Graphics Card', 'OS', 'MS Office', 'Anti-Virus',
+  'Service/Warranty', 'Purchase Price', 'Comments', 'Warranty Last Date', 'Remaining Days',
+  'Warranty Upgrade', 'Vendor',
+];
+const HEADPHONE_HEADERS = [
+  'Issued To', 'Brand', 'Type', 'Model', 'Color', 'Serial Number', 'Date of Invoice',
+  'Service/Warranty', 'Purchase Price', 'Issue Date', 'Return Date', 'Status', 'Vender',
+];
+const KEYBOARD_HEADERS = [
+  'Issued To', 'Date of Issue', 'Hardware Type', 'Brand', 'Model', 'Serial Number',
+  'Date of Invoice', 'Service / Warranty', 'Purchase Price', 'Comments', 'Vender Name',
+];
+const CLIENT_HEADERS = [
+  'Issued To', 'Brand', 'Type', 'Model', 'Serial Number', 'Status', 'Recieved on',
+  'Returned on', 'Client Name', 'Comments',
+];
+
+// Builds a row array from { header: value } so tests don't depend on positions.
+const rowFor = (headers, values) => headers.map((header) => (header in values ? values[header] : null));
+
+let fileCounter = 0;
+const saveWorkbook = async (workbook) => {
+  const filePath = join(tmpdir(), `asset-import-${process.pid}-${Date.now()}-${fileCounter++}.xlsx`);
+  temporaryFiles.push(filePath);
+  await workbook.xlsx.writeFile(filePath);
+  return filePath;
+};
+
+// sheets: { 'Sheet name': [headers, ...rows] }
+const writeWorkbook = async (sheets) => {
+  const workbook = new ExcelJS.Workbook();
+  for (const [name, [headers, ...rows]] of Object.entries(sheets)) {
+    const sheet = workbook.addWorksheet(name);
+    sheet.addRow(headers);
+    for (const row of rows) sheet.addRow(Array.isArray(row) ? row : rowFor(headers, row));
+  }
+  return saveWorkbook(workbook);
+};
+
+const testDb = (options = {}) => createImportTestDb({
+  categories: STANDARD_CATEGORIES,
+  locations: ['Bangalore', 'Mumbai'],
+  employees: [
+    { id: 1, name: 'A Person', email: 'a@x.com', deleted_at: null },
+    { id: 2, name: 'B Person', email: 'b@x.com', deleted_at: null },
+    { id: 3, name: 'Gone Person', email: 'gone@x.com', deleted_at: '2026-01-01T00:00:00Z' },
+  ],
+  ...options,
 });
 
 describe('Excel import value normalization', () => {
@@ -60,9 +116,11 @@ describe('Excel import value normalization', () => {
     expect(optionalExcelText(' Dell ')).toBe('Dell');
   });
 
-  it('unwraps rich text and formula results', () => {
+  it('unwraps rich text, hyperlinks and formula results', () => {
     expect(optionalExcelText({ richText: [{ text: ' Dell' }, { text: ' Inc. ' }] })).toBe('Dell Inc.');
     expect(optionalExcelText({ formula: 'A1', result: 0 })).toBeNull();
+    expect(optionalExcelText({ text: 'a@x.com', hyperlink: 'mailto:a@x.com' })).toBe('a@x.com');
+    expect(optionalExcelText({ sharedFormula: 'T2' })).toBeNull();
   });
 
   it.each([
@@ -104,6 +162,77 @@ describe('Excel import value normalization', () => {
     expect(databasePool.query.mock.calls[0][1]).toEqual(['amit@thinkvibes.com']);
   });
 
+  it('does not guess missing or ambiguous employee mappings', async () => {
+    await expect(findEmployeeIdByImportName(
+      { query: vi.fn().mockResolvedValue({ rows: [] }) },
+      'Abhay Deewan',
+    )).resolves.toBeNull();
+
+    await expect(findEmployeeIdByImportName(
+      { query: vi.fn().mockResolvedValue({ rows: [{ id: 1 }, { id: 2 }] }) },
+      'Duplicate Name',
+    )).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('turns invalid date strings and invalid native dates into null', () => {
+    expect(excelDateToISO('not a date')).toBeNull();
+    expect(excelDateToISO(new Date('invalid'))).toBeNull();
+  });
+});
+
+describe('Strict money and date parsing (fuzz cases)', () => {
+  it.each([
+    ['Rs. 500', 50000],
+    ['rs 500', 50000],
+    ['₹1,234.50', 123450],
+    ['INR 99', 9900],
+    ['82,950', 8295000],
+    ['12510.99', 1251099],
+    ['500/-', 50000],
+    ['21474836.47', 2147483647],
+    [12510.99, 1251099],
+    [0, 0],
+    ['0', 0],
+    ['Free', 0],
+  ])('accepts %j as %i paise', (value, cents) => {
+    expect(parseMoneyToCents(value)).toBe(cents);
+  });
+
+  it.each(['1e3', '1.234,50', '-500', '99999999', '21474836.48', '12.345', 'abc', '5 00x', -5, 1e12])(
+    'rejects %j',
+    (value) => {
+      expect(parseMoneyToCents(value)).toBeUndefined();
+    },
+  );
+
+  it.each(['', '  ', null, 'N/A', '-'])('treats %j as no price', (value) => {
+    expect(parseMoneyToCents(value)).toBeNull();
+  });
+
+  it('reads day-first strings, serials and native date cells within 1900–2100', () => {
+    expect(parseImportDate('05/02/2025')).toBe('2025-02-05');
+    expect(parseImportDate('2025-02-17')).toBe('2025-02-17');
+    expect(parseImportDate('17 Feb 2025')).toBe('2025-02-17');
+    expect(parseImportDate(46259)).toBe('2026-08-25');
+    expect(parseImportDate(46259.75)).toBe('2026-08-25');
+    expect(parseImportDate(new Date(Date.UTC(2029, 5, 14)))).toBe('2029-06-14');
+  });
+
+  it.each(['31/02/2025', '02/31/2025', '1899-12-31', '2101-01-01', 'next week', 3000000, -1, new Date('invalid')])(
+    'rejects the date %j',
+    (value) => {
+      expect(parseImportDate(value)).toBeUndefined();
+    },
+  );
+
+  it('normalizes legacy header spellings to snake_case keys', () => {
+    expect(normalizeHeader('Adaptor S/N')).toBe('adaptor_s_n');
+    expect(normalizeHeader('Service / Warranty')).toBe('service_warranty');
+    expect(normalizeHeader(' Issued To Email ')).toBe('issued_to_email');
+  });
+});
+
+describe('Excel export', () => {
   it('exports assignee emails as the first column on every supported sheet', async () => {
     const databasePool = {
       query: vi.fn().mockResolvedValue({
@@ -122,25 +251,29 @@ describe('Excel import value normalization', () => {
     const workbook = await exportAssetsToExcel({ pool: databasePool });
 
     expect(databasePool.query.mock.calls[0][0]).toContain('e.email AS assignee_email');
+    expect(databasePool.query.mock.calls[0][0]).not.toContain('LIMIT 1');
     for (const sheetName of ['Laptops', 'Headphones', 'Keyboard Mouse', 'Client Laptops']) {
-      expect(workbook.getWorksheet(sheetName).getCell(1, 1).value).toBe('Issued To Email');
+      const headers = workbook.getWorksheet(sheetName).getRow(1).values.slice(1);
+      expect(headers[0]).toBe('Issued To Email');
+      expect(headers).toEqual(expect.arrayContaining(['Status', 'Category', 'Location', 'Parent Serial']));
     }
     expect(workbook.getWorksheet('Laptops').getCell(2, 1).value).toBe('amit@thinkvibes.com');
   });
 
-  it('puts every exported asset on exactly one sheet based on its category', async () => {
-    const asset = (serial, categoryName, extra = {}) => ({
-      serial_number: serial, category_name: categoryName, asset_type: 'company', status: 'available', ...extra,
+  it('puts every exported asset, children included, on exactly one sheet', async () => {
+    const asset = (id, serial, categoryName, extra = {}) => ({
+      id, serial_number: serial, category_name: categoryName, asset_type: 'company', status: 'available', ...extra,
     });
     const databasePool = {
       query: vi.fn().mockResolvedValue({
         rows: [
-          asset('LAP-1', 'Laptop', { adaptor_serial_number: 'ADP-1' }),
-          asset('HEAD-1', 'Audio & Headset', { hardware_type: 'Headphone' }),
-          asset('MOUSE-1', 'Keyboard & Mouse', { hardware_type: 'Wireless Mouse' }),
-          asset('MON-1', 'Monitor'),
-          asset('STAND-1', 'Laptop Stand'),
-          asset('CL-1', 'Laptop', { asset_type: 'client', hardware_type: 'Laptop' }),
+          asset(1, 'LAP-1', 'Laptop'),
+          asset(2, 'ADP-1', 'Adaptor', { parent_id: 1, parent_serial_number: 'LAP-1' }),
+          asset(3, 'HEAD-1', 'Audio & Headset', { hardware_type: 'Headphone' }),
+          asset(4, 'MOUSE-1', 'Keyboard & Mouse', { hardware_type: 'Wireless Mouse' }),
+          asset(5, 'MON-1', 'Monitor'),
+          asset(6, 'STAND-1', 'Laptop Stand'),
+          asset(7, 'CL-1', 'Laptop', { asset_type: 'client', hardware_type: 'Laptop' }),
         ],
       }),
     };
@@ -153,193 +286,303 @@ describe('Excel import value normalization', () => {
     };
 
     expect(serialsOn('Laptops', 4)).toEqual(['LAP-1']);
+    // Legacy column still names a laptop's single adaptor…
     expect(workbook.getWorksheet('Laptops').getCell(2, 7).value).toBe('ADP-1');
     expect(serialsOn('Headphones', 6)).toEqual(['HEAD-1']);
-    expect(serialsOn('Keyboard Mouse', 6)).toEqual(['MOUSE-1', 'MON-1', 'STAND-1']);
-    expect(workbook.getWorksheet('Keyboard Mouse').getCell(2, 3).value).toBe('Wireless Mouse');
+    // …and the adaptor also has its own row with its parent.
+    expect(serialsOn('Keyboard Mouse', 6)).toEqual(['ADP-1', 'MOUSE-1', 'MON-1', 'STAND-1']);
+    expect(workbook.getWorksheet('Keyboard Mouse').getCell(2, 15).value).toBe('LAP-1');
+    expect(workbook.getWorksheet('Keyboard Mouse').getCell(3, 3).value).toBe('Wireless Mouse');
     expect(serialsOn('Client Laptops', 5)).toEqual(['CL-1']);
   });
+});
 
-  it('does not guess missing or ambiguous employee mappings', async () => {
-    await expect(findEmployeeIdByImportName(
-      { query: vi.fn().mockResolvedValue({ rows: [] }) },
-      'Abhay Deewan',
-    )).resolves.toBeNull();
-
-    await expect(findEmployeeIdByImportName(
-      { query: vi.fn().mockResolvedValue({ rows: [{ id: 1 }, { id: 2 }] }) },
-      'Duplicate Name',
-    )).rejects.toMatchObject({ statusCode: 409 });
-  });
-
-  it('skips a named assignee with no employee email record instead of importing it unassigned', async () => {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Laptops');
-    sheet.addRow(['Issued To', 'Brand', 'Model', 'Serial Number']);
-    sheet.addRow(['Abhay Deewan', 'Dell', 'Latitude', 'LAP-UNMAPPED']);
-    const filePath = join(tmpdir(), `asset-import-unmapped-${process.pid}-${Date.now()}.xlsx`);
-    temporaryFiles.push(filePath);
-    await workbook.xlsx.writeFile(filePath);
-
-    const transactionClient = { query: vi.fn() };
-    const databasePool = {
-      query: vi.fn(async (sql) => (
-        sql.includes('FROM categories') ? { rows: [{ id: 10 }] } : { rows: [] }
-      )),
-    };
-
-    const result = await importAssetsFromExcel(filePath, { id: 1 }, {
-      pool: databasePool,
-      withTransaction: (callback) => callback(transactionClient),
-      logEvent: vi.fn(),
+describe('Excel import: header mapping', () => {
+  it('maps reordered, extra and legacy-spelled columns by header name', async () => {
+    const laptopHeaders = ['Notes For Me', 'Serial Number', 'Vender Name', 'Model', 'Issued To', 'Brand', 'Purchase Price', 'Date of Invoice'];
+    const clientHeaders = ['Client Name', 'Serial Number', 'Recieved on', 'Issued To', 'Brand', 'Status'];
+    const filePath = await writeWorkbook({
+      Laptops: [laptopHeaders, { 'Notes For Me': 'ignored', 'Serial Number': 'LAP-R', 'Vender Name': 'Swastik', Model: 'IdeaPad', 'Issued To': 'a@x.com', Brand: 'Lenovo', 'Purchase Price': 61900, 'Date of Invoice': new Date(Date.UTC(2025, 1, 17)) }],
+      'Client Laptops': [clientHeaders, { 'Client Name': 'Salesforce', 'Serial Number': 'CL-R', 'Recieved on': '08/09/2023', 'Issued To': 'b@x.com', Brand: 'HP', Status: 'In-use' }],
     });
+    const db = testDb();
 
-    expect(result.imported).toBe(0);
-    expect(result.skipped).toContain('Employee not found: Abhay Deewan (Laptops, serial LAP-UNMAPPED)');
-    expect(transactionClient.query).not.toHaveBeenCalled();
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.errors).toEqual([]);
+    expect(db.bySerial('LAP-R')).toMatchObject({
+      vendor: 'Swastik', model: 'IdeaPad', brand: 'Lenovo', assigned_to: 1, cost_cents: 6190000, purchase_date: '2025-02-17', status: 'in-use',
+    });
+    expect(db.bySerial('CL-R')).toMatchObject({
+      client_name: 'Salesforce', received_on: '2023-09-08', assigned_date: '2023-09-08', assigned_to: 2, asset_type: 'client', status: 'in-use',
+    });
   });
 
-  it('turns invalid date strings and invalid native dates into null', () => {
-    expect(excelDateToISO('not a date')).toBeNull();
-    expect(excelDateToISO(new Date('invalid'))).toBeNull();
+  it('rejects the whole file with 400 when a present sheet lacks required headers', async () => {
+    const filePath = await writeWorkbook({
+      Laptops: [['Brand', 'Model'], ['Dell', 'Latitude']],
+      Headphones: [['Serial Number', 'Color'], ['HP-1', 'Black']],
+      'Keyboard Mouse': [KEYBOARD_HEADERS],
+    });
+    const db = testDb();
+
+    const error = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies).catch((err) => err);
+
+    expect(error.statusCode).toBe(400);
+    expect(error.message).toContain('Laptops: Serial Number');
+    expect(error.message).toContain('Headphones: one of Issued To, Brand, Model');
+    expect(error.message).not.toContain('Keyboard Mouse');
+    expect(db.state.assets).toEqual([]);
+  });
+
+  it('rejects a workbook with none of the expected sheets', async () => {
+    const filePath = await writeWorkbook({ Sheet1: [['a'], ['b']] });
+    await expect(importAssetsFromExcel(filePath, { id: 1 }, testDb().dependencies)).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
+describe('Excel import: rows', () => {
+  it('imports an unknown or departed holder as available with a warning instead of skipping', async () => {
+    const filePath = await writeWorkbook({
+      Laptops: [LAPTOP_HEADERS,
+        { 'Issued To': 'Abhay Deewan', Brand: 'Dell', Model: 'Latitude', 'Serial Number': 'LAP-UNMAPPED' },
+        { 'Issued To': 'gone@x.com', Brand: 'Dell', Model: 'Latitude', 'Serial Number': 'LAP-GONE' },
+      ],
+    });
+    const db = testDb();
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toEqual([]);
+    expect(result.warnings).toEqual([
+      'Employee not found: Abhay Deewan (Laptops, serial LAP-UNMAPPED); imported as available',
+      'Employee gone@x.com is no longer active (Laptops, serial LAP-GONE); imported as available',
+    ]);
+    expect(db.bySerial('LAP-UNMAPPED')).toMatchObject({ status: 'available', assigned_to: null });
+    expect(db.bySerial('LAP-GONE').notes).toContain('Previously held by gone@x.com');
   });
 
   it('maps zero and empty cells to safe insert values across every supported sheet', async () => {
-    const workbook = new ExcelJS.Workbook();
-    const sheets = [
-      ['Laptops', 22, { 4: 'LAP-ZERO' }],
-      ['Headphones', 13, { 6: 'HEAD-ZERO' }],
-      ['Keyboard Mouse', 11, { 6: 'KEY-ZERO' }],
-      ['Client Laptops', 10, { 5: 'CLIENT-ZERO' }],
-    ];
-
-    for (const [name, columnCount, values] of sheets) {
-      const sheet = workbook.addWorksheet(name);
-      sheet.addRow(Array.from({ length: columnCount }, (_, index) => `Column ${index + 1}`));
-      const row = Array(columnCount).fill(0);
-      for (const [column, value] of Object.entries(values)) row[Number(column) - 1] = value;
-      sheet.addRow(row);
-    }
-
-    const filePath = join(tmpdir(), `asset-import-zero-${process.pid}-${Date.now()}.xlsx`);
-    temporaryFiles.push(filePath);
-    await workbook.xlsx.writeFile(filePath);
-
-    const inserts = [];
-    let nextId = 1;
-    const transactionClient = {
-      query: vi.fn(async (sql, params) => {
-        if (/FROM categories/.test(sql)) return { rows: [{ id: 10 }] };
-        if (/^SELECT id FROM assets/.test(sql.trim())) return { rows: [] };
-        if (/INSERT INTO assets/.test(sql)) {
-          inserts.push(params);
-          return { rows: [{ id: nextId++ }] };
-        }
-        throw new Error(`Unexpected transaction query: ${sql}`);
-      }),
-    };
-    const databasePool = {
-      query: vi.fn().mockResolvedValue({ rows: [{ id: 10 }] }),
-    };
-
-    const result = await importAssetsFromExcel(filePath, { id: 1 }, {
-      pool: databasePool,
-      withTransaction: (callback) => callback(transactionClient),
-      logEvent: vi.fn().mockResolvedValue(undefined),
+    const zeros = (headers, values) => headers.map((header) => (header in values ? values[header] : 0));
+    const filePath = await writeWorkbook({
+      Laptops: [LAPTOP_HEADERS, zeros(LAPTOP_HEADERS, { 'Serial Number': 'LAP-ZERO' })],
+      Headphones: [HEADPHONE_HEADERS, zeros(HEADPHONE_HEADERS, { 'Serial Number': 'HEAD-ZERO' })],
+      'Keyboard Mouse': [KEYBOARD_HEADERS, zeros(KEYBOARD_HEADERS, { 'Serial Number': 'KEY-ZERO' })],
+      'Client Laptops': [CLIENT_HEADERS, zeros(CLIENT_HEADERS, { 'Serial Number': 'CLIENT-ZERO' })],
     });
+    const db = testDb();
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
 
     expect(result.imported).toBe(4);
     expect(result.errors).toEqual([]);
-    expect(inserts).toHaveLength(4);
-
-    for (const params of inserts) {
-      expect(params[6]).toBeNull();
-      expect(params[8]).toBeNull();
-      expect(params[9]).toBe(0);
-      expect(params[10]).toBeNull();
+    for (const asset of db.state.assets) {
+      expect(asset).toMatchObject({
+        purchase_date: null, assigned_date: null, cost_cents: 0, notes: null,
+        warranty_expiry_date: null, return_date: null, received_on: null,
+      });
     }
-
-    expect(inserts.find((params) => params[3] === 'LAP-ZERO')[11]).toBeNull();
-    expect(inserts.find((params) => params[3] === 'HEAD-ZERO')[27]).toBeNull();
-    expect(inserts.find((params) => params[3] === 'CLIENT-ZERO')[28]).toBeNull();
   });
 
   it('skips missing and duplicate serials while creating only new adaptors', async () => {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Laptops');
-    sheet.addRow(Array.from({ length: 22 }, (_, index) => `Column ${index + 1}`));
-    sheet.addRow(Array(22).fill(0));
-
-    const addLaptop = (serial, adaptorSerial) => {
-      const row = Array(22).fill(0);
-      row[3] = serial;
-      row[6] = adaptorSerial;
-      sheet.addRow(row);
-    };
-    addLaptop('LAP-DUP', 0);
-    addLaptop('LAP-NEW', 'ADAPTOR-NEW');
-    addLaptop('LAP-EXISTING-ADAPTOR', 'ADAPTOR-DUP');
-
-    const filePath = join(tmpdir(), `asset-import-duplicates-${process.pid}-${Date.now()}.xlsx`);
-    temporaryFiles.push(filePath);
-    await workbook.xlsx.writeFile(filePath);
-
-    const insertedSerials = [];
-    let nextId = 100;
-    const transactionClient = {
-      query: vi.fn(async (sql, params) => {
-        if (/FROM categories/.test(sql)) return { rows: [{ id: 10 }] };
-        if (/^SELECT id FROM assets/.test(sql.trim())) {
-          return { rows: ['LAP-DUP', 'ADAPTOR-DUP'].includes(params[0]) ? [{ id: 1 }] : [] };
-        }
-        if (/INSERT INTO assets/.test(sql)) {
-          insertedSerials.push(params[3]);
-          return { rows: [{ id: nextId++ }] };
-        }
-        throw new Error(`Unexpected transaction query: ${sql}`);
-      }),
-    };
-
-    const result = await importAssetsFromExcel(filePath, { id: 1 }, {
-      pool: { query: vi.fn().mockResolvedValue({ rows: [{ id: 10 }] }) },
-      withTransaction: (callback) => callback(transactionClient),
-      logEvent: vi.fn().mockResolvedValue(undefined),
+    const laptop = (serial, adaptorSerial) => ({ Brand: 'Dell', 'Serial Number': serial, 'Adaptor S/N': adaptorSerial });
+    const filePath = await writeWorkbook({
+      Laptops: [LAPTOP_HEADERS,
+        LAPTOP_HEADERS.map(() => 0),
+        laptop('LAP-DUP', 0),
+        laptop('LAP-NEW', 'ADAPTOR-NEW'),
+        laptop('LAP-EXISTING-ADAPTOR', 'ADAPTOR-DUP'),
+      ],
     });
+    const db = testDb({ assets: [{ serial_number: 'LAP-DUP' }, { serial_number: 'adaptor-dup' }] });
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
 
     // Two laptops plus the one new adaptor, which is an asset in its own right.
     expect(result.imported).toBe(3);
-    expect(result.skipped).toEqual(expect.arrayContaining([
+    expect(result.skipped).toEqual([
       'Row missing serial (Laptops sheet, row 2)',
       'Duplicate serial: LAP-DUP',
-    ]));
-    expect(insertedSerials).toEqual(expect.arrayContaining([
-      'LAP-NEW',
-      'ADAPTOR-NEW',
-      'LAP-EXISTING-ADAPTOR',
-    ]));
-    expect(insertedSerials).not.toContain('ADAPTOR-DUP');
+      'Duplicate serial: ADAPTOR-DUP',
+    ]);
+    expect(db.state.assets.map((asset) => asset.serial_number)).toEqual(
+      expect.arrayContaining(['LAP-NEW', 'ADAPTOR-NEW', 'LAP-EXISTING-ADAPTOR']),
+    );
+    expect(db.bySerial('ADAPTOR-NEW').parent_id).toBe(db.bySerial('LAP-NEW').id);
   });
 
-  it('propagates transaction failures so the database can roll back the import', async () => {
+  it('reports a failing row insert for that row only and keeps the rest', async () => {
+    const filePath = await writeWorkbook({
+      Laptops: [LAPTOP_HEADERS,
+        { Brand: 'Dell', 'Serial Number': 'LAP-OK-1' },
+        { Brand: 'Dell', 'Serial Number': 'LAP-BAD' },
+        { Brand: 'Dell', 'Serial Number': 'LAP-OK-2' },
+      ],
+    });
+    const db = testDb({ failInsertFor: ['LAP-BAD'] });
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.imported).toBe(2);
+    expect(result.errors).toEqual([{
+      row: 3, sheet: 'Laptops', serial: 'LAP-BAD', messages: ['Could not be saved: simulated failure for LAP-BAD'],
+    }]);
+    expect(db.state.outcome).toBe('committed');
+    expect(db.state.assets.map((asset) => asset.serial_number)).toEqual(['LAP-OK-1', 'LAP-OK-2']);
+  });
+
+  it('reports invalid values per row with the original text, never aborting the file', async () => {
+    const filePath = await writeWorkbook({
+      'Keyboard Mouse': [KEYBOARD_HEADERS,
+        { Brand: 'Dell', 'Serial Number': 'KM-BAD', 'Purchase Price': '1.234,50', 'Date of Invoice': '31/02/2025' },
+        { Brand: 'Dell', 'Serial Number': 'KM-NEG', 'Purchase Price': '-500' },
+        { Brand: 'Dell', 'Serial Number': 'KM-OK', 'Purchase Price': 'Rs. 500', 'Date of Invoice': '05/02/2025' },
+      ],
+    });
+    const db = testDb();
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.imported).toBe(1);
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors[0]).toMatchObject({ row: 2, sheet: 'Keyboard Mouse', serial: 'KM-BAD' });
+    expect(result.errors[0].messages).toEqual([
+      expect.stringContaining('Purchase Price "1.234,50" is not a valid amount'),
+      expect.stringContaining('Date of Invoice "31/02/2025" is not a valid date'),
+    ]);
+    expect(result.errors[1].messages[0]).toContain('"-500"');
+    expect(db.bySerial('KM-OK')).toMatchObject({ cost_cents: 50000, purchase_date: '2025-02-05' });
+  });
+
+  it('rejects serials that Excel turned into scientific notation', async () => {
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Laptops');
-    sheet.addRow(['Issued To', 'Brand', 'Model', 'Serial Number']);
-    sheet.addRow([0, 0, 0, 'LAP-ROLLBACK']);
-    const filePath = join(tmpdir(), `asset-import-rollback-${process.pid}-${Date.now()}.xlsx`);
-    temporaryFiles.push(filePath);
-    await workbook.xlsx.writeFile(filePath);
+    const sheet = workbook.addWorksheet('Headphones');
+    sheet.addRow(HEADPHONE_HEADERS);
+    sheet.addRow(rowFor(HEADPHONE_HEADERS, { Brand: 'Boat', 'Serial Number': 2.44516e17 }));
+    sheet.addRow(rowFor(HEADPHONE_HEADERS, { Brand: 'Boat', 'Serial Number': 12345678 }));
+    sheet.getCell(3, 6).numFmt = '0.00E+00';
+    sheet.addRow(rowFor(HEADPHONE_HEADERS, { Brand: 'Boat', 'Serial Number': '2.44516E+17' }));
+    sheet.addRow(rowFor(HEADPHONE_HEADERS, { Brand: 'Boat', 'Serial Number': 904130866043 }));
+    const filePath = await saveWorkbook(workbook);
+    const db = testDb();
 
-    await expect(importAssetsFromExcel(filePath, { id: 1 }, {
-      pool: { query: vi.fn().mockResolvedValue({ rows: [{ id: 10 }] }) },
-      withTransaction: async (callback) => callback({
-        query: vi.fn()
-          .mockResolvedValueOnce({ rows: [] })
-          .mockRejectedValueOnce(new Error('insert failed')),
-      }),
-      logEvent: vi.fn(),
-    })).rejects.toThrow('insert failed');
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.errors.map((error) => error.row)).toEqual([2, 3, 4]);
+    for (const error of result.errors) expect(error.messages[0]).toMatch(/scientific notation/);
+    expect(db.state.assets.map((asset) => asset.serial_number)).toEqual(['904130866043']);
   });
 
+  it('prefetches every lookup: four pool queries regardless of row count, no per-row SELECTs', async () => {
+    const rows = Array.from({ length: 300 }, (_, index) => ({
+      'Issued To': index % 2 ? 'a@x.com' : 'Unknown Person', Brand: 'Dell', 'Hardware Type': 'Mouse', 'Serial Number': `M-${index}`,
+    }));
+    const filePath = await writeWorkbook({ 'Keyboard Mouse': [KEYBOARD_HEADERS, ...rows] });
+    const db = testDb();
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.imported).toBe(300);
+    expect(db.pool.query).toHaveBeenCalledTimes(4);
+    const selects = db.client.query.mock.calls.filter(([sql]) => /^\s*SELECT/i.test(sql));
+    expect(selects).toEqual([]);
+  });
+
+  it('rolls back a dry run while reporting what would be imported', async () => {
+    const filePath = await writeWorkbook({
+      Laptops: [LAPTOP_HEADERS, { 'Issued To': 'a@x.com', Brand: 'Dell', 'Serial Number': 'LAP-DRY', 'Adaptor S/N': 'ADP-DRY' }],
+    });
+    const db = testDb();
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies, { dryRun: true });
+
+    expect(result).toMatchObject({ dryRun: true, imported: 2, errors: [], skipped: [] });
+    expect(db.state.outcome).toBe('rolled back');
+    expect(db.state.assets).toEqual([]);
+  });
+});
+
+describe('Excel import: export-format Status, Category and Location', () => {
+  const HEADERS = ['Issued To Email', 'Hardware Type', 'Brand', 'Serial Number', 'Comments', 'Status', 'Category', 'Location'];
+
+  it('uses the Status column as written and never infers lifecycle from comments', async () => {
+    const filePath = await writeWorkbook({
+      'Keyboard Mouse': [HEADERS,
+        { 'Issued To Email': 'a@x.com', Brand: 'Dell', 'Serial Number': 'S-INUSE', Status: 'In Use', Category: 'keyboard & mouse' },
+        { Brand: 'Dell', 'Serial Number': 'S-AVAIL', Comments: 'Broken - returned to store', Status: 'available', Category: 'Monitor', Location: 'mumbai' },
+        { Brand: 'Dell', 'Serial Number': 'S-RETIRED', Comments: 'Returned on 13 Feb', Status: 'RETIRED', Category: 'Monitor' },
+        { 'Issued To Email': 'b@x.com', Brand: 'Dell', 'Serial Number': 'S-ASSIGNED', Status: 'assigned', Category: 'Monitor' },
+        { Brand: 'Dell', 'Serial Number': 'S-BLANK', Comments: 'broken', Category: 'Monitor' },
+      ],
+    });
+    const db = testDb();
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.errors).toEqual([]);
+    expect(db.bySerial('S-INUSE')).toMatchObject({ status: 'in-use', assigned_to: 1, category_id: 3 });
+    expect(db.bySerial('S-AVAIL')).toMatchObject({ status: 'available', location: 'Mumbai', category_id: 2 });
+    expect(db.bySerial('S-RETIRED')).toMatchObject({ status: 'retired' });
+    expect(db.bySerial('S-ASSIGNED')).toMatchObject({ status: 'in-use', assigned_to: 2 });
+    expect(db.bySerial('S-BLANK')).toMatchObject({ status: 'available' });
+    expect(result.categoriesCreated).toEqual([]);
+  });
+
+  it('reports invalid status, unknown category and unknown location per row', async () => {
+    const filePath = await writeWorkbook({
+      'Keyboard Mouse': [HEADERS,
+        { Brand: 'Dell', 'Serial Number': 'S-LOST', Status: 'lost', Category: 'Monitor' },
+        { Brand: 'Dell', 'Serial Number': 'S-RET', Status: 'returned', Category: 'Monitor' },
+        { Brand: 'Dell', 'Serial Number': 'S-CAT', Status: 'available', Category: 'Spaceship' },
+        { Brand: 'Dell', 'Serial Number': 'S-LOC', Status: 'available', Category: 'Monitor', Location: 'Pune' },
+        { Brand: 'Dell', 'Serial Number': 'S-NOHOLDER', Status: 'in-use', Category: 'Monitor' },
+        { Brand: 'Dell', 'Serial Number': 'S-OK', Status: 'available', Category: 'Monitor' },
+      ],
+    });
+    const db = testDb();
+
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.imported).toBe(1);
+    const messages = Object.fromEntries(result.errors.map((error) => [error.serial, error.messages.join(' | ')]));
+    expect(messages['S-LOST']).toContain('Status "lost" must be');
+    expect(messages['S-RET']).toContain('returned is only for client-owned assets');
+    expect(messages['S-CAT']).toContain('Category "Spaceship" does not exist');
+    expect(messages['S-LOC']).toContain('Location "Pune" does not exist');
+    expect(messages['S-NOHOLDER']).toContain('Status in-use needs Issued To Email');
+    expect(result.categoriesCreated).toEqual([]);
+  });
+});
+
+describe('Excel import: generated serials', () => {
+  it('generates the same NOSN serial from row content, whatever the row number', async () => {
+    const headphone = { 'Issued To': 'a@x.com', Brand: 'Boat', Type: 'Headphone', Model: 'Rockerz', 'Serial Number': 'NA', 'Purchase Price': 1999 };
+    const other = { 'Issued To': 'b@x.com', Brand: 'Boat', Type: 'Headphone', Model: 'Other', 'Serial Number': 'HP-2' };
+    const first = testDb();
+    await importAssetsFromExcel(await writeWorkbook({ Headphones: [HEADPHONE_HEADERS, headphone] }), { id: 1 }, first.dependencies);
+    const second = testDb();
+    await importAssetsFromExcel(await writeWorkbook({ Headphones: [HEADPHONE_HEADERS, other, other, headphone] }), { id: 1 }, second.dependencies);
+
+    const generated = first.state.assets[0].serial_number;
+    expect(generated).toMatch(/^NOSN-HP-[0-9A-F]{8}$/);
+    expect(second.bySerial(generated)).toBeDefined();
+  });
+
+  it('tells identical serial-less rows apart and skips them all on re-import', async () => {
+    const row = { Brand: 'Boat', Type: 'Headphone', Model: 'Rockerz', 'Serial Number': 'N/A' };
+    const filePath = await writeWorkbook({ Headphones: [HEADPHONE_HEADERS, row, row] });
+    const db = testDb();
+
+    const first = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+    const serials = db.state.assets.map((asset) => asset.serial_number);
+    const again = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(first.generatedSerials).toBe(2);
+    expect(new Set(serials).size).toBe(2);
+    expect(again.imported).toBe(0);
+    expect(again.skipped).toEqual(serials.map((serial) => `Duplicate serial: ${serial}`));
+  });
 });
 
 describe('Legacy workbook interpretation', () => {
@@ -358,6 +601,14 @@ describe('Legacy workbook interpretation', () => {
     expect(parseLifecycleText('')).toBeNull();
   });
 
+  it('accepts only explicit statuses from an export Status column', () => {
+    expect(parseStatusKeyword('In Use')).toBe('in-use');
+    expect(parseStatusKeyword('ASSIGNED')).toBe('in-use');
+    expect(parseStatusKeyword('Returned')).toBe('returned');
+    expect(parseStatusKeyword('Returned-In Store')).toBeUndefined();
+    expect(parseStatusKeyword('')).toBeNull();
+  });
+
   it('maps sheet item types onto existing categories and keeps unknown types', () => {
     expect(importCategoryName('Headphone')).toBe('Audio & Headset');
     expect(importCategoryName('Wireless Mouse')).toBe('Keyboard & Mouse');
@@ -366,11 +617,6 @@ describe('Legacy workbook interpretation', () => {
     expect(importCategoryName('Monitor')).toBe('Monitor');
     expect(importCategoryName('Laptop  Stand')).toBe('Laptop Stand');
     expect(importCategoryName(null)).toBeNull();
-  });
-
-  it('generates deterministic serials so re-imports are detected as duplicates', () => {
-    expect(generatedSerialFor('Headphones', 7)).toBe('NOSN-HP-R0007');
-    expect(generatedSerialFor('Headphones', 7)).toBe(generatedSerialFor('Headphones', 7));
   });
 
   it('merges handovers but keeps different items that share a product code', () => {
@@ -392,80 +638,135 @@ describe('Legacy workbook interpretation', () => {
   });
 
   it('imports returned, broken, serial-less and handed-over items consistently', async () => {
-    const workbook = new ExcelJS.Workbook();
-    const laptops = workbook.addWorksheet('Laptops');
-    laptops.addRow(Array.from({ length: 22 }, (_, index) => `Column ${index + 1}`));
-    const laptop = Array(22).fill(null);
-    Object.assign(laptop, { 0: 'a@x.com', 1: 'Lenovo', 2: 'IdeaPad', 3: 'LAP-1', 6: 'N/A' });
-    laptops.addRow(laptop);
-
-    const headphones = workbook.addWorksheet('Headphones');
-    headphones.addRow(Array.from({ length: 13 }, (_, index) => `Column ${index + 1}`));
-    headphones.addRow(['a@x.com', 'Boat', 'Headphone', 'Rockerz', null, 'NA', null, null, null, null, null, 'Returned-Broken-In Store', null]);
-    headphones.addRow(['b@x.com', 'Boat', 'Headphone', 'Rockerz', null, 'HP-2', null, null, null, null, null, 'Returned-In Store', null]);
-
-    const keyboards = workbook.addWorksheet('Keyboard Mouse');
-    keyboards.addRow(Array.from({ length: 11 }, (_, index) => `Column ${index + 1}`));
-    keyboards.addRow(['a@x.com', new Date('2024-12-03'), 'Wireless Mouse', 'Dell', 'MS116', 'MOUSE-1', null, null, null, 'Retuned on 13th Feb 2026', null]);
-    keyboards.addRow(['b@x.com', new Date('2026-02-13'), 'Wireless Mouse', 'Dell', 'MS116', 'MOUSE-1', null, null, null, null, null]);
-
-    const filePath = join(tmpdir(), `asset-import-legacy-${process.pid}-${Date.now()}.xlsx`);
-    temporaryFiles.push(filePath);
-    await workbook.xlsx.writeFile(filePath);
-
-    const employees = { 'a@x.com': 1, 'b@x.com': 2 };
-    const categories = { laptop: 11, 'audio & headset': 12, 'keyboard & mouse': 13 };
-    const createdCategories = [];
-    const assets = [];
-    const client = {
-      query: vi.fn(async (sql, params) => {
-        if (/SELECT id FROM categories/.test(sql)) {
-          const id = categories[params[0].toLowerCase()];
-          return { rows: id ? [{ id }] : [] };
-        }
-        if (/INSERT INTO categories/.test(sql)) {
-          createdCategories.push(params[0]);
-          return { rows: [{ id: 99 }] };
-        }
-        if (/SELECT id FROM assets/.test(sql)) return { rows: [] };
-        if (/INSERT INTO assets/.test(sql)) {
-          assets.push({
-            id: assets.length + 1, categoryId: params[1], serial: params[3], status: params[4],
-            assignedTo: params[7], notes: params[10], parentId: params[29],
-          });
-          return { rows: [{ id: assets.length }] };
-        }
-        throw new Error(`Unexpected transaction query: ${sql}`);
-      }),
-    };
-    const events = [];
-    const result = await importAssetsFromExcel(filePath, { id: 1 }, {
-      pool: { query: vi.fn(async (sql, params) => ({ rows: employees[params[0]] ? [{ id: employees[params[0]] }] : [] })) },
-      withTransaction: (callback) => callback(client),
-      logEvent: vi.fn(async (assetId, type, actor, employeeId) => { events.push([assetId, type, employeeId]); }),
+    const filePath = await writeWorkbook({
+      Laptops: [LAPTOP_HEADERS, { 'Issued To': 'a@x.com', Brand: 'Lenovo', Model: 'IdeaPad', 'Serial Number': 'LAP-1', 'Adaptor S/N': 'N/A' }],
+      Headphones: [HEADPHONE_HEADERS,
+        { 'Issued To': 'a@x.com', Brand: 'Boat', Type: 'Headphone', Model: 'Rockerz', 'Serial Number': 'NA', Status: 'Returned-Broken-In Store' },
+        { 'Issued To': 'b@x.com', Brand: 'Boat', Type: 'Headphone', Model: 'Rockerz', 'Serial Number': 'HP-2', Status: 'Returned-In Store' },
+      ],
+      'Keyboard Mouse': [KEYBOARD_HEADERS,
+        { 'Issued To': 'a@x.com', 'Date of Issue': new Date('2024-12-03'), 'Hardware Type': 'Wireless Mouse', Brand: 'Dell', Model: 'MS116', 'Serial Number': 'MOUSE-1', Comments: 'Retuned on 13th Feb 2026' },
+        { 'Issued To': 'b@x.com', 'Date of Issue': new Date('2026-02-13'), 'Hardware Type': 'Wireless Mouse', Brand: 'Dell', Model: 'MS116', 'Serial Number': 'MOUSE-1' },
+      ],
     });
+    // No Adaptor category yet: legacy free-text types may still create one.
+    const db = testDb({ categories: STANDARD_CATEGORIES.filter((category) => category.name !== 'Adaptor') });
 
-    const bySerial = Object.fromEntries(assets.map((asset) => [asset.serial, asset]));
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
     expect(result.skipped).toEqual([]);
+    expect(result.errors).toEqual([]);
     expect(result.categoriesCreated).toEqual(['Adaptor']);
     expect(result.generatedSerials).toBe(1);
     expect(result.handovers).toBe(1);
 
     // Laptop is in use and its placeholder adaptor serial is generated and follows it.
-    expect(bySerial['LAP-1']).toMatchObject({ status: 'in-use', assignedTo: 1, categoryId: 11 });
-    expect(bySerial['NOSN-LAP-R0002-ADP']).toMatchObject({
-      status: 'in-use', assignedTo: 1, categoryId: 99, parentId: bySerial['LAP-1'].id,
-    });
+    const laptop = db.bySerial('LAP-1');
+    expect(laptop).toMatchObject({ status: 'in-use', assigned_to: 1, category_id: 1 });
+    const adaptor = db.state.assets.find((asset) => asset.parent_id === laptop.id);
+    expect(adaptor.serial_number).toMatch(/^NOSN-ADP-[0-9A-F]{8}$/);
+    expect(adaptor).toMatchObject({ status: 'in-use', assigned_to: 1, name: 'Adaptor for LAP-1' });
 
     // Broken headphone with "NA" serial is retired and unassigned; returned one is available.
-    expect(bySerial['NOSN-HP-R0002']).toMatchObject({ status: 'retired', assignedTo: null, categoryId: 12 });
-    expect(bySerial['NOSN-HP-R0002'].notes).toContain('Sheet status: Returned-Broken-In Store');
-    expect(bySerial['HP-2']).toMatchObject({ status: 'available', assignedTo: null });
+    const broken = db.state.assets.find((asset) => /^NOSN-HP-/.test(asset.serial_number));
+    expect(broken).toMatchObject({ status: 'retired', assigned_to: null, category_id: 4 });
+    expect(broken.notes).toContain('Sheet status: Returned-Broken-In Store');
+    expect(db.bySerial('HP-2')).toMatchObject({ status: 'available', assigned_to: null });
 
     // Mouse handed from a@ to b@ is one asset held by b@, with a@'s return in history.
-    expect(assets.filter((asset) => asset.serial.startsWith('MOUSE-1'))).toHaveLength(1);
-    expect(bySerial['MOUSE-1']).toMatchObject({ status: 'in-use', assignedTo: 2, categoryId: 13 });
-    expect(events.filter(([id]) => id === bySerial['MOUSE-1'].id).map(([, type, emp]) => `${type}:${emp}`))
+    expect(db.state.assets.filter((asset) => asset.serial_number.startsWith('MOUSE-1'))).toHaveLength(1);
+    const mouse = db.bySerial('MOUSE-1');
+    expect(mouse).toMatchObject({ status: 'in-use', assigned_to: 2, category_id: 3 });
+    expect(db.state.history.filter((event) => event.assetId === mouse.id).map((event) => `${event.eventType}:${event.employeeId}`))
       .toEqual(['created:null', 'assigned:1', 'returned:1', 'assigned:2']);
+  });
+});
+
+describe('Excel export → import round trip', () => {
+  it('re-imports every exported asset with the same status, links, dates, cost, category and location', async () => {
+    const base = { asset_type: 'company', status: 'available', cost_cents: 0 };
+    const exportedRows = [
+      {
+        ...base, id: 1, category_id: 1, category_name: 'Laptop', serial_number: 'LAP-100', name: 'Lenovo IdeaPad 5',
+        brand: 'Lenovo', model: 'IdeaPad 5', status: 'in-use', assigned_to: 11, assignee_email: 'a@x.com',
+        purchase_date: '2025-02-17', assigned_date: '2025-03-01', warranty_expiry_date: '2028-02-16',
+        cost_cents: 6190050, location: 'Bangalore', processor: 'i5', vendor: 'Swastik',
+      },
+      {
+        ...base, id: 2, category_id: 5, category_name: 'Adaptor', serial_number: 'ADP-1', name: 'Adaptor 1',
+        parent_id: 1, parent_serial_number: 'LAP-100', status: 'in-use', assignee_email: 'a@x.com', assigned_date: '2025-03-01',
+      },
+      {
+        ...base, id: 3, category_id: 5, category_name: 'Adaptor', serial_number: 'ADP-2', name: 'Adaptor 2',
+        parent_id: 1, parent_serial_number: 'LAP-100', status: 'in-use', assignee_email: 'a@x.com', assigned_date: '2025-03-01',
+      },
+      { ...base, id: 4, category_id: 1, category_name: 'Laptop', serial_number: 'LAP-200', name: 'Spare laptop', brand: 'Dell' },
+      {
+        ...base, id: 5, category_id: 5, category_name: 'Adaptor', serial_number: 'ADP-3', name: 'Adaptor 3',
+        parent_id: 4, parent_serial_number: 'LAP-200',
+      },
+      {
+        ...base, id: 6, category_id: 2, category_name: 'Monitor', serial_number: 'MON-1', name: 'Lenovo L27i',
+        brand: 'Lenovo', status: 'retired', cost_cents: 1251099, purchase_date: '2023-09-29', location: 'Mumbai', notes: 'Cracked panel',
+      },
+      {
+        ...base, id: 7, category_id: 1, category_name: 'Laptop', serial_number: 'CL-1', name: 'HP ZBook', brand: 'HP',
+        asset_type: 'client', status: 'returned', client_name: 'Salesforce', received_on: '2023-09-08', return_date: '2024-01-10',
+        hardware_type: 'Laptop',
+      },
+      {
+        ...base, id: 8, category_id: 4, category_name: 'Audio & Headset', serial_number: 'HP-9', name: 'Boat Rockerz',
+        brand: 'Boat', hardware_type: 'Headphone', status: 'in-use', assignee_email: 'gone@x.com',
+        assignee_deleted_at: '2026-01-01T00:00:00Z', purchase_date: '2022-11-20', cost_cents: 199900,
+      },
+    ];
+    const workbook = await exportAssetsToExcel({ pool: { query: vi.fn().mockResolvedValue({ rows: exportedRows }) } });
+
+    // Legacy column: only a laptop with exactly one adaptor names it.
+    const laptopRows = {};
+    workbook.getWorksheet('Laptops').eachRow((row, rowNum) => { if (rowNum > 1) laptopRows[row.getCell(4).value] = row.getCell(7).value; });
+    expect(laptopRows).toEqual({ 'LAP-100': '', 'LAP-200': 'ADP-3' });
+
+    const filePath = await saveWorkbook(workbook);
+    const db = testDb();
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+
+    expect(result.errors).toEqual([]);
+    expect(result.skipped).toEqual([]);
+    expect(result.imported).toBe(exportedRows.length);
+    expect(db.state.assets).toHaveLength(exportedRows.length);
+    expect(result.warnings).toEqual(['Employee gone@x.com is no longer active (Headphones, serial HP-9); imported as available']);
+
+    const categoryId = (name) => db.state.categories.find((category) => category.name === name).id;
+    const laptop = db.bySerial('LAP-100');
+    expect(laptop).toMatchObject({
+      status: 'in-use', assigned_to: 1, asset_type: 'company', category_id: categoryId('Laptop'), location: 'Bangalore',
+      purchase_date: '2025-02-17', assigned_date: '2025-03-01', warranty_expiry_date: '2028-02-16',
+      cost_cents: 6190050, name: 'Lenovo IdeaPad 5', processor: 'i5', vendor: 'Swastik', parent_id: null,
+    });
+    for (const serial of ['ADP-1', 'ADP-2']) {
+      expect(db.bySerial(serial)).toMatchObject({
+        status: 'in-use', assigned_to: 1, category_id: categoryId('Adaptor'), parent_id: laptop.id,
+      });
+    }
+    expect(db.bySerial('ADP-3')).toMatchObject({ status: 'available', parent_id: db.bySerial('LAP-200').id });
+    expect(db.bySerial('MON-1')).toMatchObject({
+      status: 'retired', category_id: categoryId('Monitor'), location: 'Mumbai', cost_cents: 1251099,
+      purchase_date: '2023-09-29', notes: 'Cracked panel', asset_type: 'company',
+    });
+    expect(db.bySerial('CL-1')).toMatchObject({
+      status: 'returned', asset_type: 'client', client_name: 'Salesforce', received_on: '2023-09-08',
+      return_date: '2024-01-10', category_id: categoryId('Laptop'),
+    });
+    const headphone = db.bySerial('HP-9');
+    expect(headphone).toMatchObject({
+      status: 'available', assigned_to: null, category_id: categoryId('Audio & Headset'), cost_cents: 199900, purchase_date: '2022-11-20',
+    });
+    expect(headphone.notes).toBe('Previously held by gone@x.com');
+
+    // Importing the same export again changes nothing.
+    const again = await importAssetsFromExcel(filePath, { id: 1 }, db.dependencies);
+    expect(again.imported).toBe(0);
+    expect(again.skipped).toHaveLength(exportedRows.length);
   });
 });

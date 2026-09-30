@@ -4,6 +4,7 @@ import { getCategories } from '../../api/categoriesApi';
 import { getDepartments } from '../../api/employeesApi';
 import useLocations from '../../hooks/useLocations';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { addDaysLocalISO } from '../../utils/dates';
 
 const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   const { locations } = useLocations(isOpen);
@@ -44,9 +45,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
       fetchData();
       
       // Default to tomorrow for joining date
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      setJoiningDate(tomorrow.toISOString().split('T')[0]);
+      setJoiningDate(addDaysLocalISO(1));
     } else {
       setNewHireName('');
       setNewHireEmail('');

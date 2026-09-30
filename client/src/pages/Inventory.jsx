@@ -33,6 +33,8 @@ export default function Inventory() {
   const canExportAssets = hasPermission('assets:export');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  // The checked (dry-run) file waiting for the user to confirm the import.
+  const [pendingImportFile, setPendingImportFile] = useState(null);
   const fileInputRef = useRef(null);
 
   const [viewMode, setViewMode] = useState(() => {
@@ -157,23 +159,47 @@ export default function Inventory() {
 
   const handleImportClick = () => fileInputRef.current?.click();
 
+  // Import is check → confirm: the chosen file is first run as a dry run
+  // (nothing saved), the panel shows what would happen, and only "Import N
+  // assets" uploads it again for real.
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setImporting(true);
     setImportResult(null);
+    setPendingImportFile(null);
     try {
-      const res = await importAssetsExcel(file);
+      const res = await importAssetsExcel(file, { dryRun: true });
+      setImportResult(res.data?.data);
+      setPendingImportFile(file);
+    } catch (err) {
+      toast.error(getImportErrorMessage(err));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!pendingImportFile) return;
+    setImporting(true);
+    try {
+      const res = await importAssetsExcel(pendingImportFile);
       const result = res.data?.data;
       setImportResult(result);
+      setPendingImportFile(null);
       toast.success(`Imported ${result.imported} assets`);
       refresh();
     } catch (err) {
       toast.error(getImportErrorMessage(err));
     } finally {
       setImporting(false);
-      e.target.value = '';
     }
+  };
+
+  const handleCancelImport = () => {
+    setPendingImportFile(null);
+    setImportResult(null);
   };
 
   return (
@@ -247,7 +273,9 @@ export default function Inventory() {
                 {importing
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
                   : <Upload className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{importing ? 'Importing...' : 'Import Excel'}</span>
+                <span className="hidden sm:inline">
+                  {importing ? (pendingImportFile ? 'Importing...' : 'Checking...') : 'Import Excel'}
+                </span>
               </button>
             </>
           )}
@@ -269,7 +297,13 @@ export default function Inventory() {
       />
 
       {importResult && (
-        <ImportResultsPanel result={importResult} onDismiss={() => setImportResult(null)} />
+        <ImportResultsPanel
+          result={importResult}
+          onDismiss={() => setImportResult(null)}
+          onConfirm={handleConfirmImport}
+          onCancel={handleCancelImport}
+          confirming={importing}
+        />
       )}
 
       {/* Error banner if fetching failed */}

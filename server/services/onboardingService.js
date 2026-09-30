@@ -80,11 +80,8 @@ const createRequest = async (user, payload) => {
 
 const updateRequestDetails = async (id, payload) => {
   const { newHireName, newHireEmail, department, location, address, joiningDate, notes, items } = payload;
-  
-  const client = await db.pool.connect();
-  try {
-    await client.query('BEGIN');
-    
+
+  await db.withTransaction(async (client) => {
     await client.query(
       `UPDATE onboarding_requests 
        SET new_hire_name = $1, new_hire_email = $2, department = $3, 
@@ -93,10 +90,23 @@ const updateRequestDetails = async (id, payload) => {
       [newHireName, newHireEmail || null, department || null, location || null, address || null, joiningDate, notes || null, id]
     );
 
-    await client.query(`DELETE FROM onboarding_request_items WHERE onboarding_request_id = $1`, [id]);
-
-    if (items && items.length > 0) {
-      for (const item of items) {
+    // Items are matched to existing rows by category (the form sends no ids)
+    // so fulfilled items keep their assets; omitting `items` leaves them as is.
+    if (!Array.isArray(items)) return;
+    const { rows: existing } = await client.query(
+      'SELECT id, category_id, fulfilled_asset_id FROM onboarding_request_items WHERE onboarding_request_id = $1 ORDER BY id',
+      [id]
+    );
+    const unmatched = [...existing];
+    for (const item of items) {
+      const index = unmatched.findIndex((row) => Number(row.category_id) === Number(item.categoryId));
+      if (index >= 0) {
+        const [row] = unmatched.splice(index, 1);
+        await client.query(
+          'UPDATE onboarding_request_items SET quantity = $1, notes = $2 WHERE id = $3',
+          [item.quantity || 1, item.notes || null, row.id]
+        );
+      } else {
         await client.query(
           `INSERT INTO onboarding_request_items (onboarding_request_id, category_id, quantity, notes)
            VALUES ($1, $2, $3, $4)`,
@@ -104,18 +114,41 @@ const updateRequestDetails = async (id, payload) => {
         );
       }
     }
+    const fulfilledRemovals = unmatched.filter((row) => row.fulfilled_asset_id);
+    if (fulfilledRemovals.length > 0) {
+      const err = new Error('Items that already have an asset assigned cannot be removed; unassign the asset first.');
+      err.statusCode = 409;
+      throw err;
+    }
+    for (const row of unmatched) {
+      await client.query('DELETE FROM onboarding_request_items WHERE id = $1', [row.id]);
+    }
+  });
 
-    await client.query('COMMIT');
-    return getRequestById(id);
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getRequestById(id);
+};
+
+// Allowed onboarding status changes; completed is final.
+const ALLOWED_REQUEST_STATUS_CHANGES = {
+  pending: ['in_progress', 'arranged', 'cancelled'],
+  in_progress: ['pending', 'arranged', 'cancelled'],
+  arranged: ['in_progress', 'completed', 'cancelled'],
+  completed: [],
+  cancelled: ['pending'],
 };
 
 const updateRequestStatus = async (id, status, user) => {
+  const { rows: [current] } = await db.pool.query('SELECT status FROM onboarding_requests WHERE id = $1', [id]);
+  if (!current) {
+    const err = new Error('Onboarding request not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (status !== current.status && !ALLOWED_REQUEST_STATUS_CHANGES[current.status]?.includes(status)) {
+    const err = new Error(`A ${current.status.replace('_', ' ')} request cannot be moved to ${status.replace('_', ' ')}.`);
+    err.statusCode = 400;
+    throw err;
+  }
   const { rows } = await db.pool.query(
     `UPDATE onboarding_requests 
      SET status = $1, updated_at = NOW(),
@@ -143,43 +176,86 @@ const resolveLinkedEmployee = async (request) => {
 };
 
 const fulfillItem = async (requestId, itemId, assetId, actorUser = null) => {
-  // First, verify the request and see if there is a linked employee
   const req = await getRequestById(requestId);
   if (!req) {
     const err = new Error('Onboarding request not found');
     err.statusCode = 404;
     throw err;
   }
-
-  // Check if item exists and is not already fulfilled with this asset
+  if (['cancelled', 'completed'].includes(req.status)) {
+    const err = new Error(`Items on a ${req.status} request cannot be changed`);
+    err.statusCode = 400;
+    throw err;
+  }
   const itemRow = req.items.find(i => i.id === itemId);
   if (!itemRow) {
     const err = new Error('Item not found in this request');
     err.statusCode = 404;
     throw err;
   }
-
-  // Cross-feature sync: hand the asset to the new hire once they have an
-  // employee record. Until then the item stays reserved on the request and is
-  // assigned when their record is created (assignFulfilledItemsToEmployee).
-  const linkedEmployeeId = await resolveLinkedEmployee(req);
-  if (assetId && linkedEmployeeId && itemRow.fulfilled_asset_id !== assetId) {
-    await assetService.assignAsset(
-      assetId,
-      linkedEmployeeId,
-      null,
-      `Fulfilled via Onboarding Request #${requestId}`,
-      actorUser
-    );
+  if (itemRow.fulfilled_asset_id && itemRow.fulfilled_asset_id !== assetId) {
+    const { rows: [previous] } = await db.pool.query('SELECT status FROM assets WHERE id = $1', [itemRow.fulfilled_asset_id]);
+    if (previous?.status === 'in-use') {
+      const err = new Error('The asset already handed out for this item must be returned before choosing another');
+      err.statusCode = 409;
+      throw err;
+    }
   }
 
-  const { rows } = await db.pool.query(
-    `UPDATE onboarding_request_items 
-     SET fulfilled_asset_id = $1 
-     WHERE id = $2 AND onboarding_request_id = $3 RETURNING *`,
-    [assetId, itemId, requestId]
-  );
-  return rows[0];
+  const linkedEmployeeId = await resolveLinkedEmployee(req);
+
+  return db.withTransaction(async (client) => {
+    if (assetId && itemRow.fulfilled_asset_id !== assetId) {
+      const { rows: [asset] } = await client.query(
+        'SELECT id, name, category_id, status, asset_type FROM assets WHERE id = $1 FOR UPDATE', [assetId]
+      );
+      if (!asset) {
+        const err = new Error('Asset not found');
+        err.statusCode = 404;
+        throw err;
+      }
+      if (asset.status !== 'available' || asset.asset_type === 'client') {
+        const err = new Error(`${asset.name} is not available company stock`);
+        err.statusCode = 409;
+        throw err;
+      }
+      if (itemRow.category_id && Number(asset.category_id) !== Number(itemRow.category_id)) {
+        const err = new Error(`${asset.name} is not in the requested category`);
+        err.statusCode = 400;
+        throw err;
+      }
+      // A reserved asset stays "available" until the new hire exists, so make
+      // sure no other open request has already claimed it.
+      const { rows: claimed } = await client.query(
+        `SELECT i.onboarding_request_id FROM onboarding_request_items i
+         JOIN onboarding_requests r ON r.id = i.onboarding_request_id
+         WHERE i.fulfilled_asset_id = $1 AND i.id <> $2 AND r.status NOT IN ('cancelled', 'completed')`,
+        [assetId, itemId]
+      );
+      if (claimed.length > 0) {
+        const err = new Error(`${asset.name} is already reserved for onboarding request #${claimed[0].onboarding_request_id}`);
+        err.statusCode = 409;
+        throw err;
+      }
+
+      // Hand it to the new hire now if their employee record exists;
+      // otherwise it is assigned when the record is created.
+      if (linkedEmployeeId) {
+        await assetService.assignAsset(
+          assetId, linkedEmployeeId, null, `Fulfilled via Onboarding Request #${requestId}`, actorUser,
+          { requireAvailable: true, client }
+        );
+      }
+    }
+
+    const { rows } = await client.query(
+      `UPDATE onboarding_request_items 
+       SET fulfilled_asset_id = $1 
+       WHERE id = $2 AND onboarding_request_id = $3 RETURNING *`,
+      [assetId, itemId, requestId]
+    );
+    return rows[0];
+  });
 };
 
 const getHrMetrics = async () => {
@@ -212,7 +288,7 @@ const assignFulfilledItemsToEmployee = async (employee, actorUser = null) => {
     );
     for (const item of items) {
       await assetService.assignAsset(item.fulfilled_asset_id, employee.id, null,
-        `Fulfilled via Onboarding Request #${request.id}`, actorUser);
+        `Fulfilled via Onboarding Request #${request.id}`, actorUser, { requireAvailable: true });
     }
   }
 };

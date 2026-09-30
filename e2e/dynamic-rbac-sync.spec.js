@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginReplacingTemporaryPassword } from './helpers';
 
 test.describe('Dynamic RBAC Sync Loop End-to-End', () => {
   const timestamp = Date.now();
@@ -46,11 +47,7 @@ test.describe('Dynamic RBAC Sync Loop End-to-End', () => {
     const testEmployeeId = empData.data.id;
 
     // d. Log in as that test employee using temporaryPassword
-    await page.goto('/login');
-    await page.fill('input[type="email"]', testEmployeeEmail);
-    await page.fill('input[type="password"]', tempPassword);
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/');
+    const accountPassword = await loginReplacingTemporaryPassword(page, testEmployeeEmail, tempPassword);
 
     // e. Asserts: sidebar shows exactly Dashboard + Inventory (no Tickets, Onboarding, Scanner, Employees, Settings)
     await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();

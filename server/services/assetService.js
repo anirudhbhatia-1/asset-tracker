@@ -1,4 +1,5 @@
 const { pool, withTransaction } = require('../db');
+const { todayISO } = require('../utils/dates');
 const historyService = require('./historyService');
 
 const mapAsset = (row) => {
@@ -168,7 +169,7 @@ const getAssetBySerial = async (serialNumber) => {
     LEFT JOIN categories c ON a.category_id = c.id
     LEFT JOIN employees e ON a.assigned_to = e.id
     LEFT JOIN assets parent ON a.parent_id = parent.id
-    WHERE UPPER(a.serial_number) = UPPER($1)
+    WHERE LOWER(a.serial_number) = LOWER($1)
   `, [serialNumber]);
 
   if (result.rows.length === 0) {
@@ -193,7 +194,7 @@ const createAsset = async (data, actorUser = null) => {
     color, hardwareType, clientName, returnDate, receivedOn,
   } = data;
 
-  const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1', [serialNumber]);
+  const existing = await pool.query('SELECT id FROM assets WHERE LOWER(serial_number) = LOWER($1)', [serialNumber]);
   if (existing.rows.length > 0) {
     const err = new Error('Serial number already exists');
     err.statusCode = 409;
@@ -228,7 +229,7 @@ const createAsset = async (data, actorUser = null) => {
       throw err;
     }
     finalAssignedTo = assignedTo;
-    finalAssignedDate = assignedDate || new Date().toISOString().substring(0, 10);
+    finalAssignedDate = assignedDate || todayISO();
   }
 
   const newAssetId = await withTransaction(async (client) => {
@@ -323,7 +324,7 @@ const updateAsset = async (id, data, actorUser = null) => {
   }
 
   if (serialNumber && serialNumber !== current.serialNumber) {
-    const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1 AND id != $2', [serialNumber, id]);
+    const existing = await pool.query('SELECT id FROM assets WHERE LOWER(serial_number) = LOWER($1) AND id != $2', [serialNumber, id]);
     if (existing.rows.length > 0) {
       const err = new Error('Serial number already exists');
       err.statusCode = 409;
@@ -419,35 +420,74 @@ const deleteAsset = async (id, confirm, actorUser = null) => {
   return { id: Number(id), deleted: true };
 };
 
-const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null) => {
-  const current = await getAssetById(id);
+// Runs `fn` in the caller's transaction when one is supplied, otherwise in a
+// new one, so ticket/onboarding flows can assign atomically with their own
+// updates.
+const inTransaction = (client, fn) => (client ? fn(client) : withTransaction(fn));
 
-  if (current.status === 'retired') {
-    const err = new Error('Cannot assign a retired asset');
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const emp = await pool.query('SELECT id, name FROM employees WHERE id = $1 AND deleted_at IS NULL', [employeeId]);
-  if (emp.rows.length === 0) {
-    const err = new Error('Assigned employee not found or is deleted');
+const lockAsset = async (client, id) => {
+  const { rows } = await client.query(
+    'SELECT id, name, status, assigned_to, asset_type FROM assets WHERE id = $1 FOR UPDATE',
+    [id]
+  );
+  if (rows.length === 0) {
+    const err = new Error('Asset not found');
     err.statusCode = 404;
     throw err;
   }
+  return rows[0];
+};
 
-  if (current.status === 'in-use' && Number(current.assignedTo) === Number(employeeId)) {
-    const err = new Error('Asset is already assigned to this employee');
-    err.statusCode = 400;
-    throw err;
-  }
+/**
+ * Assigns an asset (and its accessories) to an employee.
+ * options.reassign     — allow taking it from its current holder (explicit
+ *                        "Reassign" in the asset UI); otherwise an in-use
+ *                        asset is refused.
+ * options.requireAvailable — only accept assets in stock (ticket/onboarding
+ *                        fulfilment must never take someone else's device).
+ * options.client       — run inside the caller's transaction (returns null).
+ */
+const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null, options = {}) => {
+  const { reassign = false, requireAvailable = false, client: outerClient = null } = options;
+  const dateToSet = assignedDate || todayISO();
 
-  const dateToSet = assignedDate || new Date().toISOString().substring(0, 10);
+  await inTransaction(outerClient, async (client) => {
+    const current = await lockAsset(client, id);
 
-  await withTransaction(async (client) => {
+    if (current.status === 'retired') {
+      const err = new Error('Cannot assign a retired asset');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (requireAvailable && current.status !== 'available') {
+      const err = new Error(`${current.name} is not available (status: ${current.status})`);
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const emp = await client.query('SELECT id, name FROM employees WHERE id = $1 AND deleted_at IS NULL', [employeeId]);
+    if (emp.rows.length === 0) {
+      const err = new Error('Assigned employee not found or is deleted');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const previousHolder = current.status === 'in-use' ? current.assigned_to : null;
+    if (previousHolder && Number(previousHolder) === Number(employeeId)) {
+      const err = new Error('Asset is already assigned to this employee');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (previousHolder && !reassign) {
+      const err = new Error(`${current.name} is currently assigned to someone else`);
+      err.statusCode = 409;
+      throw err;
+    }
+
     // Reassigning straight from one person to another: record the hand-back
     // first so the audit trail shows who held it before.
-    if (current.status === 'in-use' && current.assignedTo) {
-      await historyService.logEvent(id, 'returned', actorUser, current.assignedTo,
+    if (previousHolder) {
+      await historyService.logEvent(id, 'returned', actorUser, previousHolder,
         `Reassigned to ${emp.rows[0].name}`, null, client);
     }
 
@@ -462,41 +502,42 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null)
 
     await historyService.logEvent(id, 'assigned', actorUser, employeeId, note || `Assigned to ${emp.rows[0].name}`, null, client);
 
-    // CASCADE to sub-assets
-    await client.query(
+    // Accessories follow, but only those in stock or held by the same
+    // previous holder — never ones someone else is using.
+    const { rows: moved } = await client.query(
       `UPDATE assets SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW()
-       WHERE parent_id = $3 AND status != 'retired'`,
-      [employeeId, dateToSet, id]
+       WHERE parent_id = $3
+         AND (status = 'available' OR (status = 'in-use' AND assigned_to IS NOT DISTINCT FROM $4))
+       RETURNING id`,
+      [employeeId, dateToSet, id, previousHolder]
     );
-    const subAssets = await client.query('SELECT id FROM assets WHERE parent_id = $1', [id]);
-    for (const sub of subAssets.rows) {
+    for (const sub of moved) {
       await historyService.logEvent(sub.id, 'assigned', actorUser, employeeId, `Cascaded from parent asset #${id}`, null, client);
     }
   });
 
-  return getAssetById(id);
+  return outerClient ? null : getAssetById(id);
 };
 
 const returnAsset = async (id, note, actorUser = null) => {
-  const current = await getAssetById(id);
-
-  if (current.status === 'retired') {
-    const err = new Error('Cannot return a retired asset');
-    err.statusCode = 400;
-    throw err;
-  }
-
-  if (current.status !== 'in-use') {
-    const err = new Error('Asset is not currently in use');
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const previousAssignee = current.assignedTo;
-  // A client-owned asset goes back to the client, not into company stock.
-  const isClientAsset = current.assetType === 'client';
-
   await withTransaction(async (client) => {
+    const current = await lockAsset(client, id);
+
+    if (current.status === 'retired') {
+      const err = new Error('Cannot return a retired asset');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (current.status !== 'in-use') {
+      const err = new Error('Asset is not currently in use');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const previousAssignee = current.assigned_to;
+    // A client-owned asset goes back to the client, not into company stock.
+    const isClientAsset = current.asset_type === 'client';
+
     await client.query(`
       UPDATE assets
       SET status = $2,
@@ -509,16 +550,16 @@ const returnAsset = async (id, note, actorUser = null) => {
     await historyService.logEvent(id, 'returned', actorUser, previousAssignee,
       note || (isClientAsset ? 'Returned to client' : 'Returned to stock'), null, client);
 
-    // CASCADE to sub-assets, each by its own ownership
-    await client.query(
+    // Accessories held by the same person come back too, each by its own ownership.
+    const { rows: released } = await client.query(
       `UPDATE assets
        SET status = CASE WHEN asset_type = 'client' THEN 'returned' ELSE 'available' END,
            assigned_to = NULL, assigned_date = NULL, updated_at = NOW()
-       WHERE parent_id = $1 AND status = 'in-use'`,
-      [id]
+       WHERE parent_id = $1 AND status = 'in-use' AND assigned_to = $2
+       RETURNING id`,
+      [id, previousAssignee]
     );
-    const subAssets = await client.query('SELECT id FROM assets WHERE parent_id = $1', [id]);
-    for (const sub of subAssets.rows) {
+    for (const sub of released) {
       await historyService.logEvent(sub.id, 'returned', actorUser, previousAssignee, `Cascaded from parent asset #${id}`, null, client);
     }
   });
@@ -533,10 +574,15 @@ const retireAsset = async (id, note, confirm, actorUser = null) => {
     throw err;
   }
 
-  const current = await getAssetById(id);
-  const previousAssignee = current.assignedTo;
-
   await withTransaction(async (client) => {
+    const current = await lockAsset(client, id);
+    if (current.status === 'retired') {
+      const err = new Error('Asset is already retired');
+      err.statusCode = 400;
+      throw err;
+    }
+    const previousAssignee = current.status === 'in-use' ? current.assigned_to : null;
+
     await client.query(`
       UPDATE assets
       SET status = 'retired',
@@ -554,9 +600,9 @@ const retireAsset = async (id, note, confirm, actorUser = null) => {
       `UPDATE assets
        SET status = CASE WHEN asset_type = 'client' THEN 'returned' ELSE 'available' END,
            assigned_to = NULL, assigned_date = NULL, updated_at = NOW()
-       WHERE parent_id = $1 AND status = 'in-use'
+       WHERE parent_id = $1 AND status = 'in-use' AND assigned_to = $2
        RETURNING id`,
-      [id]
+      [id, previousAssignee]
     );
     for (const sub of released) {
       await historyService.logEvent(sub.id, 'returned', actorUser, previousAssignee,
@@ -580,7 +626,7 @@ const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
     err.statusCode = 404;
     throw err;
   }
-  const today = new Date().toISOString().substring(0, 10);
+  const today = todayISO();
   const assignedNote = note || `Bulk assignment of ${assetIds.length} asset(s)`;
   await withTransaction(async (client) => {
     for (const assetId of assetIds) {

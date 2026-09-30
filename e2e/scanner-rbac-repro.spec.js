@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginReplacingTemporaryPassword, loginWithPassword } from './helpers';
 
 test.describe('Scanner & Unassigned Employee Role Fallback Repro Suite', () => {
   const timestamp = Date.now();
@@ -39,11 +40,7 @@ test.describe('Scanner & Unassigned Employee Role Fallback Repro Suite', () => {
     const tempPassword = (await createEmpRes.json()).temporaryPassword;
 
     // 4. Log in fresh as test employee
-    await page.goto('/login');
-    await page.fill('input[type="email"]', testEmployeeEmail);
-    await page.fill('input[type="password"]', tempPassword);
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/');
+    const accountPassword = await loginReplacingTemporaryPassword(page, testEmployeeEmail, tempPassword);
 
     // 5. Confirm Scanner nav is hidden and /scanner redirects
     await expect(page.getByRole('link', { name: 'Scanner' })).not.toBeVisible();
@@ -60,11 +57,7 @@ test.describe('Scanner & Unassigned Employee Role Fallback Repro Suite', () => {
     expect(updateRoleRes.status()).toBe(200);
 
     // 7. Log in fresh again as employee (session was invalidated on role update)
-    await page.goto('/login');
-    await page.fill('input[type="email"]', testEmployeeEmail);
-    await page.fill('input[type="password"]', tempPassword);
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/');
+    await loginWithPassword(page, testEmployeeEmail, accountPassword);
 
     // 8. Confirm Scanner nav appears and /scanner route loads
     await expect(page.getByRole('link', { name: 'Scanner' })).toBeVisible();
@@ -73,7 +66,7 @@ test.describe('Scanner & Unassigned Employee Role Fallback Repro Suite', () => {
 
     // 9. Confirm scan API endpoint returns 200/OK instead of 403
     const empLoginRes = await request.post('/api/auth/login', {
-      data: { email: testEmployeeEmail, password: tempPassword }
+      data: { email: testEmployeeEmail, password: accountPassword }
     });
     const empToken = (await empLoginRes.json()).data.token;
 
@@ -106,11 +99,7 @@ test.describe('Scanner & Unassigned Employee Role Fallback Repro Suite', () => {
     const tempPassword = (await createEmpRes.json()).temporaryPassword;
 
     // Log in fresh immediately
-    await page.goto('/login');
-    await page.fill('input[type="email"]', nullRoleEmail);
-    await page.fill('input[type="password"]', tempPassword);
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/');
+    const accountPassword = await loginReplacingTemporaryPassword(page, nullRoleEmail, tempPassword);
 
     // Confirm default employee nav (Tickets) is visible and app is not broken/empty
     await expect(page.getByRole('link', { name: 'Tickets' })).toBeVisible();

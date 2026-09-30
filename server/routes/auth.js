@@ -50,7 +50,14 @@ router.post('/logout', async (req, res, next) => {
   }
 });
 
+// Guessing the current password through this endpoint is limited the same
+// way as login.
+const changePasswordLimiter = createPasswordLoginLimiter({
+  message: { error: true, message: 'Too many attempts. Please try again in 15 minutes.', code: 429 },
+});
+
 router.patch('/change-password', [
+  changePasswordLimiter,
   validateSession,
   body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters long'),

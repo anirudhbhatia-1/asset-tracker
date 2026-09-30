@@ -14,6 +14,7 @@ import SerialSimulator from '../scanner/SerialSimulator';
 import { scanSerial, checkSerialExists } from '../../api/assetsApi';
 import { Wand2, Plus, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode, Cpu } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { todayLocalISO } from '../../utils/dates';
 
 export default function AddAssetForm({ initialData, isEdit = false, onSaveSuccess }) {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   // Optional Immediate Allocation (Only for new registrations)
   const [assignImmediately, setAssignImmediately] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
-  const [assignedDate, setAssignedDate] = useState(new Date().toISOString().substring(0, 10));
+  const [assignedDate, setAssignedDate] = useState(todayLocalISO);
   const [assignNote, setAssignNote] = useState('');
   const [employeeSearch, setEmployeeSearch] = useState('');
 

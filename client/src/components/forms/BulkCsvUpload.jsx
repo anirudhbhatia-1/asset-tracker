@@ -9,14 +9,14 @@ const TEMPLATE_URL = '/asset-import-template.csv';
 
 const COLUMN_GUIDE = [
   ['category', 'Required. Must match an existing category, e.g. Laptop, Monitor, Keyboard & Mouse, Audio & Headset, Adaptor.'],
-  ['serial_number', 'Unique. Leave empty or write NA if the device has none; a serial is generated.'],
+  ['serial_number', 'Unique. Leave empty or write NA if the device has none; a serial is generated from the row. Keep long numeric serials as text: values Excel shows as 2.44516E+17 are rejected.'],
   ['name', 'Optional when brand and model are filled (name becomes "brand model").'],
   ['status', 'available, in-use, retired, or returned (client assets handed back to the client). Empty means in-use when assigned, otherwise available.'],
   ['assigned_to_email', 'Employee email; the employee must already exist. Only for in-use assets.'],
   ['location', 'Must match an office location, e.g. Bangalore, Mumbai, Delhi, Hyderabad.'],
   ['ownership', 'company (default) or client. Filling client_name implies client.'],
-  ['cost', 'Purchase price in rupees, e.g. 82950 or 1,234.50.'],
-  ['dates', 'assigned_date, purchase_date, warranty_expiry_date, received_on, return_date: DD/MM/YYYY or YYYY-MM-DD.'],
+  ['cost', 'Purchase price in rupees with up to 2 decimals, e.g. 82950, 1,234.50 or Rs. 500. Negative or unreadable amounts are rejected.'],
+  ['dates', 'assigned_date, purchase_date, warranty_expiry_date, received_on, return_date: DD/MM/YYYY or YYYY-MM-DD (years 1900–2100).'],
   ['parent_serial', 'For accessories such as adaptors: the serial of the laptop they belong to.'],
 ];
 
@@ -44,8 +44,8 @@ const ProblemTable = ({ title, rows }) => (
   <div className="rounded-xl border border-border overflow-hidden">
     <p className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-secondary bg-base/60 border-b border-border">{title}</p>
     <div className="max-h-72 overflow-y-auto divide-y divide-border">
-      {rows.map((row) => (
-        <div key={`${row.row}-${row.serial}`} className="px-4 py-2.5 text-sm flex gap-3">
+      {rows.map((row, index) => (
+        <div key={`${row.row}-${row.serial}-${index}`} className="px-4 py-2.5 text-sm flex gap-3">
           <span className="font-mono text-xs text-secondary shrink-0 w-14">Row {row.row}</span>
           <div className="min-w-0">
             {row.serial && <p className="font-mono text-xs text-secondary truncate">{row.serial}</p>}

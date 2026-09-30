@@ -1,6 +1,7 @@
-// Local development database: an embedded Postgres (PGlite) stored in
-// server/.devdb and served over the normal Postgres protocol, so the app
-// connects to it exactly like Supabase and never touches production data.
+// Local development database: a real PostgreSQL 17 server (the same major
+// version as production) run from the embedded-postgres npm package and
+// stored in server/.devdb-pg, so the app connects to it exactly like Supabase
+// and never touches production data.
 //
 //   npm run db          start (creates, migrates and seeds on first run)
 //   npm run db:reset    wipe local data and start fresh
@@ -8,14 +9,15 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PGlite } from '@electric-sql/pglite';
-import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
+import EmbeddedPostgres from 'embedded-postgres';
+import pg from 'pg';
 import bcrypt from 'bcrypt';
 
 const serverDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const migrationsDir = path.resolve(serverDir, '../supabase/migrations');
-const dataDir = path.join(serverDir, '.devdb');
+const dataDir = path.join(serverDir, '.devdb-pg');
 const port = Number(process.env.DEV_DB_PORT || 54322);
+const credentials = { user: 'postgres', password: 'postgres' };
 
 // Test logins only; every account uses the password below.
 const TEST_PASSWORD = 'password';
@@ -39,8 +41,7 @@ const CATEGORIES = [
   ['USB Hub', 'U', 'Cyan', 'USB hubs and docks'],
 ];
 
-// PGlite allows only one process per data folder; opening it twice can
-// corrupt it. Check the port first and stop if a local database is already up.
+// Refuse to start a second server on the same data directory.
 const portInUse = await new Promise((resolve) => {
   const socket = net.connect({ port, host: '127.0.0.1' });
   socket.once('connect', () => { socket.destroy(); resolve(true); });
@@ -57,30 +58,54 @@ if (process.argv.includes('--reset')) {
   console.log('[devdb] Local database wiped');
 }
 
-const isNew = !fs.existsSync(dataDir);
-const db = await PGlite.create(dataDir);
+const isNew = !fs.existsSync(path.join(dataDir, 'PG_VERSION'));
+const postgres = new EmbeddedPostgres({
+  databaseDir: dataDir,
+  port,
+  ...credentials,
+  persistent: true,
+  onLog: () => {},
+  onError: (message) => console.error('[devdb]', String(message).trim()),
+});
 
-// Apply any migration not yet applied, in filename order, so new files in
-// supabase/migrations are picked up on the next start.
+if (isNew) {
+  // A half-created directory from an interrupted first run can't be reused.
+  fs.rmSync(dataDir, { recursive: true, force: true });
+  await postgres.initialise();
+}
+await postgres.start();
+
+const client = new pg.Client({ host: '127.0.0.1', port, database: 'postgres', ...credentials });
+await client.connect();
+
+// Apply any migration not yet applied, in filename order, each in its own
+// transaction (files that manage their own BEGIN/COMMIT run as they are).
 const migrate = async () => {
-  await db.exec('CREATE TABLE IF NOT EXISTS _dev_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW())');
-  const applied = new Set((await db.query('SELECT name FROM _dev_migrations')).rows.map((row) => row.name));
-  const files = fs.readdirSync(migrationsDir)
-    .filter((file) => file.endsWith('.sql') && !file.includes('rollback'))
-    .sort();
+  await client.query('CREATE TABLE IF NOT EXISTS _dev_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW())');
+  const applied = new Set((await client.query('SELECT name FROM _dev_migrations')).rows.map((row) => row.name));
+  const files = fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql')).sort();
 
   for (const file of files) {
     if (applied.has(file)) continue;
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    if (sql.trim()) await db.exec(sql);
-    await db.query('INSERT INTO _dev_migrations (name) VALUES ($1)', [file]);
+    const managesOwnTransaction = /^\s*BEGIN\s*;/im.test(sql);
+    try {
+      if (!managesOwnTransaction) await client.query('BEGIN');
+      if (sql.trim()) await client.query(sql);
+      await client.query('INSERT INTO _dev_migrations (name) VALUES ($1)', [file]);
+      if (!managesOwnTransaction) await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error(`[devdb] Migration ${file} failed: ${err.message}`);
+      throw err;
+    }
     console.log(`[devdb] Applied ${file}`);
   }
 };
 
 const seed = async () => {
   for (const [name, badge, color, description] of CATEGORIES) {
-    await db.query(
+    await client.query(
       `INSERT INTO categories (name, badge_char, color, description) VALUES ($1, $2, $3, $4)
        ON CONFLICT (name) DO NOTHING`,
       [name, badge, color, description]
@@ -89,31 +114,29 @@ const seed = async () => {
 
   const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
   for (const account of TEST_ACCOUNTS) {
-    await db.query(
+    await client.query(
       `INSERT INTO employees (name, email, password_hash, role, role_id, admin_type, department, location)
        VALUES ($1, $2, $3, $4, $5, $6, 'IT', 'Bangalore')
        ON CONFLICT (email) DO UPDATE SET
          name = EXCLUDED.name, password_hash = EXCLUDED.password_hash, role = EXCLUDED.role,
-         role_id = EXCLUDED.role_id, admin_type = EXCLUDED.admin_type, deleted_at = NULL`,
+         role_id = EXCLUDED.role_id, admin_type = EXCLUDED.admin_type, deleted_at = NULL,
+         must_change_password = false`,
       [account.name, account.email, passwordHash, account.role, account.roleId, account.adminType]
     );
   }
   console.log(`[devdb] Seeded categories and test accounts (password: "${TEST_PASSWORD}")`);
 };
 
-await migrate();
-if (isNew) await seed();
-
-// Connections beyond the limit are dropped, and the API, tests and tools each
-// keep their own pool, so allow plenty; PGlite still runs queries one at a time.
-const maxConnections = Number(process.env.DEV_DB_MAX_CONNECTIONS || 50);
-const server = new PGLiteSocketServer({ db, port, host: '127.0.0.1', maxConnections });
-await server.start();
+try {
+  await migrate();
+  if (isNew) await seed();
+} finally {
+  await client.end();
+}
 console.log(`[devdb] Local Postgres ready at postgresql://postgres:postgres@127.0.0.1:${port}/postgres`);
 
 const shutdown = async () => {
-  await server.stop();
-  await db.close();
+  await postgres.stop();
   process.exit(0);
 };
 process.on('SIGINT', shutdown);

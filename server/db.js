@@ -1,5 +1,12 @@
 const fs = require('fs');
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// Return DATE columns (e.g. warranty_expiry_date, joining_date) exactly as
+// stored ('YYYY-MM-DD'). The default parser builds a local-midnight JS Date,
+// which serialises to the previous day in IST and made dates drift back a
+// day on every save.
+const PG_DATE_OID = 1082;
+types.setTypeParser(PG_DATE_OID, (value) => value);
 require('./loadEnv');
 
 const pool = new Pool({

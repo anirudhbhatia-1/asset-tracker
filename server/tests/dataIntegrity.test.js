@@ -51,7 +51,9 @@ describe('asset audit trail', () => {
     const asset = await newAsset();
     await assetService.assignAsset(asset.id, first, null, null);
     await expect(assetService.assignAsset(asset.id, first, null, null)).rejects.toMatchObject({ statusCode: 400 });
-    await assetService.assignAsset(asset.id, second, null, null);
+    // Taking it from its holder needs an explicit reassign.
+    await expect(assetService.assignAsset(asset.id, second, null, null)).rejects.toMatchObject({ statusCode: 409 });
+    await assetService.assignAsset(asset.id, second, null, null, null, { reassign: true });
     expect(await eventsFor(asset.id)).toEqual(['created:', `assigned:${first}`, `returned:${first}`, `assigned:${second}`]);
   });
 
@@ -102,6 +104,11 @@ describe('asset timeline tickets', () => {
     const ticketService = (await import('../services/ticketService')).default;
     const asset = await newAsset();
     const { rows: [employee] } = await pool.query("SELECT id FROM employees WHERE email = 'employee@company.com'");
+    // Employees may only raise tickets about their own devices.
+    await expect(ticketService.createTicket({ id: employee.id, role: 'employee' }, {
+      type: 'issue', title: 'Not mine', description: 'x', assetId: asset.id,
+    })).rejects.toMatchObject({ statusCode: 403 });
+    await assetService.assignAsset(asset.id, employee.id, null, null);
     const ticket = await ticketService.createTicket({ id: employee.id, role: 'employee' }, {
       type: 'issue', title: 'Screen flickers', description: 'x', assetId: asset.id, targetAdminType: 'hardware',
     });

@@ -34,7 +34,7 @@ const getEmployeeNotifications = async (employeeId) => {
 
   // 2. Tickets that are resolved but not yet confirmed by employee (still need action)
   const { rows: pendingConfirm } = await pool.query(
-    `SELECT id, title FROM tickets
+    `SELECT id, title, updated_at FROM tickets
      WHERE employee_id = $1 AND status = 'resolved'
      ORDER BY updated_at DESC`,
     [employeeId]
@@ -47,13 +47,14 @@ const getEmployeeNotifications = async (employeeId) => {
       title: 'Action Required: Confirm Resolution',
       message: `Please confirm if ticket "${row.title}" was resolved to your satisfaction.`,
       link: `/tickets?ticket=${row.id}`,
-      createdAt: new Date(),
+      // When it was resolved, so marking it read sticks across refreshes.
+      createdAt: row.updated_at,
     });
   }
 
   // 3. Assets assigned to them in the last 7 days
   const { rows: assetEvents } = await pool.query(
-    `SELECT ah.event_type, ah.event_at, a.name as asset_name
+    `SELECT ah.id, ah.event_type, ah.event_at, a.name as asset_name
      FROM asset_history ah
      JOIN assets a ON ah.asset_id = a.id
      WHERE ah.employee_id = $1
@@ -66,7 +67,7 @@ const getEmployeeNotifications = async (employeeId) => {
 
   for (const row of assetEvents) {
     notifications.push({
-      id: `asset-${row.event_type}-${row.asset_name}-${row.event_at}`,
+      id: `asset-history-${row.id}`,
       type: row.event_type === 'assigned' ? 'success' : 'info',
       title: row.event_type === 'assigned' ? 'Asset Assigned to You' : 'Asset Returned',
       message: row.event_type === 'assigned'

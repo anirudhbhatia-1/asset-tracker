@@ -8,6 +8,28 @@ const router = express.Router();
 
 router.use(validateSession);
 
+// Non-Directors may only manage roles below themselves: never the Director
+// role or their own role, and never grant (or hold power over a role with)
+// permissions they don't have. Returns an error message, or null if allowed.
+const getRoleManagementProblem = async (actingUser, { role = null, permissionKeys = [] } = {}) => {
+  if (hasPermission(actingUser, '*')) return null;
+  if (role?.is_director) return 'Only a Director can change the Director role';
+  if (role && Number(role.id) === Number(actingUser.roleId)) return 'You cannot change your own role';
+
+  let keys = [...permissionKeys];
+  if (role) {
+    const { rows } = await pool.query(
+      'SELECT p.key FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = $1',
+      [role.id]
+    );
+    keys = keys.concat(rows.map((row) => row.key));
+  }
+  const missing = [...new Set(keys)].filter((key) => !hasPermission(actingUser, key));
+  return missing.length > 0
+    ? `You cannot manage a role with permissions you do not hold: ${missing.join(', ')}`
+    : null;
+};
+
 // GET /api/roles — list all roles with permissions catalog
 router.get('/', requirePermission('roles:read'), async (req, res, next) => {
   try {
@@ -111,6 +133,11 @@ router.post('/', [
   try {
     const { name, description, adminType, permissionKeys } = req.body;
 
+    const problem = await getRoleManagementProblem(req.user, { permissionKeys: permissionKeys || [] });
+    if (problem) {
+      return res.status(403).json({ error: true, message: problem, code: 403 });
+    }
+
     const existing = await pool.query('SELECT id FROM roles WHERE LOWER(name) = LOWER($1)', [name]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: true, message: 'Role with this name already exists' });
@@ -175,6 +202,11 @@ router.put('/:id', [
 
     const currentRole = roleRes.rows[0];
     const { name, description, adminType, permissionKeys } = req.body;
+
+    const problem = await getRoleManagementProblem(req.user, { role: currentRole, permissionKeys: permissionKeys || [] });
+    if (problem) {
+      return res.status(403).json({ error: true, message: problem, code: 403 });
+    }
 
     // System roles name & director status cannot be mutated
     if (currentRole.is_system && name && name !== currentRole.name) {
@@ -243,12 +275,25 @@ router.delete('/:id', [
       return res.status(400).json({ error: true, message: 'Cannot delete protected system role' });
     }
 
-    // Active assignment check: Cannot delete role if any active employee is assigned to it
-    const empCheck = await pool.query('SELECT COUNT(*) as count FROM employees WHERE (role_id = $1 OR role = LOWER($2)) AND deleted_at IS NULL', [roleId, currentRole.name]);
-    if (Number(empCheck.rows[0].count) > 0) {
+    const problem = await getRoleManagementProblem(req.user, { role: currentRole });
+    if (problem) {
+      return res.status(403).json({ error: true, message: problem, code: 403 });
+    }
+
+    // Assignment check. Removed (soft-deleted) employees still reference the
+    // role, so they block deletion too; count them separately for the message.
+    const empCheck = await pool.query(`
+      SELECT COUNT(*) FILTER (WHERE deleted_at IS NULL) AS active,
+             COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS removed
+      FROM employees WHERE role_id = $1 OR (role_id IS NULL AND role = LOWER($2))
+    `, [roleId, currentRole.name]);
+    const { active, removed } = empCheck.rows[0];
+    if (Number(active) + Number(removed) > 0) {
       return res.status(409).json({
         error: true,
-        message: `Cannot delete role: currently assigned to ${empCheck.rows[0].count} active employee(s)`
+        message: Number(active) > 0
+          ? `Cannot delete role: currently assigned to ${active} active employee(s)`
+          : `Cannot delete role: ${removed} removed employee record(s) still reference it`,
       });
     }
 

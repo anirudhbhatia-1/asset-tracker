@@ -4,13 +4,17 @@ const db = require('../db');
 const { hashSessionToken } = require('./sessionToken');
 const { expandPermissions, getDefaultPermissionsForRole } = require('../middleware/validateSession');
 
+// Compared against when an email has no account, so a login attempt takes
+// the same time whether or not the email exists.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+
 const buildSessionUser = (user) => {
   const isDirector = user.role === 'director' || Boolean(user.is_director);
   const permissions = isDirector
     ? ['*']
-    : (Array.isArray(user.permissions) && user.permissions.length > 0 && user.permissions[0] !== null
-        ? user.permissions
-        : getDefaultPermissionsForRole(user.role));
+    : (user.role_id == null
+        ? getDefaultPermissionsForRole(user.role)
+        : (user.permissions || []).filter(Boolean));
 
   return {
     id: user.id,
@@ -22,12 +26,13 @@ const buildSessionUser = (user) => {
     isDirector,
     permissions: expandPermissions(permissions),
     adminType: user.admin_type,
+    mustChangePassword: Boolean(user.must_change_password),
   };
 };
 
 const getSessionUser = async (employeeId) => {
   const { rows } = await db.pool.query(`
-    SELECT e.id, e.name, e.email, e.role, e.role_id, e.admin_type,
+    SELECT e.id, e.name, e.email, e.role, e.role_id, e.admin_type, e.must_change_password,
            r.name as role_name, r.is_director,
            ARRAY_AGG(p.key) FILTER (WHERE p.key IS NOT NULL) as permissions
     FROM employees e
@@ -64,21 +69,18 @@ const login = async (email, password) => {
   const { rows } = await db.pool.query(`
     SELECT e.id, e.password_hash
     FROM employees e
-    WHERE e.email = $1 AND e.password_hash IS NOT NULL AND e.deleted_at IS NULL
-  `, [email]);
+    WHERE LOWER(e.email) = LOWER($1) AND e.password_hash IS NOT NULL AND e.deleted_at IS NULL
+  `, [String(email).trim()]);
 
-  if (rows.length === 0) {
-    const err = new Error('Invalid email or password');
-    err.statusCode = 401;
-    throw err;
-  }
   const employee = rows[0];
-  const match = await bcrypt.compare(password, employee.password_hash);
-  if (!match) {
+  const match = await bcrypt.compare(password, employee ? employee.password_hash : DUMMY_PASSWORD_HASH);
+  if (!employee || !match) {
     const err = new Error('Invalid email or password');
     err.statusCode = 401;
     throw err;
   }
+  // Housekeeping: expired sessions are otherwise never removed.
+  await db.pool.query('DELETE FROM sessions WHERE expires_at < NOW()');
   return createSessionForEmployee(employee.id);
 };
 
@@ -104,13 +106,19 @@ const changePassword = async (userId, currentPassword, newPassword) => {
     throw err;
   }
 
+  if (await bcrypt.compare(newPassword, user.password_hash)) {
+    const err = new Error('The new password must be different from the current one');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const saltRounds = 10;
   const newHash = await bcrypt.hash(newPassword, saltRounds);
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('UPDATE employees SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+    await client.query('UPDATE employees SET password_hash = $1, must_change_password = false WHERE id = $2', [newHash, userId]);
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [userId]);
     await client.query('COMMIT');
   } catch (err) {

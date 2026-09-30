@@ -108,22 +108,33 @@ const createTicket = async (user, payload) => {
     throw err;
   }
 
+  // A ticket may only be about the requester's own device, unless the
+  // requester works tickets themselves.
+  if (assetId && !hasPermission(user, 'tickets:resolve')) {
+    const { rows: owned } = await db.pool.query(
+      'SELECT 1 FROM assets WHERE id = $1 AND assigned_to = $2', [assetId, employeeId]
+    );
+    if (owned.length === 0) {
+      const err = new Error('You can only raise tickets about assets assigned to you');
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
   const adminTypeToSet = targetAdminType || 'it';
 
-  const { rows } = await db.pool.query(
-    `INSERT INTO tickets (type, employee_id, asset_id, category_id, title, description, current_admin_type) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [type, employeeId, assetId || null, categoryId || null, title, description || null, adminTypeToSet]
-  );
-  
-  const ticket = rows[0];
-
-  await db.pool.query(
-    `INSERT INTO ticket_history (ticket_id, event_type, performed_by) VALUES ($1, 'created', $2)`,
-    [ticket.id, employeeId]
-  );
-  
-  return ticket;
+  return db.withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO tickets (type, employee_id, asset_id, category_id, title, description, current_admin_type) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [type, employeeId, assetId || null, categoryId || null, title, description || null, adminTypeToSet]
+    );
+    await client.query(
+      `INSERT INTO ticket_history (ticket_id, event_type, performed_by) VALUES ($1, 'created', $2)`,
+      [rows[0].id, employeeId]
+    );
+    return rows[0];
+  });
 };
 
 // ticket_history only records dedicated events for terminal statuses; any
@@ -131,46 +142,67 @@ const createTicket = async (user, payload) => {
 const STATUS_EVENT_TYPES = { resolved: 'resolved', rejected: 'rejected', closed: 'closed' };
 const getStatusEventType = (status) => STATUS_EVENT_TYPES[status] || 'status_changed';
 
+// Status changes allowed through the admin update endpoint. Owners close or
+// reopen resolved tickets through confirmTicket; closed is final.
+const ALLOWED_STATUS_CHANGES = {
+  open: ['in_progress', 'resolved', 'rejected'],
+  in_progress: ['open', 'resolved', 'rejected'],
+  resolved: ['open', 'in_progress'],
+  rejected: ['open'],
+  closed: [],
+};
+
 const updateTicket = async (id, payload, adminUser) => {
   const { status, resolutionNotes, resolvedAssetId } = payload;
-  
-  const { rows: currentRows } = await db.pool.query('SELECT * FROM tickets WHERE id = $1', [id]);
-  if (currentRows.length === 0) {
-    const err = new Error('Ticket not found');
-    err.statusCode = 404;
-    throw err;
-  }
-  
-  const current = currentRows[0];
-  
-  const newStatus = status || current.status;
 
-  // Same rule as transfers: only the owning queue (or a Director) may work a
-  // ticket, and closing it out as resolved/rejected needs tickets:resolve.
-  const isDirector = adminUser.role === 'director' || adminUser.isDirector;
-  if (!isDirector && (!adminUser.adminType || adminUser.adminType !== current.current_admin_type)) {
-    const err = new Error('You can only update tickets that are currently in your queue.');
-    err.statusCode = 403;
-    throw err;
-  }
-  if (['resolved', 'rejected'].includes(newStatus) && newStatus !== current.status
-      && !hasPermission(adminUser, 'tickets:resolve')) {
-    const err = new Error("Resolving or rejecting tickets requires the 'tickets:resolve' permission.");
-    err.statusCode = 403;
-    throw err;
-  }
-  const newNotes = resolutionNotes !== undefined ? resolutionNotes : current.resolution_notes;
-  const newAssetId = resolvedAssetId !== undefined ? resolvedAssetId : current.resolved_asset_id;
-  
-  let resolvedBy = current.resolved_by;
+  return db.withTransaction(async (client) => {
+    const { rows: currentRows } = await client.query('SELECT * FROM tickets WHERE id = $1 FOR UPDATE', [id]);
+    if (currentRows.length === 0) {
+      const err = new Error('Ticket not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    const current = currentRows[0];
+    const newStatus = status || current.status;
 
-  if (newStatus === 'resolved' && current.status !== 'resolved') {
-    resolvedBy = adminUser.id;
-  }
+    // Same rule as transfers: only the owning queue (or a Director) may work a
+    // ticket, and closing it out as resolved/rejected needs tickets:resolve.
+    const isDirector = adminUser.role === 'director' || adminUser.isDirector;
+    if (!isDirector && (!adminUser.adminType || adminUser.adminType !== current.current_admin_type)) {
+      const err = new Error('You can only update tickets that are currently in your queue.');
+      err.statusCode = 403;
+      throw err;
+    }
+    if (['resolved', 'rejected'].includes(newStatus) && newStatus !== current.status
+        && !hasPermission(adminUser, 'tickets:resolve')) {
+      const err = new Error("Resolving or rejecting tickets requires the 'tickets:resolve' permission.");
+      err.statusCode = 403;
+      throw err;
+    }
+    if (newStatus !== current.status && !ALLOWED_STATUS_CHANGES[current.status]?.includes(newStatus)) {
+      const err = new Error(`A ${current.status.replace('_', ' ')} ticket cannot be moved to ${newStatus.replace('_', ' ')}.`);
+      err.statusCode = 400;
+      throw err;
+    }
 
-  // Update and history entry succeed or fail together so a rejected history
-  // insert can't leave a status change without an audit record.
-  const updatedTicket = await db.withTransaction(async (client) => {
+    const newNotes = resolutionNotes !== undefined ? resolutionNotes : current.resolution_notes;
+    const newAssetId = resolvedAssetId !== undefined ? resolvedAssetId : current.resolved_asset_id;
+    const isResolving = newStatus === 'resolved' && current.status !== 'resolved';
+    const resolvedBy = isResolving ? adminUser.id : (newStatus === 'resolved' ? current.resolved_by : null);
+
+    // Fulfilling a request hands the chosen asset to the requester, in the
+    // same transaction: it must be in stock, and a failure fails the update.
+    if (isResolving && newAssetId) {
+      const { rows: [asset] } = await client.query('SELECT status, assigned_to FROM assets WHERE id = $1', [newAssetId]);
+      const alreadyTheirs = asset && asset.status === 'in-use' && Number(asset.assigned_to) === Number(current.employee_id);
+      if (!alreadyTheirs) {
+        await assetService.assignAsset(
+          newAssetId, current.employee_id, null, `Fulfilled via Ticket #${id}`, adminUser,
+          { requireAvailable: true, client }
+        );
+      }
+    }
+
     const { rows } = await client.query(
       `UPDATE tickets 
        SET status = $1, 
@@ -192,24 +224,6 @@ const updateTicket = async (id, payload, adminUser) => {
 
     return rows[0];
   });
-
-  // Cross-feature synchronization:
-  // If the ticket was just resolved and an asset was linked, assign it to the employee in inventory.
-  if (newStatus === 'resolved' && current.status !== 'resolved' && newAssetId && newAssetId !== current.resolved_asset_id) {
-    try {
-      await assetService.assignAsset(
-        newAssetId,
-        current.employee_id,
-        null, // use today
-        `Fulfilled via Ticket #${id}`,
-        adminUser
-      );
-    } catch (assignErr) {
-      // Don't block the ticket update if asset assignment fails
-    }
-  }
-
-  return updatedTicket;
 };
 
 const getTicketHistory = async (id, user) => {
@@ -242,88 +256,98 @@ const getTicketHistory = async (id, user) => {
 };
 
 const transferTicket = async (id, targetAdminType, note, adminUser) => {
-  const { rows: currentRows } = await db.pool.query('SELECT * FROM tickets WHERE id = $1', [id]);
-  if (currentRows.length === 0) {
-    const err = new Error('Ticket not found');
-    err.statusCode = 404;
-    throw err;
-  }
-  
-  const current = currentRows[0];
-  const isDirector = adminUser.role === 'director' || adminUser.isDirector;
-  
-  // Director can transfer any ticket. Other admins can only transfer from their own queue.
-  // If an admin has no adminType assigned, they cannot transfer at all.
-  if (!isDirector) {
-    if (!adminUser.adminType || adminUser.adminType !== current.current_admin_type) {
-      const err = new Error('You can only transfer tickets that are currently in your queue.');
-      err.statusCode = 403;
+  // One transaction, ticket row locked: status and history change together.
+  return db.withTransaction(async (client) => {
+    const { rows: currentRows } = await client.query('SELECT * FROM tickets WHERE id = $1 FOR UPDATE', [id]);
+    if (currentRows.length === 0) {
+      const err = new Error('Ticket not found');
+      err.statusCode = 404;
       throw err;
     }
-  }
+  
+    const current = currentRows[0];
+    const isDirector = adminUser.role === 'director' || adminUser.isDirector;
+  
+    // Director can transfer any ticket. Other admins can only transfer from their own queue.
+    // If an admin has no adminType assigned, they cannot transfer at all.
+    if (!isDirector) {
+      if (!adminUser.adminType || adminUser.adminType !== current.current_admin_type) {
+        const err = new Error('You can only transfer tickets that are currently in your queue.');
+        err.statusCode = 403;
+        throw err;
+      }
+    }
 
-  if (targetAdminType === current.current_admin_type) {
-    const err = new Error('Ticket is already in the target queue.');
-    err.statusCode = 400;
-    throw err;
-  }
+    if (targetAdminType === current.current_admin_type) {
+      const err = new Error('Ticket is already in the target queue.');
+      err.statusCode = 400;
+      throw err;
+    }
   
-  const { rows } = await db.pool.query(
-    `UPDATE tickets SET current_admin_type = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-    [targetAdminType, id]
-  );
+    const { rows } = await client.query(
+      `UPDATE tickets SET current_admin_type = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [targetAdminType, id]
+    );
   
-  await db.pool.query(
-    `INSERT INTO ticket_history (ticket_id, event_type, performed_by, from_admin_type, to_admin_type, note) 
-     VALUES ($1, 'transferred', $2, $3, $4, $5)`,
-    [id, adminUser.id, current.current_admin_type, targetAdminType, note || null]
-  );
+    await client.query(
+      `INSERT INTO ticket_history (ticket_id, event_type, performed_by, from_admin_type, to_admin_type, note) 
+       VALUES ($1, 'transferred', $2, $3, $4, $5)`,
+      [id, adminUser.id, current.current_admin_type, targetAdminType, note || null]
+    );
   
-  return rows[0];
+    return rows[0];
+  });
 };
 
 const confirmTicket = async (id, employeeUser, action, note) => {
-  const { rows: currentRows } = await db.pool.query('SELECT * FROM tickets WHERE id = $1', [id]);
-  if (currentRows.length === 0) {
-    const err = new Error('Ticket not found');
-    err.statusCode = 404;
-    throw err;
-  }
+  // One transaction, ticket row locked: status and history change together.
+  return db.withTransaction(async (client) => {
+    const { rows: currentRows } = await client.query('SELECT * FROM tickets WHERE id = $1 FOR UPDATE', [id]);
+    if (currentRows.length === 0) {
+      const err = new Error('Ticket not found');
+      err.statusCode = 404;
+      throw err;
+    }
   
-  const current = currentRows[0];
-  const isDirector = employeeUser.role === 'director' || employeeUser.isDirector;
+    const current = currentRows[0];
+    const isDirector = employeeUser.role === 'director' || employeeUser.isDirector;
   
-  if (!isDirector && current.employee_id !== employeeUser.id) {
-    const err = new Error('You do not have permission to confirm this ticket.');
-    err.statusCode = 403;
-    throw err;
-  }
+    if (!isDirector && current.employee_id !== employeeUser.id) {
+      const err = new Error('You do not have permission to confirm this ticket.');
+      err.statusCode = 403;
+      throw err;
+    }
 
-  if (current.status !== 'resolved') {
-    const err = new Error('Only resolved tickets can be confirmed or reopened.');
-    err.statusCode = 400;
-    throw err;
-  }
+    if (current.status !== 'resolved') {
+      const err = new Error('Only resolved tickets can be confirmed or reopened.');
+      err.statusCode = 400;
+      throw err;
+    }
   
-  const newStatus = action === 'confirm' ? 'closed' : 'open';
-  const eventType = action === 'confirm' ? 'closed' : 'reopened';
+    const newStatus = action === 'confirm' ? 'closed' : 'open';
+    const eventType = action === 'confirm' ? 'closed' : 'reopened';
   
-  const { rows } = await db.pool.query(
-    `UPDATE tickets SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-    [newStatus, id]
-  );
+    const { rows } = await client.query(
+      `UPDATE tickets
+         SET status = $1,
+             resolved_by = CASE WHEN $1 = 'open' THEN NULL ELSE resolved_by END,
+             updated_at = NOW()
+         WHERE id = $2 RETURNING *`,
+      [newStatus, id]
+    );
   
-  const historyNote = action === 'confirm' 
-    ? 'Employee confirmed resolution.' 
-    : (note || 'Employee reopened ticket.');
+    const historyNote = action === 'confirm' 
+      ? 'Employee confirmed resolution.' 
+      : (note || 'Employee reopened ticket.');
 
-  await db.pool.query(
-    `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note) 
-     VALUES ($1, $2, $3, $4)`,
-    [id, eventType, employeeUser.id, historyNote]
-  );
+    await client.query(
+      `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note) 
+       VALUES ($1, $2, $3, $4)`,
+      [id, eventType, employeeUser.id, historyNote]
+    );
   
-  return rows[0];
+    return rows[0];
+  });
 };
 
 module.exports = {

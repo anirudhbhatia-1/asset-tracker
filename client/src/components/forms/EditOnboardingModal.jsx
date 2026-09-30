@@ -4,6 +4,7 @@ import { getCategories } from '../../api/categoriesApi';
 import { getDepartments } from '../../api/employeesApi';
 import useLocations from '../../hooks/useLocations';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { toDateInputValue } from '../../utils/dates';
 
 const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
   const { locations } = useLocations(isOpen);
@@ -48,7 +49,7 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
       setDepartment(request.department || '');
       setLocation(request.location || '');
       setAddress(request.address || '');
-      setJoiningDate(request.joining_date ? new Date(request.joining_date).toISOString().split('T')[0] : '');
+      setJoiningDate(toDateInputValue(request.joining_date));
       setNotes(request.notes || '');
       
       if (request.items && request.items.length > 0) {

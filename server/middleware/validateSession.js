@@ -5,7 +5,7 @@ const { hashSessionToken } = require('../services/sessionToken');
 const DEFAULT_ROLE_PERMISSIONS = {
   director: ['*'],
   admin: [
-    'roles:read', 'roles:manage', 'history:read',
+    'roles:read', 'history:read',
     'assets:read', 'assets:create', 'assets:update', 'assets:assign', 'assets:delete', 'assets:export', 'assets:import',
     'categories:read', 'categories:manage',
     'employees:read', 'employees:create', 'employees:manage', 'employees:delete', 'employees:grant-access', 'employees:assign-assets',
@@ -74,13 +74,17 @@ const hasPermission = (user, permissionKey) => {
   if (user.role === 'director' || user.isDirector || (user.permissions && user.permissions.includes('*'))) {
     return true;
   }
-  if (!user.permissions || !Array.isArray(user.permissions) || user.permissions.length === 0) {
+  // Defaults apply only to accounts with no role record; a role that has
+  // had every permission removed grants nothing.
+  if (user.roleId == null && (!Array.isArray(user.permissions) || user.permissions.length === 0)) {
     const fallback = DEFAULT_ROLE_PERMISSIONS[user.role] || [];
     if (fallback.includes('*')) return true;
     return expandPermissions(fallback).includes(permissionKey);
   }
   return expandPermissions(user.permissions).includes(permissionKey);
 };
+
+const PASSWORD_CHANGE_ALLOWED_PATHS = new Set(['/api/auth/me', '/api/auth/change-password']);
 
 const validateSession = async (req, res, next) => {
   try {
@@ -91,7 +95,7 @@ const validateSession = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     const result = await pool.query(`
-      SELECT s.employee_id, e.name, e.email, e.role, e.role_id, e.admin_type, s.expires_at,
+      SELECT s.employee_id, e.name, e.email, e.role, e.role_id, e.admin_type, e.must_change_password, s.expires_at,
              r.name as role_name, r.is_director,
              ARRAY_AGG(p.key) FILTER (WHERE p.key IS NOT NULL) as permissions
       FROM sessions s
@@ -108,9 +112,10 @@ const validateSession = async (req, res, next) => {
     }
 
     const sessionUser = result.rows[0];
-    const userPermissions = sessionUser.permissions && sessionUser.permissions[0] !== null
-      ? sessionUser.permissions
-      : getDefaultPermissionsForRole(sessionUser.role);
+    const storedPermissions = (sessionUser.permissions || []).filter(Boolean);
+    const userPermissions = sessionUser.role_id == null
+      ? getDefaultPermissionsForRole(sessionUser.role)
+      : storedPermissions;
 
     req.user = {
       id: sessionUser.employee_id,
@@ -121,8 +126,20 @@ const validateSession = async (req, res, next) => {
       roleName: sessionUser.role_name,
       isDirector: sessionUser.is_director || sessionUser.role === 'director',
       adminType: sessionUser.admin_type,
-      permissions: expandPermissions(userPermissions)
+      permissions: expandPermissions(userPermissions),
+      mustChangePassword: Boolean(sessionUser.must_change_password),
     };
+
+    // Until a temporary or shared password is replaced, only allow what the
+    // change-password screen needs.
+    if (req.user.mustChangePassword && !PASSWORD_CHANGE_ALLOWED_PATHS.has(`${req.baseUrl}${req.path}`)) {
+      return res.status(403).json({
+        error: true,
+        code: 403,
+        reason: 'PASSWORD_CHANGE_REQUIRED',
+        message: 'You must set a new password before continuing.',
+      });
+    }
 
     next();
   } catch (err) {

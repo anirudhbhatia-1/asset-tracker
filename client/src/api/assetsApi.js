@@ -27,10 +27,13 @@ export const getChildAssets = (parentId) => api.get('/assets', { params: { paren
 export const exportAssetsExcel = () =>
   api.get('/assets/export', { responseType: 'blob' }); // blob for file download
 
-export const importAssetsExcel = (file) => {
+// dryRun runs the whole import on the server and rolls it back, returning
+// what would happen so the user can confirm before anything is saved.
+export const importAssetsExcel = (file, { dryRun = false } = {}) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post('/assets/import', formData, {
+    ...(dryRun ? { params: { dryRun: true } } : {}),
     // Imports perform several database operations per row and can legitimately
     // take longer than the shared 10-second API timeout. Let the browser set
     // the multipart boundary; manually setting Content-Type can omit it.

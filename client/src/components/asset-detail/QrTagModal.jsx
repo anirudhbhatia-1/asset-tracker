@@ -2,6 +2,7 @@ import React, { useRef, useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, Printer } from 'lucide-react';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { escapeHtml } from '../../utils/html';
 
 export default function QrTagModal({ isOpen, onClose, asset }) {
   const printRef = useRef(null);
@@ -16,11 +17,18 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
   const handlePrint = () => {
     // Open a minimal print window with just the QR tag
     const printWindow = window.open('', '_blank', 'width=400,height=500');
+    if (!printWindow) return;
+    // The popup shares this origin, so asset text must be escaped, and it
+    // gets no handle back to the app window.
+    printWindow.opener = null;
+    const name = escapeHtml(asset.name);
+    const serial = escapeHtml(asset.serialNumber);
+    const model = escapeHtml(asset.model);
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Asset Tag — ${asset.serialNumber}</title>
+          <title>Asset Tag — ${serial}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
@@ -77,9 +85,9 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
           <div class="tag">
             <div class="company">Thinkvibes Asset Tag</div>
             ${printRef.current?.querySelector('svg')?.outerHTML || ''}
-            <div class="name">${asset.name}</div>
-            <div class="serial">${asset.serialNumber}</div>
-            ${asset.model ? `<div class="model">${asset.model}</div>` : ''}
+            <div class="name">${name}</div>
+            <div class="serial">${serial}</div>
+            ${model ? `<div class="model">${model}</div>` : ''}
           </div>
           <script>window.onload = () => { window.print(); window.close(); }</script>
         </body>

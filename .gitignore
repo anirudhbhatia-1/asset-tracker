@@ -29,8 +29,9 @@ server/database.sqlite3
 *.dump
 *.sql.gz
 
-# Local development database (PGlite)
+# Local development database (embedded Postgres; .devdb is the old PGlite data)
 server/.devdb/
+server/.devdb-pg/
 
 # Asset/employee data exports and imports (real company data)
 *.xlsx

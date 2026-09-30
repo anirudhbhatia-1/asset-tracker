@@ -8,6 +8,16 @@ const router = express.Router();
 
 router.use(validateSession);
 
+// Every :id / :itemId here is a numeric database id; reject anything else with
+// 400 instead of letting Postgres fail with a 500.
+const requireNumericParam = (req, res, next, value, name) => (
+  /^[1-9]\d{0,9}$/.test(value)
+    ? next()
+    : res.status(400).json({ error: true, message: `${name} must be a positive integer`, code: 400 })
+);
+router.param('id', requireNumericParam);
+router.param('itemId', requireNumericParam);
+
 // GET /api/tickets — list support tickets
 router.get('/', requirePermission('tickets:read'), async (req, res, next) => {
   try {

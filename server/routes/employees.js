@@ -160,7 +160,7 @@ router.delete('/:id', [
   validateRequest,
 ], async (req, res, next) => {
   try {
-    const result = await employeeService.deleteEmployee(Number(req.params.id));
+    const result = await employeeService.deleteEmployee(Number(req.params.id), req.user);
     res.status(200).json({
       data: result,
       message: 'Employee soft-deleted successfully',

@@ -15,7 +15,7 @@ const upload = multer({
   dest: path.join(__dirname, '../tmp/'),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.originalname.endsWith('.xlsx')) {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.originalname.toLowerCase().endsWith('.xlsx')) {
       cb(null, true);
     } else {
       const err = new Error('Only .xlsx files are accepted');
@@ -86,17 +86,22 @@ router.get('/export', requirePermission('assets:export'), async (req, res, next)
   }
 });
 
-// POST /api/assets/import — upload .xlsx and import rows
+// POST /api/assets/import — upload .xlsx and import rows.
+// ?dryRun=true runs the whole import in a transaction and rolls it back.
 router.post('/import', requirePermission('assets:import'), upload.single('file'), async (req, res, next) => {
   const filePath = req.file?.path;
   try {
     if (!filePath) {
       return res.status(400).json({ error: true, message: 'No file uploaded' });
     }
-    const results = await importAssetsFromExcel(filePath, req.user);
+    const dryRun = req.query.dryRun === 'true';
+    const results = await importAssetsFromExcel(filePath, req.user, {}, { dryRun });
+    const counts = `${results.skipped.length} skipped, ${results.errors.length} with errors`;
     res.status(200).json({
       data: results,
-      message: `Import complete: ${results.imported} imported, ${results.skipped.length} skipped`
+      message: dryRun
+        ? `Check complete: ${results.imported} ready to import, ${counts}`
+        : `Import complete: ${results.imported} imported, ${counts}`,
     });
   } catch (err) {
     next(err);
@@ -289,7 +294,9 @@ router.post('/:id/assign', [
       Number(req.body.employeeId),
       req.body.assignedDate,
       req.body.note,
-      req.user
+      req.user,
+      // The asset page's Assign/Reassign action may move it from its holder.
+      { reassign: true }
     );
     res.status(200).json({
       data: assigned,

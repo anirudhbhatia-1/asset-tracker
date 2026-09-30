@@ -158,10 +158,13 @@ const validateCorporateEmail = (email) => {
   }
 };
 
+// Directory entry only: no role means no login until access is granted.
+// googleId is deliberately not accepted from callers.
 const createEmployee = async (data) => {
-  const { name, email, department, location, address, googleId, avatarUrl } = data;
+  const { name, department, location, address, avatarUrl } = data;
+  const email = String(data.email).trim().toLowerCase();
 
-  const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
+  const existing = await pool.query('SELECT id FROM employees WHERE LOWER(email) = $1', [email]);
   if (existing.rows.length > 0) {
     const err = new Error('Employee email already exists');
     err.statusCode = 409;
@@ -169,10 +172,10 @@ const createEmployee = async (data) => {
   }
 
   const result = await pool.query(`
-    INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, 0, NOW())
+    INSERT INTO employees (name, email, department, location, address, avatar_url, is_google_synced, role, role_id, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, 0, NULL, NULL, NOW())
     RETURNING id
-  `, [name, email, department ?? null, location ?? null, address ?? null, googleId ?? null, avatarUrl ?? null]);
+  `, [name, email, department ?? null, location ?? null, address ?? null, avatarUrl ?? null]);
 
   return getEmployeeById(result.rows[0].id);
 };
@@ -211,7 +214,7 @@ const resolveRole = async (roleOrRoleId) => {
   const row = rows[0];
   const baseRole = BASE_SYSTEM_ROLES.includes(row.name.toLowerCase()) ? row.name.toLowerCase() : 'employee';
   const isDirector = Boolean(row.is_director) || baseRole === 'director';
-  const permissions = row.permissions?.length ? row.permissions : getDefaultPermissionsForRole(baseRole);
+  const permissions = (row.permissions || []).filter(Boolean);
   return {
     id: row.id,
     baseRole,
@@ -252,11 +255,12 @@ const assertCanActOnRole = (actingUser, role, action) => {
 };
 
 const createEmployeeWithAccess = async (data, actingUser) => {
-  const { name, email, department, location, address, role, roleId } = data;
+  const { name, department, location, address, role, roleId } = data;
+  const email = String(data.email).trim().toLowerCase();
 
   validateCorporateEmail(email);
 
-  const existing = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
+  const existing = await pool.query('SELECT id FROM employees WHERE LOWER(email) = $1', [email]);
   if (existing.rows.length > 0) {
     const err = new Error('Employee email already exists');
     err.statusCode = 409;
@@ -272,8 +276,8 @@ const createEmployeeWithAccess = async (data, actingUser) => {
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
   const result = await pool.query(`
-    INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, password_hash, role, role_id, admin_type, created_at)
-    VALUES ($1, $2, $3, $4, $5, NULL, NULL, 0, $6, $7, $8, $9, NOW())
+    INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, password_hash, role, role_id, admin_type, must_change_password, created_at)
+    VALUES ($1, $2, $3, $4, $5, NULL, NULL, 0, $6, $7, $8, $9, true, NOW())
     RETURNING id
   `, [name, email, department ?? null, location ?? null, address ?? null, passwordHash, targetRole.baseRole, targetRole.id, targetRole.adminType]);
 
@@ -300,17 +304,21 @@ const updateEmployee = async (id, data, actingUser) => {
   }
   
   // Explicitly strip role and role_id from routine profile update payload handling (Risk Audit #13)
-  const { name, email, department, location, address, avatarUrl } = data;
+  const { name, department, location, address, avatarUrl } = data;
+  const email = data.email ? String(data.email).trim().toLowerCase() : undefined;
 
-  const isEmailChange = Boolean(email) && email.toLowerCase() !== current.email.toLowerCase();
+  const isEmailChange = Boolean(email) && email !== current.email.toLowerCase();
   if (isEmailChange && current.hasLogin) {
     // Login (including Google sign-in) is keyed on email, so changing it can
-    // hand the account to someone else.
+    // hand the account to someone else: treat it like a credential change.
+    if (!actingUser || !hasPermission(actingUser, 'employees:grant-access')) {
+      throw forbidden("Forbidden - Requires 'employees:grant-access' to change the email of an account that can log in");
+    }
     assertCanActOnRole(actingUser, await getCurrentRole(current), 'change the email of');
   }
 
-  if (email && email !== current.email) {
-    const existing = await pool.query('SELECT id FROM employees WHERE email = $1 AND id != $2', [email, id]);
+  if (isEmailChange) {
+    const existing = await pool.query('SELECT id FROM employees WHERE LOWER(email) = $1 AND id != $2', [email, id]);
     if (existing.rows.length > 0) {
       const err = new Error('Employee email already exists');
       err.statusCode = 409;
@@ -344,15 +352,35 @@ const updateEmployee = async (id, data, actingUser) => {
   return getEmployeeById(id);
 };
 
-const deleteEmployee = async (id) => {
+const deleteEmployee = async (id, actingUser) => {
   const current = await getEmployeeById(id);
 
   if (current.deletedAt) {
     return { id: Number(id), deleted: true };
   }
 
-  await pool.query('UPDATE employees SET deleted_at = NOW() WHERE id = $1', [id]);
-  await pool.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  assertCanActOnRole(actingUser, await getCurrentRole(current), 'remove');
+
+  // Hardware must be handed back first, or it would stay assigned to a
+  // hidden, removed account.
+  const { rows: heldAssets } = await pool.query(
+    `SELECT id, name, serial_number FROM assets WHERE assigned_to = $1 AND status = 'in-use' ORDER BY name`,
+    [id]
+  );
+  if (heldAssets.length > 0) {
+    const err = new Error(
+      `Return ${heldAssets.length} assigned asset(s) before removing this employee: `
+      + heldAssets.map((asset) => `${asset.name} (${asset.serial_number})`).join(', ')
+    );
+    err.statusCode = 409;
+    err.details = { assets: heldAssets.map((asset) => ({ id: asset.id, name: asset.name, serialNumber: asset.serial_number })) };
+    throw err;
+  }
+
+  await withTransaction(async (client) => {
+    await client.query('UPDATE employees SET deleted_at = NOW() WHERE id = $1', [id]);
+    await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  });
   return { id: Number(id), deleted: true };
 };
 
@@ -401,7 +429,8 @@ const grantEmployeeAccess = async (id, roleOrRoleId, passwordHash, actingUser) =
 
   // Save the password hash first, then update the role
   await pool.query(
-    'UPDATE employees SET password_hash = $1 WHERE id = $2',
+    // A temporary password must be replaced at first login.
+    'UPDATE employees SET password_hash = $1, must_change_password = true WHERE id = $2',
     [passwordHash, id]
   );
 
