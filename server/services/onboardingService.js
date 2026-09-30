@@ -169,7 +169,7 @@ const getHrMetrics = async () => {
     SELECT
       (SELECT COUNT(*) FROM onboarding_requests WHERE status = 'pending') as pending_onboardings,
       (SELECT COUNT(*) FROM onboarding_requests WHERE status = 'arranged' AND date_trunc('month', arranged_at) = date_trunc('month', NOW())) as arranged_this_month,
-      (SELECT COUNT(*) FROM assets WHERE status = 'in-use' AND assigned_to IS NOT NULL) as assets_allocated
+      (SELECT COUNT(*) FROM assets WHERE status = 'in-use' AND assigned_to IS NOT NULL AND asset_type <> 'client') as assets_allocated
   `;
   const { rows } = await db.pool.query(query);
   return rows[0];

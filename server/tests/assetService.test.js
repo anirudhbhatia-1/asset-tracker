@@ -90,4 +90,51 @@ describe('assetService Unit Tests', () => {
     expect(delRes.deleted).toBe(true);
     await expect(async () => await assetService.getAssetById(res.id)).rejects.toThrow('Asset not found');
   });
+
+  describe('client-owned assets', () => {
+    let clientAssetId;
+    afterEach(async () => {
+      if (clientAssetId) {
+        try { await assetService.deleteAsset(clientAssetId, true); } catch (e) {}
+        clientAssetId = null;
+      }
+    });
+
+    it('returns a client asset to the client instead of company stock', async () => {
+      const created = await assetService.createAsset({
+        name: 'Client Test Laptop',
+        serialNumber: `CLIENT-SN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        categoryId: 1,
+        assetType: 'client',
+        clientName: 'Salesforce',
+        status: 'available',
+      });
+      clientAssetId = created.id;
+      await assetService.assignAsset(clientAssetId, 1, '2026-07-22', 'Issued');
+
+      const returned = await assetService.returnAsset(clientAssetId, null);
+      expect(returned.status).toBe('returned');
+      expect(returned.assignedTo).toBeNull();
+
+      const companyAssets = await assetService.getAssets({ assetType: 'company' });
+      expect(companyAssets.some((asset) => asset.id === clientAssetId)).toBe(false);
+      const clientAssets = await assetService.getAssets({ assetType: 'client' });
+      expect(clientAssets.some((asset) => asset.id === clientAssetId)).toBe(true);
+    });
+
+    it('does not allow company assets to be marked returned to client', async () => {
+      await expect(assetService.createAsset({
+        name: 'Company Test Laptop',
+        serialNumber: `COMPANY-SN-${Date.now()}`,
+        categoryId: 1,
+        status: 'returned',
+      })).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    it('still returns company assets to stock', async () => {
+      await assetService.assignAsset(createdAssetId, 1, '2026-07-22', 'Issued');
+      const returned = await assetService.returnAsset(createdAssetId, null);
+      expect(returned.status).toBe('available');
+    });
+  });
 });

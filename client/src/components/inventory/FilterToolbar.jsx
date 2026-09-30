@@ -78,6 +78,7 @@ export default function FilterToolbar({
               <option value="available">🟢 Available</option>
               <option value="in-use">🔵 In Use</option>
               <option value="retired">⚪ Retired</option>
+              <option value="returned">↩️ Returned to Client</option>
             </select>
           </div>
 

@@ -583,7 +583,8 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => 
 
       let status;
       if (lifecycle === 'retired' || lifecycle === 'available') {
-        status = lifecycle;
+        // A released client asset went back to the client, not into stock.
+        status = lifecycle === 'available' && finalRow.fields.assetType === 'client' ? 'returned' : lifecycle;
       } else if (finalRow.issuedTo) {
         if (!finalRow.employeeId) {
           results.skipped.push(`Employee not found: ${finalRow.issuedTo} (${finalRow.sheetName}, serial ${item.serial})`);

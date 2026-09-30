@@ -18,7 +18,8 @@ export default function useMetrics() {
     setError(null);
     try {
       const [assetsRes, categoriesRes, employeesRes] = await Promise.all([
-        getAssets(),
+        // Client-owned assets are tracked separately and never count as company inventory.
+        getAssets({ assetType: 'company' }),
         getCategories(),
         getEmployees(),
       ]);

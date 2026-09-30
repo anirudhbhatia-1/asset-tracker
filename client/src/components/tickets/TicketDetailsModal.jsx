@@ -73,7 +73,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   const loadAssets = async () => {
     setLoadingAssets(true);
     try {
-      const res = await getAssets({ status: 'available' });
+      const res = await getAssets({ status: 'available', assetType: 'company' });
       setAssets(res.data?.data || res.data || []);
     } catch (err) {
       console.error('Failed to load assets', err);

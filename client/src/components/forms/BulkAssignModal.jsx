@@ -23,7 +23,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
     const load = async () => {
       setLoading(true);
       try {
-        const res = await getAssets({ status: 'available' });
+        const res = await getAssets({ status: 'available', assetType: 'company' });
         setAssets(res.data?.data || []);
       } catch {
         toast.error('Failed to load available assets');

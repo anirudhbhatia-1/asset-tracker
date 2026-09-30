@@ -11,7 +11,7 @@ const COLUMN_GUIDE = [
   ['category', 'Required. Must match an existing category, e.g. Laptop, Monitor, Keyboard & Mouse, Audio & Headset, Adaptor.'],
   ['serial_number', 'Unique. Leave empty or write NA if the device has none; a serial is generated.'],
   ['name', 'Optional when brand and model are filled (name becomes "brand model").'],
-  ['status', 'available, in-use or retired. Empty means in-use when assigned, otherwise available.'],
+  ['status', 'available, in-use, retired, or returned (client assets handed back to the client). Empty means in-use when assigned, otherwise available.'],
   ['assigned_to_email', 'Employee email; the employee must already exist. Only for in-use assets.'],
   ['location', 'Must match an office location, e.g. Bangalore, Mumbai, Delhi, Hyderabad.'],
   ['ownership', 'company (default) or client. Filling client_name implies client.'],

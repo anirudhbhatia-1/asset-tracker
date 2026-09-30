@@ -18,7 +18,7 @@ const getCategories = async () => {
     SELECT c.id, c.name, c.description, c.badge_char, c.color, c.created_at,
            COUNT(a.id) AS asset_count
     FROM categories c
-    LEFT JOIN assets a ON c.id = a.category_id
+    LEFT JOIN assets a ON c.id = a.category_id AND a.asset_type <> 'client'
     GROUP BY c.id
     ORDER BY c.name ASC
   `);
@@ -30,7 +30,7 @@ const getCategoryById = async (id) => {
     SELECT c.id, c.name, c.description, c.badge_char, c.color, c.created_at,
            COUNT(a.id) AS asset_count
     FROM categories c
-    LEFT JOIN assets a ON c.id = a.category_id
+    LEFT JOIN assets a ON c.id = a.category_id AND a.asset_type <> 'client'
     WHERE c.id = $1
     GROUP BY c.id
   `, [id]);

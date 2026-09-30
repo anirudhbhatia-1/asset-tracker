@@ -21,6 +21,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
   if (!asset) return null;
 
   const isRetired = asset.status === 'retired';
+  const isClientAsset = asset.assetType === 'client';
 
   const handleReturnConfirm = async () => {
     setSubmittingAction(true);
@@ -109,7 +110,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
             className="flex-1 sm:flex-initial"
           >
             <CornerDownLeft className="w-4 h-4" />
-            <span>Return to Stock</span>
+            <span>{isClientAsset ? 'Return to Client' : 'Return to Stock'}</span>
           </Button>
         )}
 
@@ -153,11 +154,11 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
       {canAssign && <Modal
         isOpen={isReturnModalOpen}
         onClose={() => !submittingAction && setIsReturnModalOpen(false)}
-        title="Confirm Return to Stock"
+        title={isClientAsset ? 'Confirm Return to Client' : 'Confirm Return to Stock'}
       >
         <div className="space-y-4">
           <p className="text-sm text-secondary">
-            Are you sure you want to unassign <span className="font-semibold text-white">{asset.name}</span> ({asset.serialNumber}) from <span className="font-semibold text-white">{asset.assigneeName}</span> and mark it as available in inventory?
+            Are you sure you want to unassign <span className="font-semibold text-white">{asset.name}</span> ({asset.serialNumber}) from <span className="font-semibold text-white">{asset.assigneeName}</span> and {isClientAsset ? `mark it as returned to ${asset.clientName || 'the client'}? It will no longer be available to assign.` : 'mark it as available in inventory?'}
           </p>
 
           <div>

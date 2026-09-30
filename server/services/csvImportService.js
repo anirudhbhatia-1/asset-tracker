@@ -27,6 +27,7 @@ const parseCsvStatus = (value) => {
   const text = optionalExcelText(value)?.toLowerCase().replace(/[\s_]+/g, '-');
   if (!text) return null;
   if (text === 'in-use' || text === 'inuse' || text === 'assigned') return 'in-use';
+  if (text === 'returned' || text === 'returned-to-client') return 'returned';
   return ['available', 'retired'].includes(text) ? text : undefined;
 };
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -164,7 +165,7 @@ const importAssetsFromCsv = async (filePath, actorUser, { dryRun = false } = {},
 
     const statusText = text('status');
     const status = statusText ? parseCsvStatus(statusText) : (assigneeEmail ? 'in-use' : 'available');
-    if (!status) problems.push(`status "${statusText}" must be available, in-use or retired`);
+    if (!status) problems.push(`status "${statusText}" must be available, in-use, retired or returned`);
     if (status === 'in-use' && !assigneeEmail) problems.push('status in-use needs assigned_to_email');
     if (status && status !== 'in-use' && assigneeEmail) problems.push(`status ${status} cannot have assigned_to_email; leave it empty or use in-use`);
 
@@ -176,6 +177,7 @@ const importAssetsFromCsv = async (filePath, actorUser, { dryRun = false } = {},
     const clientName = text('client_name');
     const assetType = ownershipText || (clientName ? 'client' : 'company');
     if (!['company', 'client'].includes(assetType)) problems.push(`ownership "${record.ownership}" must be company or client`);
+    if (status === 'returned' && assetType !== 'client') problems.push('status returned is only for client-owned assets (set ownership to client)');
 
     const assignedDate = date('assigned_date');
     const costText = text('cost');

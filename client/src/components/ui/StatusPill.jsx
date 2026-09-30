@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Clock, Archive, ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion } from 'lucide-react';
+import { CheckCircle2, Clock, Archive, Undo2, ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion } from 'lucide-react';
 
 export default function StatusPill({ status }) {
   const normalizedStatus = (status || '').toLowerCase();
@@ -27,6 +27,15 @@ export default function StatusPill({ status }) {
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary/10 border border-secondary/30 text-secondary">
         <Archive className="w-3.5 h-3.5 shrink-0" />
         <span>Retired</span>
+      </span>
+    );
+  }
+
+  if (normalizedStatus === 'returned') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-accent/10 border border-accent/30 text-accent">
+        <Undo2 className="w-3.5 h-3.5 shrink-0" />
+        <span>Returned to Client</span>
       </span>
     );
   }

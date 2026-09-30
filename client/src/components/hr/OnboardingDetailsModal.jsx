@@ -63,7 +63,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
   const loadAvailableAssets = async () => {
     setLoadingAssets(true);
     try {
-      const res = await getAssets({ status: 'available' });
+      const res = await getAssets({ status: 'available', assetType: 'company' });
       setAssets(res.data?.data || res.data || []);
     } catch (err) {
       console.error(err);

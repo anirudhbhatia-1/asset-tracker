@@ -20,6 +20,8 @@ export default function Inventory() {
   const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || 'all');
   const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || 'all');
   const [selectedWarranty, setSelectedWarranty] = useState(searchParams.get('warranty') || 'all');
+  // Company inventory by default; client-owned assets have their own view.
+  const [ownership, setOwnership] = useState(searchParams.get('ownership') || 'company');
 
   const { hasPermission } = useAuth();
   const canCreateAssets = hasPermission('assets:create');
@@ -40,6 +42,7 @@ export default function Inventory() {
     setSelectedStatus(searchParams.get('status') || 'all');
     setSelectedLocation(searchParams.get('location') || 'all');
     setSelectedWarranty(searchParams.get('warranty') || 'all');
+    setOwnership(searchParams.get('ownership') || 'company');
   }, [searchParams]);
 
   useEffect(() => {
@@ -83,6 +86,14 @@ export default function Inventory() {
     updateFilterParams({ warranty });
   };
 
+  const handleSelectOwnership = (value) => {
+    setOwnership(value);
+    const updated = new URLSearchParams(searchParams);
+    if (value === 'company') updated.delete('ownership');
+    else updated.set('ownership', value);
+    setSearchParams(updated, { replace: true });
+  };
+
   // Construct query filters object for API
   const filters = useMemo(() => {
     const obj = {};
@@ -91,8 +102,9 @@ export default function Inventory() {
     if (selectedStatus !== 'all') obj.status = selectedStatus;
     if (selectedLocation !== 'all') obj.location = selectedLocation;
     if (selectedWarranty !== 'all') obj.warranty = selectedWarranty;
+    if (ownership !== 'all') obj.assetType = ownership;
     return obj;
-  }, [searchQuery, selectedCategoryId, selectedStatus, selectedLocation, selectedWarranty]);
+  }, [searchQuery, selectedCategoryId, selectedStatus, selectedLocation, selectedWarranty, ownership]);
 
   const { assets, loading: assetsLoading, error, refresh } = useAssets(filters);
 
@@ -102,7 +114,8 @@ export default function Inventory() {
     setSelectedStatus('all');
     setSelectedLocation('all');
     setSelectedWarranty('all');
-    setSearchParams({}, { replace: true });
+    // Clearing filters keeps the chosen ownership view.
+    setSearchParams(ownership === 'company' ? {} : { ownership }, { replace: true });
   };
 
   const handleExport = async () => {
@@ -271,6 +284,35 @@ export default function Inventory() {
           </button>
         </div>
       )}
+
+      {/* Ownership view */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <div className="inline-flex bg-surface border border-border rounded-xl p-1 self-start" role="tablist" aria-label="Asset ownership">
+          {[
+            ['company', 'Company assets'],
+            ['client', 'Client assets'],
+            ['all', 'All'],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={ownership === value}
+              onClick={() => handleSelectOwnership(value)}
+              className={`px-3.5 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
+                ownership === value ? 'bg-accent text-white shadow-sm' : 'text-secondary hover:text-primary'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {ownership === 'client' && (
+          <p className="text-xs text-secondary">
+            Owned by clients: kept for records only and not counted in company totals.
+          </p>
+        )}
+      </div>
 
       {/* Search Bar & Filter Toolbar */}
       <div className="space-y-3">

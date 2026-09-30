@@ -78,6 +78,12 @@ const getAssets = async (filters = {}) => {
     conditions.push(`a.location = $${params.length}`);
   }
 
+  // Client-owned assets are tracked but kept out of company inventory views.
+  if (filters.assetType === 'company' || filters.assetType === 'client') {
+    params.push(filters.assetType);
+    conditions.push(`a.asset_type = $${params.length}`);
+  }
+
   if (filters.parentId) {
     params.push(Number(filters.parentId));
     conditions.push(`a.parent_id = $${params.length}`);
@@ -187,8 +193,14 @@ const createAsset = async (data, actorUser = null) => {
     throw err;
   }
 
-  if (!['available', 'in-use', 'retired'].includes(status)) {
+  if (!['available', 'in-use', 'retired', 'returned'].includes(status)) {
     const err = new Error('Invalid status value');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (status === 'returned' && assetType !== 'client') {
+    const err = new Error('Only client-owned assets can be marked returned to client');
     err.statusCode = 400;
     throw err;
   }
@@ -296,6 +308,12 @@ const updateAsset = async (id, data, actorUser = null) => {
     os, msOffice, antiVirus, warrantyPlan, warrantyUpgrade,
     color, hardwareType, clientName, returnDate, receivedOn
   } = data;
+
+  if (current.status === 'returned' && assetType !== undefined && assetType !== 'client') {
+    const err = new Error('This asset was returned to its client; it cannot be changed to company-owned');
+    err.statusCode = 400;
+    throw err;
+  }
 
   if (serialNumber && serialNumber !== current.serialNumber) {
     const existing = await pool.query('SELECT id FROM assets WHERE serial_number = $1 AND id != $2', [serialNumber, id]);
@@ -455,22 +473,27 @@ const returnAsset = async (id, note, actorUser = null) => {
   }
 
   const previousAssignee = current.assignedTo;
+  // A client-owned asset goes back to the client, not into company stock.
+  const isClientAsset = current.assetType === 'client';
 
   await withTransaction(async (client) => {
     await client.query(`
       UPDATE assets
-      SET status = 'available',
+      SET status = $2,
           assigned_to = NULL,
           assigned_date = NULL,
           updated_at = NOW()
       WHERE id = $1
-    `, [id]);
+    `, [id, isClientAsset ? 'returned' : 'available']);
 
-    await historyService.logEvent(id, 'returned', actorUser, previousAssignee, note || 'Returned to stock', null, client);
+    await historyService.logEvent(id, 'returned', actorUser, previousAssignee,
+      note || (isClientAsset ? 'Returned to client' : 'Returned to stock'), null, client);
 
-    // CASCADE to sub-assets
+    // CASCADE to sub-assets, each by its own ownership
     await client.query(
-      `UPDATE assets SET status = 'available', assigned_to = NULL, assigned_date = NULL, updated_at = NOW()
+      `UPDATE assets
+       SET status = CASE WHEN asset_type = 'client' THEN 'returned' ELSE 'available' END,
+           assigned_to = NULL, assigned_date = NULL, updated_at = NOW()
        WHERE parent_id = $1 AND status = 'in-use'`,
       [id]
     );
