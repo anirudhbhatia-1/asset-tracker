@@ -54,7 +54,7 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
       toast.success('Logged in with Google');
       navigate(from, { replace: true });
     } catch (err) {
-      setGoogleError(getGoogleLoginError(err.response?.status));
+      setGoogleError(getGoogleLoginError(err.response?.status, err.response?.data?.message));
     } finally {
       setIsGoogleSubmitting(false);
     }

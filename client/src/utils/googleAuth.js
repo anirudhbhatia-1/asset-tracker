@@ -3,9 +3,11 @@ export const isGoogleLoginConfigured = (clientId) => {
   return Boolean(value) && !value.includes('your-google-client-id');
 };
 
-export const getGoogleLoginError = (status) => {
+// The server sends 403 both for accounts outside the allowed Workspace domain
+// and for accounts nobody has granted access to, so prefer its message.
+export const getGoogleLoginError = (status, serverMessage) => {
   if (status === 403) {
-    return "This Google account hasn't been granted access. Contact your admin.";
+    return serverMessage || "This Google account hasn't been granted access. Contact your admin.";
   }
   if (status === 503) {
     return 'Google sign-in is not configured on the server. Contact your admin.';

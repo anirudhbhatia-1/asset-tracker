@@ -16,7 +16,9 @@ const upload = multer({
     if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.originalname.endsWith('.xlsx')) {
       cb(null, true);
     } else {
-      cb(new Error('Only .xlsx files are accepted'));
+      const err = new Error('Only .xlsx files are accepted');
+      err.statusCode = 400;
+      cb(err);
     }
   }
 });

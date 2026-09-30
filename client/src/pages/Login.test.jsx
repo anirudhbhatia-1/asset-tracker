@@ -49,6 +49,11 @@ describe('Google login errors', () => {
     expect(getGoogleLoginError(403)).toContain("hasn't been granted access");
   });
 
+  it('shows the server reason when an account is rejected', () => {
+    expect(getGoogleLoginError(403, 'Google account must belong to the thinkvibes.com Workspace domain'))
+      .toBe('Google account must belong to the thinkvibes.com Workspace domain');
+  });
+
   it('explains missing server configuration', () => {
     expect(getGoogleLoginError(503)).toContain('not configured on the server');
   });

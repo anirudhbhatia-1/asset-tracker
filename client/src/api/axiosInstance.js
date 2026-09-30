@@ -4,12 +4,12 @@ export const shouldRedirectForUnauthorized = (error) => (
   error.response?.status === 401 && !error.config?.skipAuthRedirect
 );
 
+// No default Content-Type: axios sets application/json for plain objects on its
+// own, and a forced JSON header makes axios serialize FormData uploads to JSON,
+// which drops the file (the server then responds "No file uploaded").
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Request Interceptor
