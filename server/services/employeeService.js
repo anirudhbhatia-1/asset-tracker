@@ -1,4 +1,5 @@
 const { pool, withTransaction } = require('../db');
+const { hasPermission, expandPermissions, getDefaultPermissionsForRole } = require('../middleware/validateSession');
 
 const mapEmployee = (row) => {
   if (!row) return null;
@@ -166,7 +167,81 @@ const createEmployee = async (data) => {
   return getEmployeeById(result.rows[0].id);
 };
 
-const createEmployeeWithAccess = async (data) => {
+const BASE_SYSTEM_ROLES = ['director', 'admin', 'hr', 'employee'];
+
+const forbidden = (message) => {
+  const err = new Error(message);
+  err.statusCode = 403;
+  return err;
+};
+
+// Resolves a role by id or name, including the permissions it effectively
+// grants (roles without DB permissions fall back to the base-role defaults,
+// mirroring validateSession).
+const resolveRole = async (roleOrRoleId) => {
+  const isNumeric = roleOrRoleId !== null && roleOrRoleId !== '' && !isNaN(Number(roleOrRoleId));
+  const { rows } = await pool.query(`
+    SELECT r.id, r.name, r.admin_type, r.is_director, r.is_system,
+           ARRAY_AGG(p.key) FILTER (WHERE p.key IS NOT NULL) AS permissions
+    FROM roles r
+    LEFT JOIN role_permissions rp ON rp.role_id = r.id
+    LEFT JOIN permissions p ON p.id = rp.permission_id
+    WHERE r.id = $1 OR LOWER(r.name) = LOWER($2)
+    GROUP BY r.id
+    ORDER BY (r.id = $1) DESC
+    LIMIT 1
+  `, [isNumeric ? Number(roleOrRoleId) : 0, String(roleOrRoleId ?? '')]);
+
+  if (rows.length === 0) {
+    const err = new Error(`Unknown role: ${roleOrRoleId}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const row = rows[0];
+  const baseRole = BASE_SYSTEM_ROLES.includes(row.name.toLowerCase()) ? row.name.toLowerCase() : 'employee';
+  const isDirector = Boolean(row.is_director) || baseRole === 'director';
+  const permissions = row.permissions?.length ? row.permissions : getDefaultPermissionsForRole(baseRole);
+  return {
+    id: row.id,
+    baseRole,
+    adminType: row.admin_type,
+    isDirector,
+    // The built-in Employee role is the default self-service login every
+    // staff member gets, so anyone allowed to create logins may grant it.
+    isDefaultEmployeeRole: Boolean(row.is_system) && row.name.toLowerCase() === 'employee',
+    permissions: isDirector ? ['*'] : expandPermissions(permissions),
+  };
+};
+
+// The privileges an existing employee currently holds, or null if they have none.
+const getCurrentRole = async (employee) => {
+  if (employee.roleId) return resolveRole(employee.roleId);
+  if (!employee.role) return null;
+  const baseRole = BASE_SYSTEM_ROLES.includes(employee.role) ? employee.role : 'employee';
+  return {
+    baseRole,
+    isDirector: baseRole === 'director',
+    permissions: expandPermissions(getDefaultPermissionsForRole(baseRole)),
+  };
+};
+
+// Nobody may hand out, or act on an account holding, privileges beyond their
+// own. Only a Director can assign the Director role or manage a Director.
+const assertCanActOnRole = (actingUser, role, action) => {
+  if (!role || role.isDefaultEmployeeRole) return;
+  if (!actingUser) throw forbidden(`Forbidden - cannot ${action} without an authenticated user`);
+  if (hasPermission(actingUser, '*')) return;
+  if (role.isDirector) {
+    throw forbidden(`Forbidden - only a Director can ${action} a Director`);
+  }
+  const missing = role.permissions.filter((key) => !hasPermission(actingUser, key));
+  if (missing.length > 0) {
+    throw forbidden(`Forbidden - cannot ${action} a role with permissions you do not hold: ${missing.join(', ')}`);
+  }
+};
+
+const createEmployeeWithAccess = async (data, actingUser) => {
   const { name, email, department, location, address, role, roleId } = data;
 
   validateCorporateEmail(email);
@@ -178,41 +253,23 @@ const createEmployeeWithAccess = async (data) => {
     throw err;
   }
 
+  const targetRole = await resolveRole(roleId || role || 'employee');
+  assertCanActOnRole(actingUser, targetRole, 'assign');
+
   const crypto = require('crypto');
   const bcrypt = require('bcrypt');
   const temporaryPassword = crypto.randomBytes(6).toString('hex');
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
-  let targetRoleId = null;
-  let targetRoleString = role || 'employee';
-  let targetAdminType = null;
-
-  if (roleId || role) {
-    const roleRes = await pool.query(
-      'SELECT id, name, admin_type FROM roles WHERE id = $1 OR LOWER(name) = LOWER($2)',
-      [Number(roleId) || 0, String(role || '')]
-    );
-    if (roleRes.rows.length > 0) {
-      targetRoleId = roleRes.rows[0].id;
-      targetRoleString = roleRes.rows[0].name.toLowerCase();
-      targetAdminType = roleRes.rows[0].admin_type;
-    }
-  }
-
-  const BASE_SYSTEM_ROLES = ['director', 'admin', 'hr', 'employee'];
-  const safeRoleString = BASE_SYSTEM_ROLES.includes(targetRoleString) ? targetRoleString : 'employee';
-
   const result = await pool.query(`
     INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, password_hash, role, role_id, admin_type, created_at)
     VALUES ($1, $2, $3, $4, $5, NULL, NULL, 0, $6, $7, $8, $9, NOW())
     RETURNING id
-  `, [name, email, department ?? null, location ?? null, address ?? null, passwordHash, safeRoleString, targetRoleId, targetAdminType]);
+  `, [name, email, department ?? null, location ?? null, address ?? null, passwordHash, targetRole.baseRole, targetRole.id, targetRole.adminType]);
 
   const employee = await getEmployeeById(result.rows[0].id);
   return { employee, temporaryPassword };
 };
-
-const { hasPermission } = require('../middleware/validateSession');
 
 const CREDENTIAL_FIELDS = ['password', 'canLogin', 'role', 'roleId', 'role_id'];
 
@@ -234,6 +291,13 @@ const updateEmployee = async (id, data, actingUser) => {
   
   // Explicitly strip role and role_id from routine profile update payload handling (Risk Audit #13)
   const { name, email, department, location, address, avatarUrl } = data;
+
+  const isEmailChange = Boolean(email) && email.toLowerCase() !== current.email.toLowerCase();
+  if (isEmailChange && current.hasLogin) {
+    // Login (including Google sign-in) is keyed on email, so changing it can
+    // hand the account to someone else.
+    assertCanActOnRole(actingUser, await getCurrentRole(current), 'change the email of');
+  }
 
   if (email && email !== current.email) {
     const existing = await pool.query('SELECT id FROM employees WHERE email = $1 AND id != $2', [email, id]);
@@ -263,6 +327,10 @@ const updateEmployee = async (id, data, actingUser) => {
     id
   ]);
 
+  if (isEmailChange) {
+    await pool.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  }
+
   return getEmployeeById(id);
 };
 
@@ -278,27 +346,15 @@ const deleteEmployee = async (id) => {
   return { id: Number(id), deleted: true };
 };
 
-const updateEmployeeRole = async (id, roleOrRoleId) => {
-  let targetRoleId = null;
-  let targetRoleString = 'employee';
-  let targetAdminType = null;
+const updateEmployeeRole = async (id, roleOrRoleId, actingUser) => {
+  const current = await getEmployeeById(id);
+  const targetRole = await resolveRole(roleOrRoleId);
+  assertCanActOnRole(actingUser, await getCurrentRole(current), 'change the role of');
+  assertCanActOnRole(actingUser, targetRole, 'assign');
 
-  const isNumeric = !isNaN(Number(roleOrRoleId));
-  const roleRes = await pool.query(
-    'SELECT id, name, admin_type FROM roles WHERE id = $1 OR LOWER(name) = LOWER($2)',
-    [isNumeric ? Number(roleOrRoleId) : 0, String(roleOrRoleId)]
-  );
-
-  if (roleRes.rows.length > 0) {
-    targetRoleId = roleRes.rows[0].id;
-    targetRoleString = roleRes.rows[0].name.toLowerCase();
-    targetAdminType = roleRes.rows[0].admin_type;
-  } else if (typeof roleOrRoleId === 'string') {
-    targetRoleString = roleOrRoleId.toLowerCase();
-  }
-
-  const BASE_SYSTEM_ROLES = ['director', 'admin', 'hr', 'employee'];
-  const safeRoleString = BASE_SYSTEM_ROLES.includes(targetRoleString) ? targetRoleString : 'employee';
+  const targetRoleId = targetRole.id;
+  const safeRoleString = targetRole.baseRole;
+  const targetAdminType = targetRole.adminType;
 
   // Decision #2: Copy roles.admin_type into employees.admin_type at assignment time if present
   if (targetAdminType) {
@@ -319,7 +375,7 @@ const updateEmployeeRole = async (id, roleOrRoleId) => {
   return getEmployeeById(id);
 };
 
-const grantEmployeeAccess = async (id, roleOrRoleId, passwordHash) => {
+const grantEmployeeAccess = async (id, roleOrRoleId, passwordHash, actingUser) => {
   const current = await getEmployeeById(id);
 
   validateCorporateEmail(current.email);
@@ -330,13 +386,16 @@ const grantEmployeeAccess = async (id, roleOrRoleId, passwordHash) => {
     throw err;
   }
 
+  // Check before writing the password so a rejected grant leaves no login behind.
+  assertCanActOnRole(actingUser, await resolveRole(roleOrRoleId), 'assign');
+
   // Save the password hash first, then update the role
   await pool.query(
     'UPDATE employees SET password_hash = $1 WHERE id = $2',
     [passwordHash, id]
   );
 
-  return updateEmployeeRole(id, roleOrRoleId);
+  return updateEmployeeRole(id, roleOrRoleId, actingUser);
 };
 
 const grantGoogleAccess = async (id) => {
@@ -369,5 +428,7 @@ module.exports = {
   deleteEmployee,
   updateEmployeeRole,
   grantEmployeeAccess,
+  resolveRole,
+  assertCanActOnRole,
   grantGoogleAccess,
 };

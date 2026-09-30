@@ -34,7 +34,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  const { transferTicket, fetchTicketHistory, confirmTicket } = useTickets();
+  const { transferTicket, fetchTicketHistory, confirmCloseTicket, reopenTicket } = useTickets();
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
@@ -351,7 +351,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                       onClick={async () => {
                         try {
                           setSubmitting(true);
-                          await confirmTicket(ticket.id, 'reopen');
+                          await reopenTicket(ticket.id);
                           onClose();
                         } finally {
                           setSubmitting(false);
@@ -367,7 +367,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                       onClick={async () => {
                         try {
                           setSubmitting(true);
-                          await confirmTicket(ticket.id, 'confirm');
+                          await confirmCloseTicket(ticket.id);
                           onClose();
                         } finally {
                           setSubmitting(false);

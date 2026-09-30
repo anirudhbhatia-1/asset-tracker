@@ -125,7 +125,7 @@ router.post('/', [
         ...employeeData,
         roleId: typeof effectiveRoleOrId === 'number' ? effectiveRoleOrId : null,
         role: typeof effectiveRoleOrId === 'string' ? effectiveRoleOrId : null,
-      });
+      }, req.user);
       return res.status(201).json({ data: employee, temporaryPassword, message: 'Employee created with login access' });
     }
 
@@ -166,7 +166,7 @@ router.patch('/:id/role', [
     if (!roleOrId) {
       return res.status(400).json({ error: true, message: 'role or roleId is required' });
     }
-    const updated = await employeeService.updateEmployeeRole(Number(req.params.id), roleOrId);
+    const updated = await employeeService.updateEmployeeRole(Number(req.params.id), roleOrId, req.user);
     res.status(200).json({
       data: updated,
       message: 'Employee role updated successfully',
@@ -189,7 +189,7 @@ router.post('/:id/grant-access', [
     const temporaryPassword = crypto.randomBytes(6).toString('hex');
     const passwordHash = await bcrypt.hash(temporaryPassword, 10);
     
-    const updated = await employeeService.grantEmployeeAccess(Number(req.params.id), roleOrId, passwordHash);
+    const updated = await employeeService.grantEmployeeAccess(Number(req.params.id), roleOrId, passwordHash, req.user);
     
     res.status(200).json({
       data: updated,

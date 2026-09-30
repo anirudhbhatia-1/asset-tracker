@@ -83,6 +83,11 @@ const createTicket = async (user, payload) => {
   return ticket;
 };
 
+// ticket_history only records dedicated events for terminal statuses; any
+// other transition (e.g. open -> in_progress) is a generic status change.
+const STATUS_EVENT_TYPES = { resolved: 'resolved', rejected: 'rejected', closed: 'closed' };
+const getStatusEventType = (status) => STATUS_EVENT_TYPES[status] || 'status_changed';
+
 const updateTicket = async (id, payload, adminUser) => {
   const { status, resolutionNotes, resolvedAssetId } = payload;
   
@@ -100,26 +105,35 @@ const updateTicket = async (id, payload, adminUser) => {
   const newAssetId = resolvedAssetId !== undefined ? resolvedAssetId : current.resolved_asset_id;
   
   let resolvedBy = current.resolved_by;
-  let resolvedAt = current.resolved_at;
-  
+
   if (newStatus === 'resolved' && current.status !== 'resolved') {
     resolvedBy = adminUser.id;
-    resolvedAt = new Date().toISOString();
   }
-  
-  const { rows } = await db.pool.query(
-    `UPDATE tickets 
-     SET status = $1, 
-         resolution_notes = $2, 
-         resolved_asset_id = $3, 
-         resolved_by = $4, 
-         resolved_at = $5,
-         updated_at = NOW() 
-     WHERE id = $6 RETURNING *`,
-    [newStatus, newNotes, newAssetId, resolvedBy, resolvedAt, id]
-  );
-  
-  const updatedTicket = rows[0];
+
+  // Update and history entry succeed or fail together so a rejected history
+  // insert can't leave a status change without an audit record.
+  const updatedTicket = await db.withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `UPDATE tickets 
+       SET status = $1, 
+           resolution_notes = $2, 
+           resolved_asset_id = $3, 
+           resolved_by = $4, 
+           updated_at = NOW() 
+       WHERE id = $5 RETURNING *`,
+      [newStatus, newNotes, newAssetId, resolvedBy, id]
+    );
+
+    if (newStatus !== current.status) {
+      await client.query(
+        `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note) 
+         VALUES ($1, $2, $3, $4)`,
+        [id, getStatusEventType(newStatus), adminUser.id, newNotes || `Status updated to ${newStatus}`]
+      );
+    }
+
+    return rows[0];
+  });
 
   // Cross-feature synchronization:
   // If the ticket was just resolved and an asset was linked, assign it to the employee in inventory.
@@ -137,14 +151,6 @@ const updateTicket = async (id, payload, adminUser) => {
     }
   }
 
-  if (newStatus !== current.status) {
-    await db.pool.query(
-      `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note) 
-       VALUES ($1, $2, $3, $4)`,
-      [id, newStatus, adminUser.id, newNotes || `Status updated to ${newStatus}`]
-    );
-  }
-  
   return updatedTicket;
 };
 
@@ -263,6 +269,7 @@ const confirmTicket = async (id, employeeUser, action, note) => {
 };
 
 module.exports = {
+  getStatusEventType,
   getTickets,
   createTicket,
   updateTicket,
