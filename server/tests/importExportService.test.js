@@ -13,6 +13,10 @@ import {
   findEmployeeIdByImportName,
   exportAssetsToExcel,
   importAssetsFromExcel,
+  importCategoryName,
+  parseLifecycleText,
+  generatedSerialFor,
+  groupRowsIntoItems,
 } from '../services/importExportService';
 
 const temporaryFiles = [];
@@ -193,6 +197,7 @@ describe('Excel import value normalization', () => {
     let nextId = 1;
     const transactionClient = {
       query: vi.fn(async (sql, params) => {
+        if (/FROM categories/.test(sql)) return { rows: [{ id: 10 }] };
         if (/^SELECT id FROM assets/.test(sql.trim())) return { rows: [] };
         if (/INSERT INTO assets/.test(sql)) {
           inserts.push(params);
@@ -251,11 +256,12 @@ describe('Excel import value normalization', () => {
     let nextId = 100;
     const transactionClient = {
       query: vi.fn(async (sql, params) => {
+        if (/FROM categories/.test(sql)) return { rows: [{ id: 10 }] };
         if (/^SELECT id FROM assets/.test(sql.trim())) {
           return { rows: ['LAP-DUP', 'ADAPTOR-DUP'].includes(params[0]) ? [{ id: 1 }] : [] };
         }
         if (/INSERT INTO assets/.test(sql)) {
-          insertedSerials.push(sql.includes('parent_id') ? params[2] : params[3]);
+          insertedSerials.push(params[3]);
           return { rows: [{ id: nextId++ }] };
         }
         throw new Error(`Unexpected transaction query: ${sql}`);
@@ -268,9 +274,10 @@ describe('Excel import value normalization', () => {
       logEvent: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result.imported).toBe(2);
+    // Two laptops plus the one new adaptor, which is an asset in its own right.
+    expect(result.imported).toBe(3);
     expect(result.skipped).toEqual(expect.arrayContaining([
-      'Row missing serial number (Laptops sheet)',
+      'Row missing serial (Laptops sheet, row 2)',
       'Duplicate serial: LAP-DUP',
     ]));
     expect(insertedSerials).toEqual(expect.arrayContaining([
@@ -301,4 +308,130 @@ describe('Excel import value normalization', () => {
     })).rejects.toThrow('insert failed');
   });
 
+});
+
+describe('Legacy workbook interpretation', () => {
+  it('reads lifecycle from free-text status and comments, treating damage as retired', () => {
+    expect(parseLifecycleText('Returned-In Store')).toBe('available');
+    expect(parseLifecycleText('Stored in Store room')).toBe('available');
+    expect(parseLifecycleText('Retuned on 13th Feb 2026')).toBe('available');
+    expect(parseLifecycleText('Return By Mohit Singh')).toBe('available');
+    expect(parseLifecycleText('Returned-Broken-In Store')).toBe('retired');
+    expect(parseLifecycleText('Returned to Store as Damaged')).toBe('retired');
+    expect(parseLifecycleText('One Side earphone not working')).toBe('retired');
+    expect(parseLifecycleText('In-use')).toBe('in-use');
+    expect(parseLifecycleText('with mouse pad')).toBeNull();
+    expect(parseLifecycleText('')).toBeNull();
+  });
+
+  it('maps sheet item types onto existing categories and keeps unknown types', () => {
+    expect(importCategoryName('Headphone')).toBe('Audio & Headset');
+    expect(importCategoryName('Wireless Mouse')).toBe('Keyboard & Mouse');
+    expect(importCategoryName('Wireless Keyboard and Mouse')).toBe('Keyboard & Mouse');
+    expect(importCategoryName('Wireless Keyboard & Mouse')).toBe('Keyboard & Mouse');
+    expect(importCategoryName('Monitor')).toBe('Monitor');
+    expect(importCategoryName('Laptop  Stand')).toBe('Laptop Stand');
+    expect(importCategoryName(null)).toBeNull();
+  });
+
+  it('generates deterministic serials so re-imports are detected as duplicates', () => {
+    expect(generatedSerialFor('Headphones', 7)).toBe('NOSN-HP-R0007');
+    expect(generatedSerialFor('Headphones', 7)).toBe(generatedSerialFor('Headphones', 7));
+  });
+
+  it('merges handovers but keeps different items that share a product code', () => {
+    const row = (order, issuedTo, issueDate, comments = null) => ({
+      order, serial: 'SER', issuedTo, issueDate, comments, fields: {},
+    });
+    const handover = groupRowsIntoItems([
+      row(1, 'b@x.com', '2026-02-13'),
+      row(0, 'a@x.com', '2024-12-03', 'Retuned on 13th Feb 2026'),
+    ]);
+    expect(handover).toHaveLength(1);
+    expect(handover[0].rows.map((r) => r.issuedTo)).toEqual(['a@x.com', 'b@x.com']);
+
+    const sharedCode = groupRowsIntoItems([
+      row(0, 'a@x.com', '2025-07-11'),
+      row(1, 'b@x.com', '2025-07-11'),
+    ]);
+    expect(sharedCode.map((item) => item.serial)).toEqual(['SER', 'SER-2']);
+  });
+
+  it('imports returned, broken, serial-less and handed-over items consistently', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const laptops = workbook.addWorksheet('Laptops');
+    laptops.addRow(Array.from({ length: 22 }, (_, index) => `Column ${index + 1}`));
+    const laptop = Array(22).fill(null);
+    Object.assign(laptop, { 0: 'a@x.com', 1: 'Lenovo', 2: 'IdeaPad', 3: 'LAP-1', 6: 'N/A' });
+    laptops.addRow(laptop);
+
+    const headphones = workbook.addWorksheet('Headphones');
+    headphones.addRow(Array.from({ length: 13 }, (_, index) => `Column ${index + 1}`));
+    headphones.addRow(['a@x.com', 'Boat', 'Headphone', 'Rockerz', null, 'NA', null, null, null, null, null, 'Returned-Broken-In Store', null]);
+    headphones.addRow(['b@x.com', 'Boat', 'Headphone', 'Rockerz', null, 'HP-2', null, null, null, null, null, 'Returned-In Store', null]);
+
+    const keyboards = workbook.addWorksheet('Keyboard Mouse');
+    keyboards.addRow(Array.from({ length: 11 }, (_, index) => `Column ${index + 1}`));
+    keyboards.addRow(['a@x.com', new Date('2024-12-03'), 'Wireless Mouse', 'Dell', 'MS116', 'MOUSE-1', null, null, null, 'Retuned on 13th Feb 2026', null]);
+    keyboards.addRow(['b@x.com', new Date('2026-02-13'), 'Wireless Mouse', 'Dell', 'MS116', 'MOUSE-1', null, null, null, null, null]);
+
+    const filePath = join(tmpdir(), `asset-import-legacy-${process.pid}-${Date.now()}.xlsx`);
+    temporaryFiles.push(filePath);
+    await workbook.xlsx.writeFile(filePath);
+
+    const employees = { 'a@x.com': 1, 'b@x.com': 2 };
+    const categories = { laptop: 11, 'audio & headset': 12, 'keyboard & mouse': 13 };
+    const createdCategories = [];
+    const assets = [];
+    const client = {
+      query: vi.fn(async (sql, params) => {
+        if (/SELECT id FROM categories/.test(sql)) {
+          const id = categories[params[0].toLowerCase()];
+          return { rows: id ? [{ id }] : [] };
+        }
+        if (/INSERT INTO categories/.test(sql)) {
+          createdCategories.push(params[0]);
+          return { rows: [{ id: 99 }] };
+        }
+        if (/SELECT id FROM assets/.test(sql)) return { rows: [] };
+        if (/INSERT INTO assets/.test(sql)) {
+          assets.push({
+            id: assets.length + 1, categoryId: params[1], serial: params[3], status: params[4],
+            assignedTo: params[7], notes: params[10], parentId: params[29],
+          });
+          return { rows: [{ id: assets.length }] };
+        }
+        throw new Error(`Unexpected transaction query: ${sql}`);
+      }),
+    };
+    const events = [];
+    const result = await importAssetsFromExcel(filePath, { id: 1 }, {
+      pool: { query: vi.fn(async (sql, params) => ({ rows: employees[params[0]] ? [{ id: employees[params[0]] }] : [] })) },
+      withTransaction: (callback) => callback(client),
+      logEvent: vi.fn(async (assetId, type, actor, employeeId) => { events.push([assetId, type, employeeId]); }),
+    });
+
+    const bySerial = Object.fromEntries(assets.map((asset) => [asset.serial, asset]));
+    expect(result.skipped).toEqual([]);
+    expect(result.categoriesCreated).toEqual(['Adaptor']);
+    expect(result.generatedSerials).toBe(1);
+    expect(result.handovers).toBe(1);
+
+    // Laptop is in use and its placeholder adaptor serial is generated and follows it.
+    expect(bySerial['LAP-1']).toMatchObject({ status: 'in-use', assignedTo: 1, categoryId: 11 });
+    expect(bySerial['NOSN-LAP-R0002-ADP']).toMatchObject({
+      status: 'in-use', assignedTo: 1, categoryId: 99, parentId: bySerial['LAP-1'].id,
+    });
+
+    // Broken headphone with "NA" serial is retired and unassigned; returned one is available.
+    expect(bySerial['NOSN-HP-R0002']).toMatchObject({ status: 'retired', assignedTo: null, categoryId: 12 });
+    expect(bySerial['NOSN-HP-R0002'].notes).toContain('Sheet status: Returned-Broken-In Store');
+    expect(bySerial['HP-2']).toMatchObject({ status: 'available', assignedTo: null });
+
+    // Mouse handed from a@ to b@ is one asset held by b@, with a@'s return in history.
+    expect(assets.filter((asset) => asset.serial.startsWith('MOUSE-1'))).toHaveLength(1);
+    expect(bySerial['MOUSE-1']).toMatchObject({ status: 'in-use', assignedTo: 2, categoryId: 13 });
+    expect(events.filter(([id]) => id === bySerial['MOUSE-1'].id).map(([, type, emp]) => `${type}:${emp}`))
+      .toEqual(['created:null', 'assigned:1', 'returned:1', 'assigned:2']);
+  });
 });

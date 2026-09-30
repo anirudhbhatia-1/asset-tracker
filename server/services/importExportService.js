@@ -243,6 +243,188 @@ const exportAssetsToExcel = async (dependencies = {}) => {
 // ────────────────────────────────────────────
 // IMPORT — Read .xlsx file, insert rows to DB
 // ────────────────────────────────────────────
+
+const normalizeKey = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// Legacy sheets describe items by free-text "Type"; map the known spellings
+// onto the existing categories. Anything else becomes its own category.
+const CATEGORY_ALIASES = Object.freeze({
+  headphone: 'Audio & Headset',
+  headphones: 'Audio & Headset',
+  headset: 'Audio & Headset',
+  earphone: 'Audio & Headset',
+  earphones: 'Audio & Headset',
+  mouse: 'Keyboard & Mouse',
+  wirelessmouse: 'Keyboard & Mouse',
+  keyboard: 'Keyboard & Mouse',
+  wirelesskeyboard: 'Keyboard & Mouse',
+  keyboardmouse: 'Keyboard & Mouse',
+  keyboardandmouse: 'Keyboard & Mouse',
+  wirelesskeyboardmouse: 'Keyboard & Mouse',
+  wirelesskeyboardandmouse: 'Keyboard & Mouse',
+  laptop: 'Laptop',
+  monitor: 'Monitor',
+  adaptor: 'Adaptor',
+  adapter: 'Adaptor',
+  charger: 'Adaptor',
+});
+
+const CATEGORY_COLORS = ['Blue', 'Indigo', 'Purple', 'Teal', 'Cyan', 'Emerald', 'Amber', 'Rose'];
+
+const importCategoryName = (type) => {
+  const text = optionalExcelText(type);
+  if (!text) return null;
+  return CATEGORY_ALIASES[normalizeKey(text)] || text.replace(/\s+/g, ' ');
+};
+
+// Status cells and comments carry the real lifecycle as free text, e.g.
+// "Returned-Broken-In Store" or "Retuned on 13th Feb 2026" (sic).
+const RETIRED_PATTERN = /broken|damaged?|not\s*working|faulty/i;
+const RELEASED_PATTERN = /\b(return|returned|retuned)\b|in[\s-]*store|store\s*room|\bstored\b/i;
+const IN_USE_PATTERN = /^(in[\s_-]*use|assigned)$/i;
+
+const parseLifecycleText = (value) => {
+  const text = optionalExcelText(value);
+  if (!text) return null;
+  if (RETIRED_PATTERN.test(text)) return 'retired';
+  if (RELEASED_PATTERN.test(text)) return 'available';
+  if (IN_USE_PATTERN.test(text.trim())) return 'in-use';
+  return null;
+};
+
+const PLACEHOLDER_SERIAL_PATTERN = /^(n\/?a|none|nil|-+)$/i;
+const withoutPlaceholder = (value) => (value && !PLACEHOLDER_SERIAL_PATTERN.test(value) ? value : null);
+const SHEET_SERIAL_CODES = Object.freeze({
+  Laptops: 'LAP',
+  Headphones: 'HP',
+  'Keyboard Mouse': 'KM',
+  'Client Laptops': 'CL',
+});
+
+// Deterministic, so re-importing the same workbook skips these as duplicates.
+const generatedSerialFor = (sheetName, rowNum) => (
+  `NOSN-${SHEET_SERIAL_CODES[sheetName]}-R${String(rowNum).padStart(4, '0')}`
+);
+
+// Column layouts of the four legacy sheets (1-based ExcelJS row.values).
+const SHEET_PARSERS = {
+  Laptops: (r) => ({
+    issuedTo: optionalExcelText(r[1]),
+    serial: optionalExcelText(r[4]),
+    categoryType: 'Laptop',
+    issueDate: excelDateToISO(r[6]),
+    comments: optionalExcelText(r[18]),
+    adaptorSerial: optionalExcelText(r[7]),
+    fields: {
+      brand: optionalExcelText(r[2]),
+      model: optionalExcelText(r[3]),
+      assetType: 'company',
+      purchaseDate: excelDateToISO(r[5]),
+      processor: optionalExcelText(r[8]),
+      ram: optionalExcelText(r[9]),
+      storage: optionalExcelText(r[10]),
+      screenSize: optionalExcelText(r[11]),
+      graphicsCard: optionalExcelText(r[12]),
+      os: optionalExcelText(r[13]),
+      msOffice: optionalExcelText(r[14]),
+      antiVirus: optionalExcelText(r[15]),
+      warrantyPlan: optionalExcelText(r[16]),
+      costCents: excelNumberToCents(r[17]),
+      warrantyExpiryDate: excelDateToISO(r[19]),
+      warrantyUpgrade: optionalExcelText(r[21]),
+      vendor: optionalExcelText(r[22]),
+    },
+  }),
+  Headphones: (r) => ({
+    issuedTo: optionalExcelText(r[1]),
+    serial: optionalExcelText(r[6]),
+    categoryType: optionalExcelText(r[3]) || 'Headphone',
+    issueDate: excelDateToISO(r[10]),
+    statusText: optionalExcelText(r[12]),
+    fields: {
+      brand: optionalExcelText(r[2]),
+      hardwareType: optionalExcelText(r[3]),
+      model: optionalExcelText(r[4]),
+      color: optionalExcelText(r[5]),
+      purchaseDate: excelDateToISO(r[7]),
+      warrantyPlan: optionalExcelText(r[8]),
+      costCents: excelNumberToCents(r[9]),
+      returnDate: excelDateToISO(r[11]),
+      vendor: optionalExcelText(r[13]),
+      assetType: 'company',
+    },
+  }),
+  'Keyboard Mouse': (r) => ({
+    issuedTo: optionalExcelText(r[1]),
+    serial: optionalExcelText(r[6]),
+    categoryType: optionalExcelText(r[3]) || 'Keyboard',
+    issueDate: excelDateToISO(r[2]),
+    comments: optionalExcelText(r[10]),
+    fields: {
+      hardwareType: optionalExcelText(r[3]),
+      brand: optionalExcelText(r[4]),
+      model: optionalExcelText(r[5]),
+      purchaseDate: excelDateToISO(r[7]),
+      warrantyPlan: optionalExcelText(r[8]),
+      costCents: excelNumberToCents(r[9]),
+      vendor: optionalExcelText(r[11]),
+      assetType: 'company',
+    },
+  }),
+  'Client Laptops': (r) => ({
+    issuedTo: optionalExcelText(r[1]),
+    serial: optionalExcelText(r[5]),
+    categoryType: optionalExcelText(r[3]) || 'Laptop',
+    issueDate: excelDateToISO(r[7]),
+    statusText: optionalExcelText(r[6]),
+    comments: optionalExcelText(r[10]),
+    fields: {
+      brand: optionalExcelText(r[2]),
+      hardwareType: optionalExcelText(r[3]),
+      model: optionalExcelText(r[4]),
+      receivedOn: excelDateToISO(r[7]),
+      returnDate: excelDateToISO(r[8]),
+      clientName: optionalExcelText(r[9]),
+      assetType: 'client',
+    },
+  }),
+};
+
+const rowLifecycle = (row) => parseLifecycleText(row.statusText) || parseLifecycleText(row.comments);
+const isReleased = (row) => ['available', 'retired'].includes(rowLifecycle(row));
+
+// Rows sharing a serial are either one item changing hands (the earlier holder
+// returned it, or it is the same person) or different items that share a
+// product code (e.g. two identical laptop stands). Handovers are merged into
+// one asset; distinct items get "-2", "-3" suffixes so nothing is dropped.
+const groupRowsIntoItems = (rows) => {
+  const bySerial = new Map();
+  for (const row of rows) {
+    if (!bySerial.has(row.serial)) bySerial.set(row.serial, []);
+    bySerial.get(row.serial).push(row);
+  }
+
+  const items = [];
+  for (const [serial, group] of bySerial) {
+    group.sort((a, b) => (a.issueDate || '').localeCompare(b.issueDate || '') || a.order - b.order);
+    const serialItems = [];
+    for (const row of group) {
+      const handover = serialItems.find((item) => {
+        const last = item.rows[item.rows.length - 1];
+        return isReleased(last) || normalizeKey(last.issuedTo) === normalizeKey(row.issuedTo);
+      });
+      if (handover) {
+        handover.rows.push(row);
+      } else {
+        const suffix = serialItems.length === 0 ? '' : `-${serialItems.length + 1}`;
+        serialItems.push({ serial: `${serial}${suffix}`, rows: [row] });
+      }
+    }
+    items.push(...serialItems);
+  }
+  return items.sort((a, b) => a.rows[0].order - b.rows[0].order);
+};
+
 const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => {
   const databasePool = dependencies.pool || pool;
   const runInTransaction = dependencies.withTransaction || withTransaction;
@@ -250,243 +432,195 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}) => 
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
 
-  const results = { imported: 0, skipped: [], errors: [] };
-
-  const findEmployee = (name) => findEmployeeIdByImportName(databasePool, name);
-
-  const shouldSkipMissingEmployee = (issuedTo, employeeId, serial, sheetName) => {
-    if (!issuedTo || employeeId) return false;
-    results.skipped.push(`Employee not found: ${issuedTo} (${sheetName}, serial ${serial})`);
-    return true;
+  const results = {
+    imported: 0,
+    skipped: [],
+    errors: [],
+    categoriesCreated: [],
+    generatedSerials: 0,
+    handovers: 0,
   };
 
-  // Helper: look up category ID by name
-  const findCategory = async (name) => {
-    if (!name) return null;
-    const { rows } = await databasePool.query(
-      `SELECT id FROM categories WHERE LOWER(name) = LOWER($1) LIMIT 1`,
-      [name.trim()]
-    );
-    return rows[0]?.id || null;
-  };
+  // ── Read every supported sheet into normalized rows ──
+  const rows = [];
+  for (const [sheetName, parse] of Object.entries(SHEET_PARSERS)) {
+    const sheet = workbook.getWorksheet(sheetName);
+    if (!sheet) continue;
+    sheet.eachRow((excelRow, rowNum) => {
+      if (rowNum === 1) return;
+      const row = { ...parse(excelRow.values), sheetName, rowNum, order: rows.length };
+      const hasContent = row.issuedTo || row.fields.brand || row.fields.model;
+      if (!row.serial || PLACEHOLDER_SERIAL_PATTERN.test(row.serial)) {
+        if (!hasContent) {
+          results.skipped.push(`Row missing serial (${sheetName} sheet, row ${rowNum})`);
+          return;
+        }
+        row.serial = generatedSerialFor(sheetName, rowNum);
+        row.serialGenerated = true;
+      }
+      rows.push(row);
+    });
+  }
 
-  // Helper: insert one asset row
-  const insertAsset = async (client, assetData, actorUser) => {
-    // Check for duplicate serial
-    const exists = await client.query(
-      'SELECT id FROM assets WHERE serial_number = $1', [assetData.serialNumber]
-    );
-    if (exists.rows.length > 0) {
-      results.skipped.push(`Duplicate serial: ${assetData.serialNumber}`);
-      return null;
-    }
+  // ── Resolve assignees up front (read-only lookups) ──
+  for (const row of rows) {
+    row.employeeId = await findEmployeeIdByImportName(databasePool, row.issuedTo);
+  }
 
-    const { rows } = await client.query(`
-      INSERT INTO assets (
-        name, category_id, model, serial_number, status, asset_type,
-        purchase_date, assigned_to, assigned_date, cost_cents, notes,
-        warranty_expiry_date, brand, vendor, processor, ram, storage,
-        screen_size, graphics_card, os, ms_office, anti_virus,
-        warranty_plan, warranty_upgrade, color, hardware_type,
-        client_name, return_date, received_on, created_at, updated_at
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-        $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,NOW(),NOW()
-      ) RETURNING id
-    `, [
-      assetData.name, assetData.categoryId, assetData.model,
-      assetData.serialNumber, assetData.status || 'in-use',
-      assetData.assetType || 'company',
-      assetData.purchaseDate ?? null, assetData.assignedTo ?? null, assetData.assignedDate ?? null,
-      assetData.costCents ?? 0, assetData.notes ?? null,
-      assetData.warrantyExpiryDate ?? null, assetData.brand ?? null, assetData.vendor ?? null,
-      assetData.processor ?? null, assetData.ram ?? null, assetData.storage ?? null,
-      assetData.screenSize ?? null, assetData.graphicsCard ?? null, assetData.os ?? null,
-      assetData.msOffice ?? null, assetData.antiVirus ?? null, assetData.warrantyPlan ?? null,
-      assetData.warrantyUpgrade ?? null, assetData.color ?? null, assetData.hardwareType ?? null,
-      assetData.clientName ?? null, assetData.returnDate ?? null, assetData.receivedOn ?? null,
-    ]);
-
-    await logHistoryEvent(
-      rows[0].id, 'created', actorUser, assetData.assignedTo,
-      'Imported via Excel upload', null, client
-    );
-
-    results.imported++;
-    return rows[0].id;
-  };
+  const items = groupRowsIntoItems(rows);
 
   await runInTransaction(async (client) => {
-    // ── Process Laptops Sheet ──
-    const laptopSheet = workbook.getWorksheet('Laptops');
-    if (laptopSheet) {
-      const rows = [];
-      laptopSheet.eachRow((row, rowNum) => { if (rowNum > 1) rows.push(row.values); });
-      const laptopCategoryId = await findCategory('Laptop');
+    const categoryIds = new Map();
+    const resolveCategory = async (type) => {
+      const name = importCategoryName(type);
+      if (!name) return null;
+      const key = name.toLowerCase();
+      if (categoryIds.has(key)) return categoryIds.get(key);
 
-      for (const r of rows) {
-        const serial = optionalExcelText(r[4]);
-        if (!serial) { results.skipped.push('Row missing serial number (Laptops sheet)'); continue; }
+      const existing = await client.query(
+        'SELECT id FROM categories WHERE LOWER(name) = LOWER($1) LIMIT 1', [name]
+      );
+      let id = existing.rows[0]?.id;
+      if (!id) {
+        const created = await client.query(`
+          INSERT INTO categories (name, badge_char, color, description, created_at)
+          VALUES ($1, $2, $3, $4, NOW()) RETURNING id
+        `, [
+          name,
+          name.charAt(0).toUpperCase(),
+          CATEGORY_COLORS[results.categoriesCreated.length % CATEGORY_COLORS.length],
+          'Created by Excel import',
+        ]);
+        id = created.rows[0].id;
+        results.categoriesCreated.push(name);
+      }
+      categoryIds.set(key, id);
+      return id;
+    };
 
-        const issuedTo = optionalExcelText(r[1]);
-        const brand = optionalExcelText(r[2]);
-        const model = optionalExcelText(r[3]);
-        const employeeId = await findEmployee(issuedTo);
-        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Laptops')) continue;
+    const insertAsset = async (assetData) => {
+      const exists = await client.query(
+        'SELECT id FROM assets WHERE serial_number = $1', [assetData.serialNumber]
+      );
+      if (exists.rows.length > 0) {
+        results.skipped.push(`Duplicate serial: ${assetData.serialNumber}`);
+        return null;
+      }
 
-        const assetId = await insertAsset(client, {
-          name: `${brand || ''} ${model || ''}`.trim() || serial,
-          categoryId: laptopCategoryId,
-          model,
-          serialNumber: serial,
-          assetType: 'company',
-          assignedTo: employeeId,
-          brand,
-          purchaseDate: excelDateToISO(r[5]),
-          assignedDate: excelDateToISO(r[6]),
-          processor: optionalExcelText(r[8]),
-          ram: optionalExcelText(r[9]),
-          storage: optionalExcelText(r[10]),
-          screenSize: optionalExcelText(r[11]),
-          graphicsCard: optionalExcelText(r[12]),
-          os: optionalExcelText(r[13]),
-          msOffice: optionalExcelText(r[14]),
-          antiVirus: optionalExcelText(r[15]),
-          warrantyPlan: optionalExcelText(r[16]),
-          costCents: excelNumberToCents(r[17]),
-          notes: optionalExcelText(r[18]),
-          warrantyExpiryDate: excelDateToISO(r[19]),
-          warrantyUpgrade: optionalExcelText(r[21]),
-          vendor: optionalExcelText(r[22]),
-          status: employeeId ? 'in-use' : 'available',
-        }, actorUser);
+      const { rows: inserted } = await client.query(`
+        INSERT INTO assets (
+          name, category_id, model, serial_number, status, asset_type,
+          purchase_date, assigned_to, assigned_date, cost_cents, notes,
+          warranty_expiry_date, brand, vendor, processor, ram, storage,
+          screen_size, graphics_card, os, ms_office, anti_virus,
+          warranty_plan, warranty_upgrade, color, hardware_type,
+          client_name, return_date, received_on, parent_id, created_at, updated_at
+        ) VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+          $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,NOW(),NOW()
+        ) RETURNING id
+      `, [
+        assetData.name, assetData.categoryId, assetData.model ?? null,
+        assetData.serialNumber, assetData.status,
+        assetData.assetType || 'company',
+        assetData.purchaseDate ?? null, assetData.assignedTo ?? null, assetData.assignedDate ?? null,
+        assetData.costCents ?? 0, assetData.notes ?? null,
+        assetData.warrantyExpiryDate ?? null, assetData.brand ?? null, assetData.vendor ?? null,
+        assetData.processor ?? null, assetData.ram ?? null, assetData.storage ?? null,
+        assetData.screenSize ?? null, assetData.graphicsCard ?? null, assetData.os ?? null,
+        assetData.msOffice ?? null, assetData.antiVirus ?? null, assetData.warrantyPlan ?? null,
+        assetData.warrantyUpgrade ?? null, assetData.color ?? null, assetData.hardwareType ?? null,
+        assetData.clientName ?? null, assetData.returnDate ?? null, assetData.receivedOn ?? null,
+        assetData.parentId ?? null,
+      ]);
 
-        // Handle Adaptor S/N (column 7) — create linked sub-asset
-        const adaptorSerial = optionalExcelText(r[7]);
-        if (assetId && adaptorSerial) {
-          const adaptorCategory = await findCategory('Adaptor');
-          const adaptorExists = await client.query('SELECT id FROM assets WHERE serial_number = $1', [adaptorSerial]);
+      await logHistoryEvent(
+        inserted[0].id, 'created', actorUser, null, assetData.createdNote || 'Imported via Excel upload', null, client
+      );
+      results.imported++;
+      return inserted[0].id;
+    };
 
-          if (adaptorExists.rows.length === 0) {
-            const { rows: subRows } = await client.query(`
-              INSERT INTO assets (name, category_id, serial_number, status, parent_id, asset_type, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, 'company', NOW(), NOW()) RETURNING id
-            `, [`Adaptor for ${serial}`, adaptorCategory, adaptorSerial, 'in-use', assetId]);
-
-            await logHistoryEvent(subRows[0].id, 'created', actorUser, null, `Adaptor linked to laptop ${serial}`, null, client);
-          }
+    // Replays each sheet row as issue/return events so the asset timeline
+    // shows every past holder, not just the current one.
+    const logHoldingHistory = async (assetId, itemRows, finalStatus) => {
+      for (const [index, row] of itemRows.entries()) {
+        const isLast = index === itemRows.length - 1;
+        const holder = row.issuedTo || 'unknown holder';
+        if (row.issuedTo) {
+          await logHistoryEvent(assetId, 'assigned', actorUser, row.employeeId,
+            `Issued to ${holder}${row.issueDate ? ` on ${row.issueDate}` : ''} (from Excel import)`, null, client);
+        }
+        const released = isLast ? finalStatus !== 'in-use' && row.issuedTo : true;
+        if (released && row.issuedTo) {
+          const retired = isLast && finalStatus === 'retired';
+          const reason = [row.statusText, row.comments].filter(Boolean).join(' — ');
+          await logHistoryEvent(assetId, retired ? 'retired' : 'returned', actorUser, row.employeeId,
+            `${retired ? 'Retired' : 'Returned'} by ${holder}${reason ? `: ${reason}` : ''} (from Excel import)`, null, client);
         }
       }
-    }
+    };
 
-    // ── Process Headphones Sheet ──
-    const headphoneSheet = workbook.getWorksheet('Headphones');
-    if (headphoneSheet) {
-      const rows = [];
-      headphoneSheet.eachRow((row, rowNum) => { if (rowNum > 1) rows.push(row.values); });
-      const catId = await findCategory('Headphones');
+    for (const item of items) {
+      const finalRow = item.rows[item.rows.length - 1];
+      const lifecycle = rowLifecycle(finalRow);
 
-      for (const r of rows) {
-        const serial = optionalExcelText(r[6]);
-        if (!serial) { results.skipped.push('Row missing serial (Headphones sheet)'); continue; }
-
-        const issuedTo = optionalExcelText(r[1]);
-        const brand = optionalExcelText(r[2]);
-        const model = optionalExcelText(r[4]);
-        const employeeId = await findEmployee(issuedTo);
-        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Headphones')) continue;
-
-        await insertAsset(client, {
-          name: `${brand || ''} ${model || ''}`.trim() || serial,
-          categoryId: catId,
-          model,
-          serialNumber: serial,
-          brand,
-          hardwareType: optionalExcelText(r[3]),
-          color: optionalExcelText(r[5]),
-          purchaseDate: excelDateToISO(r[7]),
-          warrantyPlan: optionalExcelText(r[8]),
-          costCents: excelNumberToCents(r[9]),
-          assignedTo: employeeId,
-          assignedDate: excelDateToISO(r[10]),
-          returnDate: excelDateToISO(r[11]),
-          status: normalizeAssetStatus(r[12], employeeId ? 'in-use' : 'available'),
-          vendor: optionalExcelText(r[13]),
-          assetType: 'company',
-        }, actorUser);
+      let status;
+      if (lifecycle === 'retired' || lifecycle === 'available') {
+        status = lifecycle;
+      } else if (finalRow.issuedTo) {
+        if (!finalRow.employeeId) {
+          results.skipped.push(`Employee not found: ${finalRow.issuedTo} (${finalRow.sheetName}, serial ${item.serial})`);
+          continue;
+        }
+        status = 'in-use';
+      } else {
+        status = 'available';
       }
-    }
+      const assignedTo = status === 'in-use' ? finalRow.employeeId : null;
 
-    // ── Process Keyboard Mouse Sheet ──
-    const kbSheet = workbook.getWorksheet('Keyboard Mouse');
-    if (kbSheet) {
-      const rows = [];
-      kbSheet.eachRow((row, rowNum) => { if (rowNum > 1) rows.push(row.values); });
-
-      for (const r of rows) {
-        const serial = optionalExcelText(r[6]);
-        if (!serial) { results.skipped.push('Row missing serial (Keyboard Mouse sheet)'); continue; }
-
-        const hardwareType = optionalExcelText(r[3]);
-        const brand = optionalExcelText(r[4]);
-        const model = optionalExcelText(r[5]);
-        const catId = await findCategory(hardwareType || 'Keyboard');
-        const issuedTo = optionalExcelText(r[1]);
-        const employeeId = await findEmployee(issuedTo);
-        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Keyboard Mouse')) continue;
-
-        await insertAsset(client, {
-          name: `${brand || ''} ${model || ''}`.trim() || serial,
-          categoryId: catId,
-          model,
-          serialNumber: serial,
-          assignedDate: excelDateToISO(r[2]),
-          hardwareType,
-          brand,
-          purchaseDate: excelDateToISO(r[7]),
-          warrantyPlan: optionalExcelText(r[8]),
-          costCents: excelNumberToCents(r[9]),
-          notes: optionalExcelText(r[10]),
-          vendor: optionalExcelText(r[11]),
-          assignedTo: employeeId,
-          status: employeeId ? 'in-use' : 'available',
-          assetType: 'company',
-        }, actorUser);
+      const notes = [];
+      for (const row of item.rows) {
+        if (row.comments) notes.push(row.comments);
+        if (row.statusText && !IN_USE_PATTERN.test(row.statusText)) notes.push(`Sheet status: ${row.statusText}`);
       }
-    }
+      if (status !== 'in-use' && finalRow.issuedTo) notes.push(`Last issued to ${finalRow.issuedTo}`);
+      if (finalRow.serialGenerated) notes.push('No serial number in the sheet; serial generated on import');
+      if (item.serial !== finalRow.serial) notes.push(`Sheet serial ${finalRow.serial} is shared with another item`);
 
-    // ── Process Client Laptops Sheet ──
-    const clientSheet = workbook.getWorksheet('Client Laptops');
-    if (clientSheet) {
-      const rows = [];
-      clientSheet.eachRow((row, rowNum) => { if (rowNum > 1) rows.push(row.values); });
-      const catId = await findCategory('Laptop');
+      const { fields } = finalRow;
+      const assetId = await insertAsset({
+        ...fields,
+        name: [fields.brand, fields.model].map(withoutPlaceholder).filter(Boolean).join(' ') || item.serial,
+        categoryId: await resolveCategory(finalRow.categoryType),
+        serialNumber: item.serial,
+        status,
+        assignedTo,
+        assignedDate: assignedTo ? finalRow.issueDate : null,
+        notes: notes.length ? notes.join('\n') : null,
+      });
+      if (!assetId) continue;
 
-      for (const r of rows) {
-        const serial = optionalExcelText(r[5]);
-        if (!serial) { results.skipped.push('Row missing serial (Client Laptops sheet)'); continue; }
+      if (finalRow.serialGenerated) results.generatedSerials++;
+      if (item.rows.length > 1) results.handovers += item.rows.length - 1;
+      await logHoldingHistory(assetId, item.rows, status);
 
-        const brand = optionalExcelText(r[2]);
-        const model = optionalExcelText(r[4]);
-        const issuedTo = optionalExcelText(r[1]);
-        const employeeId = await findEmployee(issuedTo);
-        if (shouldSkipMissingEmployee(issuedTo, employeeId, serial, 'Client Laptops')) continue;
-
-        await insertAsset(client, {
-          name: `${brand || ''} ${model || ''}`.trim() || serial,
-          categoryId: catId,
-          model,
-          serialNumber: serial,
-          brand,
-          hardwareType: optionalExcelText(r[3]),
-          status: normalizeAssetStatus(r[6], 'available'),
-          receivedOn: excelDateToISO(r[7]),
-          returnDate: excelDateToISO(r[8]),
-          clientName: optionalExcelText(r[9]),
-          notes: optionalExcelText(r[10]),
-          assignedTo: employeeId,
-          assetType: 'client',
-        }, actorUser);
+      // Adaptor S/N (Laptops sheet) becomes a linked accessory that follows
+      // its laptop's holder and status.
+      if (finalRow.adaptorSerial) {
+        const adaptorSerial = withoutPlaceholder(finalRow.adaptorSerial)
+          || `${generatedSerialFor(finalRow.sheetName, finalRow.rowNum)}-ADP`;
+        await insertAsset({
+          name: `Adaptor for ${item.serial}`,
+          categoryId: await resolveCategory('Adaptor'),
+          serialNumber: adaptorSerial,
+          status,
+          assignedTo,
+          assignedDate: assignedTo ? finalRow.issueDate : null,
+          parentId: assetId,
+          assetType: fields.assetType,
+          createdNote: `Adaptor linked to laptop ${item.serial} via Excel upload`,
+        });
       }
     }
   });
@@ -503,4 +637,8 @@ module.exports = {
   optionalExcelText,
   normalizeEmployeeImportName,
   findEmployeeIdByImportName,
+  importCategoryName,
+  parseLifecycleText,
+  generatedSerialFor,
+  groupRowsIntoItems,
 };

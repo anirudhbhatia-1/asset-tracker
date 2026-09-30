@@ -244,6 +244,13 @@ export default function Inventory() {
                 {importResult.skipped.length > 3 && ` +${importResult.skipped.length - 3} more`}
               </span>
             )}
+            {(importResult.categoriesCreated?.length > 0 || importResult.generatedSerials > 0 || importResult.handovers > 0) && (
+              <p className="text-xs text-secondary mt-1">
+                {importResult.categoriesCreated?.length > 0 && `New categories: ${importResult.categoriesCreated.join(', ')}. `}
+                {importResult.generatedSerials > 0 && `${importResult.generatedSerials} serials generated for items without one. `}
+                {importResult.handovers > 0 && `${importResult.handovers} handovers recorded in asset history.`}
+              </p>
+            )}
           </div>
           <button
             type="button"
