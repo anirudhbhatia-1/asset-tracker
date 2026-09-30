@@ -104,11 +104,14 @@ router.get('/:id/assets', [
 
 // A new hire's onboarding assets are assigned once their record exists. The
 // employee is already saved, so a failure here is logged, not returned.
+// The employee is already saved, so problems are returned as warnings
+// rather than failing the request.
 const linkOnboarding = async (employee, actorUser) => {
   try {
-    await onboardingService.assignFulfilledItemsToEmployee(employee, actorUser);
+    return await onboardingService.assignFulfilledItemsToEmployee(employee, actorUser);
   } catch (err) {
     console.error(`Could not assign onboarding assets to employee #${employee.id}:`, err.message);
+    return [`Onboarding assets could not be assigned automatically: ${err.message}`];
   }
 };
 
@@ -141,13 +144,13 @@ router.post('/', [
         roleId: typeof effectiveRoleOrId === 'number' ? effectiveRoleOrId : null,
         role: typeof effectiveRoleOrId === 'string' ? effectiveRoleOrId : null,
       }, req.user);
-      await linkOnboarding(employee, req.user);
-      return res.status(201).json({ data: employee, temporaryPassword, message: 'Employee created with login access' });
+      const warnings = await linkOnboarding(employee, req.user);
+      return res.status(201).json({ data: employee, temporaryPassword, warnings, message: 'Employee created with login access' });
     }
 
     const created = await employeeService.createEmployee(req.body);
-    await linkOnboarding(created, req.user);
-    res.status(201).json({ data: created, message: 'Employee created successfully' });
+    const warnings = await linkOnboarding(created, req.user);
+    res.status(201).json({ data: created, warnings, message: 'Employee created successfully' });
   } catch (err) {
     next(err);
   }
@@ -203,7 +206,7 @@ router.post('/:id/grant-access', [
 ], async (req, res, next) => {
   try {
     const roleOrId = req.body.roleId || req.body.role || 'employee';
-    const temporaryPassword = crypto.randomBytes(6).toString('hex');
+    const temporaryPassword = crypto.randomBytes(9).toString('base64url');
     const passwordHash = await bcrypt.hash(temporaryPassword, 10);
     
     const updated = await employeeService.grantEmployeeAccess(Number(req.params.id), roleOrId, passwordHash, req.user);
@@ -213,6 +216,41 @@ router.post('/:id/grant-access', [
       temporaryPassword,
       message: 'Login access granted successfully',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/employees/:id/reset-password — issue a new temporary password
+// (must be changed at next login); signs the employee out everywhere.
+router.post('/:id/reset-password', [
+  requirePermission('employees:grant-access'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const temporaryPassword = crypto.randomBytes(9).toString('base64url');
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    const updated = await employeeService.resetEmployeePassword(Number(req.params.id), passwordHash, req.user);
+    res.status(200).json({
+      data: updated,
+      temporaryPassword,
+      message: 'Password reset. Share the temporary password securely; it must be changed at next login.',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/employees/:id/revoke-access — remove login (password and Google)
+router.post('/:id/revoke-access', [
+  requirePermission('employees:grant-access'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const updated = await employeeService.revokeEmployeeAccess(Number(req.params.id), req.user);
+    res.status(200).json({ data: updated, message: 'Login access revoked' });
   } catch (err) {
     next(err);
   }

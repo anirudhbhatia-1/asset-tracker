@@ -3,8 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   globalTeardown: './e2e/globalTeardown.js',
-  // Tests share one database (and the local PGlite dev DB serialises all
-  // connections through one Postgres), so run them one at a time.
+  // Tests share one local database and some change shared state (roles,
+  // sessions), so run them one at a time.
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

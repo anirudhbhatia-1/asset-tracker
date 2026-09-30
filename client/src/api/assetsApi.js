@@ -1,6 +1,10 @@
 import api from './axiosInstance';
 
 export const getAssets = (filters = {}) => api.get('/assets', { params: filters });
+// In-stock company assets for hand-out pickers (ticket fulfilment,
+// onboarding). Narrow rows: id, name, serialNumber, categoryId, categoryName.
+export const getAvailableAssets = (categoryId) =>
+  api.get('/assets/available', { params: categoryId ? { categoryId } : undefined });
 export const getAsset = (id) => api.get(`/assets/${id}`);
 // Tickets raised about the asset or fulfilled by handing it out (timeline).
 export const getAssetTickets = (id) => api.get(`/assets/${id}/tickets`);

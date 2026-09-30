@@ -93,8 +93,10 @@ const logout = async (token) => {
 const changePassword = async (userId, currentPassword, newPassword) => {
   const { rows } = await db.pool.query('SELECT id, password_hash FROM employees WHERE id = $1 AND password_hash IS NOT NULL', [userId]);
   if (rows.length === 0) {
-    const err = new Error('User not found or no password set');
-    err.statusCode = 401;
+    // 400, not 401: the session is valid, and the client treats 401 as
+    // "signed out".
+    const err = new Error('This account has no password set');
+    err.statusCode = 400;
     throw err;
   }
   
@@ -102,7 +104,7 @@ const changePassword = async (userId, currentPassword, newPassword) => {
   const match = await bcrypt.compare(currentPassword, user.password_hash);
   if (!match) {
     const err = new Error('Incorrect current password');
-    err.statusCode = 401;
+    err.statusCode = 400;
     throw err;
   }
 

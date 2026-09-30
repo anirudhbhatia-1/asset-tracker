@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useId, useCallback } from 'react';
 import { X, Loader2, Package, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getAssets } from '../../api/assetsApi';
+import { getAvailableAssets } from '../../api/assetsApi';
 import useFocusTrap from '../../hooks/useFocusTrap';
 import { getFulfilmentCandidates, getOnboardingStatusOptions, ONBOARDING_STATUS_LABELS } from '../../utils/onboardingStatus';
+import { parseDateValue } from '../../utils/dates';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -61,7 +62,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
   const loadAvailableAssets = useCallback(async () => {
     setLoadingAssets(true);
     try {
-      const res = await getAssets({ status: 'available', assetType: 'company' });
+      const res = await getAvailableAssets();
       setAssets(res.data?.data || []);
     } catch (err) {
       setActionError(errorMessage(err, 'Could not load available assets'));
@@ -172,7 +173,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                 </div>
                 <div>
                   <div className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Joining Date</div>
-                  <div className="text-sm text-primary font-medium">{new Date(fullData.joining_date).toLocaleDateString()}</div>
+                  <div className="text-sm text-primary font-medium">{parseDateValue(fullData.joining_date).toLocaleDateString()}</div>
                 </div>
               </div>
 

@@ -149,14 +149,20 @@ const updateRequestStatus = async (id, status, user) => {
     err.statusCode = 400;
     throw err;
   }
+  // Only applies if nobody changed the status since it was checked.
   const { rows } = await db.pool.query(
     `UPDATE onboarding_requests 
      SET status = $1, updated_at = NOW(),
          arranged_by = CASE WHEN $1 = 'arranged' THEN $2 ELSE arranged_by END,
          arranged_at = CASE WHEN $1 = 'arranged' THEN NOW() ELSE arranged_at END
-     WHERE id = $3 RETURNING *`,
-    [status, user.id, id]
+     WHERE id = $3 AND status = $4 RETURNING *`,
+    [status, user.id, id, current.status]
   );
+  if (rows.length === 0) {
+    const err = new Error('This request was changed by someone else; reload and try again.');
+    err.statusCode = 409;
+    throw err;
+  }
   return rows[0];
 };
 
@@ -271,26 +277,40 @@ const getHrMetrics = async () => {
 
 // Called when an employee record is created: links open onboarding requests
 // for that email and assigns any assets already fulfilled on them.
+// Called when an employee record is created: links open onboarding requests
+// for that email and hands over the assets reserved on them, in one
+// transaction. Returns messages about reserved assets that are no longer
+// available so the caller can show them instead of failing silently.
 const assignFulfilledItemsToEmployee = async (employee, actorUser = null) => {
-  const { rows: requests } = await db.pool.query(
-    `SELECT id FROM onboarding_requests
-     WHERE LOWER(new_hire_email) = LOWER($1) AND linked_employee_id IS NULL AND status <> 'cancelled'`,
-    [employee.email]
-  );
-  for (const request of requests) {
-    await db.pool.query('UPDATE onboarding_requests SET linked_employee_id = $1, updated_at = NOW() WHERE id = $2',
-      [employee.id, request.id]);
-    const { rows: items } = await db.pool.query(
-      `SELECT i.fulfilled_asset_id FROM onboarding_request_items i
-       JOIN assets a ON a.id = i.fulfilled_asset_id
-       WHERE i.onboarding_request_id = $1 AND a.status = 'available'`,
-      [request.id]
+  const warnings = [];
+  await db.withTransaction(async (client) => {
+    const { rows: requests } = await client.query(
+      `SELECT id FROM onboarding_requests
+       WHERE LOWER(new_hire_email) = LOWER($1) AND linked_employee_id IS NULL
+         AND status NOT IN ('cancelled', 'completed')
+       FOR UPDATE`,
+      [employee.email]
     );
-    for (const item of items) {
-      await assetService.assignAsset(item.fulfilled_asset_id, employee.id, null,
-        `Fulfilled via Onboarding Request #${request.id}`, actorUser, { requireAvailable: true });
+    for (const request of requests) {
+      await client.query('UPDATE onboarding_requests SET linked_employee_id = $1, updated_at = NOW() WHERE id = $2',
+        [employee.id, request.id]);
+      const { rows: items } = await client.query(
+        `SELECT i.fulfilled_asset_id, a.name, a.status FROM onboarding_request_items i
+         JOIN assets a ON a.id = i.fulfilled_asset_id
+         WHERE i.onboarding_request_id = $1`,
+        [request.id]
+      );
+      for (const item of items) {
+        if (item.status !== 'available') {
+          warnings.push(`${item.name} was reserved on onboarding request #${request.id} but is now ${item.status}; choose another asset.`);
+          continue;
+        }
+        await assetService.assignAsset(item.fulfilled_asset_id, employee.id, null,
+          `Fulfilled via Onboarding Request #${request.id}`, actorUser, { requireAvailable: true, client });
+      }
     }
-  }
+  });
+  return warnings;
 };
 
 module.exports = {

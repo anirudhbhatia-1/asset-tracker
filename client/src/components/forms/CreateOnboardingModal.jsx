@@ -135,8 +135,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">New Hire Name <span className="text-error">*</span></label>
+                  <label htmlFor="onb-new-name" className="text-sm font-medium text-primary">New Hire Name <span className="text-error">*</span></label>
                   <input
+                    id="onb-new-name"
                     type="text"
                     required
                     value={newHireName}
@@ -145,8 +146,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Personal Email</label>
+                  <label htmlFor="onb-new-email" className="text-sm font-medium text-primary">Personal Email</label>
                   <input
+                    id="onb-new-email"
                     type="email"
                     value={newHireEmail}
                     onChange={(e) => setNewHireEmail(e.target.value)}
@@ -154,8 +156,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Department</label>
+                  <label htmlFor="onb-new-department" className="text-sm font-medium text-primary">Department</label>
                   <select
+                    id="onb-new-department"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -167,8 +170,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Location</label>
+                  <label htmlFor="onb-new-location" className="text-sm font-medium text-primary">Location</label>
                   <select
+                    id="onb-new-location"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -187,8 +191,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                   if (addrs.length === 0) return null;
                   return (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-primary">Address</label>
+                      <label htmlFor="onb-new-address" className="text-sm font-medium text-primary">Address</label>
                       <select
+                        id="onb-new-address"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                         className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -202,8 +207,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                   );
                 })()}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Joining Date <span className="text-error">*</span></label>
+                  <label htmlFor="onb-new-joining" className="text-sm font-medium text-primary">Joining Date <span className="text-error">*</span></label>
                   <input
+                    id="onb-new-joining"
                     type="date"
                     required
                     value={joiningDate}
@@ -214,8 +220,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">General Notes</label>
+                <label htmlFor="onb-new-notes" className="text-sm font-medium text-primary">General Notes</label>
                 <textarea
+                  id="onb-new-notes"
                   rows={2}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

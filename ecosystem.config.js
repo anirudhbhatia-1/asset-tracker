@@ -18,9 +18,10 @@ module.exports = {
 
       // Production is the default so a plain `pm2 start` never runs without
       // database SSL or the Google domain restriction.
+      // PORT comes from server/.env (default 3001); HOST keeps the API off
+      // the public interface on a VM behind nginx.
       env: {
         NODE_ENV: 'production',
-        PORT: 3001,
         HOST: '127.0.0.1',
       },
 

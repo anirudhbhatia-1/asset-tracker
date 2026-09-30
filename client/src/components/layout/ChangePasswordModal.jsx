@@ -25,6 +25,8 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
 
   const dialogRef = useRef(null);
   const titleId = useId();
+  const fieldId = useId();
+  const errorId = `${fieldId}-error`;
   // Traps Tab inside the dialog and closes it on Escape
   useFocusTrap(dialogRef, isOpen, () => handleClose());
 
@@ -107,7 +109,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
             </p>
           )}
           {error && (
-            <div className="mb-6 p-3 rounded-xl bg-error/10 border border-error/20 flex items-start gap-3">
+            <div id={errorId} role="alert" className="mb-6 p-3 rounded-xl bg-error/10 border border-error/20 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-error shrink-0 mt-0.5" />
               <p className="text-sm font-medium text-error/90">{error}</p>
             </div>
@@ -116,10 +118,13 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
           <form id="change-password-form" onSubmit={handleSubmit} className="space-y-4">
             
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-primary block">Current Password</label>
+              <label htmlFor={`${fieldId}-current`} className="text-sm font-semibold text-primary block">Current Password</label>
               <div className="relative">
                 <input
                   type={showCurrent ? "text" : "password"}
+                  id={`${fieldId}-current`}
+                  autoComplete="current-password"
+                  aria-describedby={error ? errorId : undefined}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full bg-base border border-border rounded-xl px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all pr-10"
@@ -138,10 +143,13 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-primary block">New Password</label>
+              <label htmlFor={`${fieldId}-new`} className="text-sm font-semibold text-primary block">New Password</label>
               <div className="relative">
                 <input
                   type={showNew ? "text" : "password"}
+                  id={`${fieldId}-new`}
+                  autoComplete="new-password"
+                  aria-describedby={error ? errorId : undefined}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full bg-base border border-border rounded-xl px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all pr-10"
@@ -160,10 +168,13 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-primary block">Confirm New Password</label>
+              <label htmlFor={`${fieldId}-confirm`} className="text-sm font-semibold text-primary block">Confirm New Password</label>
               <div className="relative">
                 <input
                   type={showConfirm ? "text" : "password"}
+                  id={`${fieldId}-confirm`}
+                  autoComplete="new-password"
+                  aria-describedby={error ? errorId : undefined}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full bg-base border border-border rounded-xl px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all pr-10"

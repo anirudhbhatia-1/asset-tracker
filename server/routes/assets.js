@@ -4,7 +4,7 @@ const validateRequest = require('../middleware/validateRequest');
 const assetService = require('../services/assetService');
 const historyService = require('../services/historyService');
 const ticketService = require('../services/ticketService');
-const { validateSession, requireRole, requirePermission } = require('../middleware/validateSession');
+const { validateSession, requireRole, requirePermission, hasPermission } = require('../middleware/validateSession');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -73,6 +73,23 @@ router.get('/serial-exists', requirePermission('assets:create'), async (req, res
     }
     const exists = await assetService.serialExists(serial);
     res.status(200).json({ data: { exists }, message: 'OK' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/assets/available?categoryId= — company stock that can be handed
+// out, for the ticket-resolution and fulfilment pickers. Deliberately narrow
+// (no costs or holders) so resolvers don't need full inventory access.
+router.get('/available', (req, res, next) => {
+  const allowed = ['assets:read', 'tickets:resolve', 'onboarding:fulfill', 'employees:assign-assets']
+    .some((key) => hasPermission(req.user, key));
+  return allowed ? next() : res.status(403).json({ error: true, message: 'Forbidden', code: 403 });
+}, async (req, res, next) => {
+  try {
+    const categoryId = /^\d+$/.test(String(req.query.categoryId || '')) ? Number(req.query.categoryId) : null;
+    const assets = await assetService.getAvailableCompanyAssets(categoryId);
+    res.status(200).json({ data: assets, total: assets.length, message: 'OK' });
   } catch (err) {
     next(err);
   }

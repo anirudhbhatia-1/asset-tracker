@@ -272,7 +272,7 @@ const createEmployeeWithAccess = async (data, actingUser) => {
 
   const crypto = require('crypto');
   const bcrypt = require('bcrypt');
-  const temporaryPassword = crypto.randomBytes(6).toString('hex');
+  const temporaryPassword = crypto.randomBytes(9).toString('base64url');
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
   const result = await pool.query(`
@@ -326,28 +326,31 @@ const updateEmployee = async (id, data, actingUser) => {
     }
   }
 
-  await pool.query(`
-    UPDATE employees
-    SET name = $1,
-        email = $2,
-        department = $3,
-        location = $4,
-        address = $5,
-        avatar_url = $6
-    WHERE id = $7
-  `, [
-    name !== undefined ? name : current.name,
-    email !== undefined ? email : current.email,
-    department !== undefined ? department : current.department,
-    location !== undefined ? location : current.location,
-    address !== undefined ? address : current.address,
-    avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
-    id
-  ]);
+  // Profile update and (for an email change) sign-out happen together.
+  await withTransaction(async (client) => {
+    await client.query(`
+      UPDATE employees
+      SET name = $1,
+          email = $2,
+          department = $3,
+          location = $4,
+          address = $5,
+          avatar_url = $6
+      WHERE id = $7
+    `, [
+      name !== undefined ? name : current.name,
+      email !== undefined ? email : current.email,
+      department !== undefined ? department : current.department,
+      location !== undefined ? location : current.location,
+      address !== undefined ? address : current.address,
+      avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
+      id
+    ]);
 
-  if (isEmailChange) {
-    await pool.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
-  }
+    if (isEmailChange) {
+      await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+    }
+  });
 
   return getEmployeeById(id);
 };
@@ -378,10 +381,56 @@ const deleteEmployee = async (id, actingUser) => {
   }
 
   await withTransaction(async (client) => {
+    await client.query('SELECT id FROM employees WHERE id = $1 FOR UPDATE', [id]);
+    await assertNotLastDirector(client, id, 'remove');
+    // Re-check under the lock: an asset may have been assigned meanwhile.
+    const { rows: stillHeld } = await client.query(
+      "SELECT 1 FROM assets WHERE assigned_to = $1 AND status = 'in-use' LIMIT 1", [id]
+    );
+    if (stillHeld.length > 0) {
+      const err = new Error('An asset was just assigned to this employee; return it before removing them');
+      err.statusCode = 409;
+      throw err;
+    }
     await client.query('UPDATE employees SET deleted_at = NOW() WHERE id = $1', [id]);
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
   });
   return { id: Number(id), deleted: true };
+};
+
+// Every change that could leave the company without a Director goes through
+// this check (demote, revoke access, remove).
+const assertNotLastDirector = async (client, employeeId, action) => {
+  const { rows: [target] } = await client.query(`
+    SELECT (e.role = 'director' OR COALESCE(r.is_director, false)) AS is_director
+    FROM employees e LEFT JOIN roles r ON r.id = e.role_id
+    WHERE e.id = $1`, [employeeId]);
+  if (!target?.is_director) return;
+  const { rows: [{ count }] } = await client.query(`
+    SELECT COUNT(*)::int AS count
+    FROM employees e LEFT JOIN roles r ON r.id = e.role_id
+    WHERE e.deleted_at IS NULL AND e.password_hash IS NOT NULL
+      AND (e.role = 'director' OR COALESCE(r.is_director, false))`);
+  if (count <= 1) {
+    const err = new Error(`Cannot ${action} the last Director; make someone else a Director first`);
+    err.statusCode = 409;
+    throw err;
+  }
+};
+
+const applyRole = async (client, id, targetRole) => {
+  // Decision #2: Copy roles.admin_type into employees.admin_type at assignment time if present
+  if (targetRole.adminType) {
+    await client.query(
+      'UPDATE employees SET role = $1, role_id = $2, admin_type = $3 WHERE id = $4',
+      [targetRole.baseRole, targetRole.id, targetRole.adminType, id]
+    );
+  } else {
+    await client.query(
+      'UPDATE employees SET role = $1, role_id = $2 WHERE id = $3',
+      [targetRole.baseRole, targetRole.id, id]
+    );
+  }
 };
 
 const updateEmployeeRole = async (id, roleOrRoleId, actingUser) => {
@@ -390,25 +439,13 @@ const updateEmployeeRole = async (id, roleOrRoleId, actingUser) => {
   assertCanActOnRole(actingUser, await getCurrentRole(current), 'change the role of');
   assertCanActOnRole(actingUser, targetRole, 'assign');
 
-  const targetRoleId = targetRole.id;
-  const safeRoleString = targetRole.baseRole;
-  const targetAdminType = targetRole.adminType;
-
-  // Decision #2: Copy roles.admin_type into employees.admin_type at assignment time if present
-  if (targetAdminType) {
-    await pool.query(
-      'UPDATE employees SET role = $1, role_id = $2, admin_type = $3 WHERE id = $4',
-      [safeRoleString, targetRoleId, targetAdminType, id]
-    );
-  } else {
-    await pool.query(
-      'UPDATE employees SET role = $1, role_id = $2 WHERE id = $3',
-      [safeRoleString, targetRoleId, id]
-    );
-  }
-
-  // Invalidate active sessions on role assignment
-  await pool.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  await withTransaction(async (client) => {
+    await client.query('SELECT id FROM employees WHERE id = $1 FOR UPDATE', [id]);
+    if (!targetRole.isDirector) await assertNotLastDirector(client, id, 'demote');
+    await applyRole(client, id, targetRole);
+    // Role changes take effect on the next login.
+    await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  });
 
   return getEmployeeById(id);
 };
@@ -424,39 +461,82 @@ const grantEmployeeAccess = async (id, roleOrRoleId, passwordHash, actingUser) =
     throw err;
   }
 
-  // Check before writing the password so a rejected grant leaves no login behind.
-  assertCanActOnRole(actingUser, await resolveRole(roleOrRoleId), 'assign');
+  const targetRole = await resolveRole(roleOrRoleId);
+  assertCanActOnRole(actingUser, targetRole, 'assign');
 
-  // Save the password hash first, then update the role
-  await pool.query(
-    // A temporary password must be replaced at first login.
-    'UPDATE employees SET password_hash = $1, must_change_password = true WHERE id = $2',
-    [passwordHash, id]
-  );
+  // Password and role together, so a failure never leaves a login without a
+  // role. A temporary password must be replaced at first login.
+  await withTransaction(async (client) => {
+    await client.query(
+      'UPDATE employees SET password_hash = $1, must_change_password = true WHERE id = $2',
+      [passwordHash, id]
+    );
+    await applyRole(client, id, targetRole);
+    await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  });
 
-  return updateEmployeeRole(id, roleOrRoleId, actingUser);
+  return getEmployeeById(id);
+};
+
+// Issues a new temporary password (for a forgotten or leaked one); the user
+// must change it at next login and is signed out everywhere now.
+const resetEmployeePassword = async (id, passwordHash, actingUser) => {
+  const current = await getEmployeeById(id);
+  if (current.deletedAt || !current.role) {
+    const err = new Error('This employee has no login access to reset');
+    err.statusCode = 400;
+    throw err;
+  }
+  assertCanActOnRole(actingUser, await getCurrentRole(current), 'reset the password of');
+
+  await withTransaction(async (client) => {
+    await client.query(
+      'UPDATE employees SET password_hash = $1, must_change_password = true WHERE id = $2',
+      [passwordHash, id]
+    );
+    await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  });
+  return getEmployeeById(id);
+};
+
+// Removes the ability to log in (password and Google) while keeping the
+// directory entry and its asset history.
+const revokeEmployeeAccess = async (id, actingUser) => {
+  const current = await getEmployeeById(id);
+  if (!current.role && !current.hasLogin) {
+    const err = new Error('This employee has no login access');
+    err.statusCode = 400;
+    throw err;
+  }
+  assertCanActOnRole(actingUser, await getCurrentRole(current), 'revoke access for');
+
+  await withTransaction(async (client) => {
+    await client.query('SELECT id FROM employees WHERE id = $1 FOR UPDATE', [id]);
+    await assertNotLastDirector(client, id, 'revoke access for');
+    await client.query(`
+      UPDATE employees
+      SET password_hash = NULL, role = NULL, role_id = NULL, google_id = NULL, must_change_password = false
+      WHERE id = $1`, [id]);
+    await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+  });
+  return getEmployeeById(id);
 };
 
 const grantGoogleAccess = async (id) => {
-  return withTransaction(async (client) => {
-    const current = await getEmployeeById(id);
-
-    validateCorporateEmail(current.email);
-
-    if (current.hasLogin) {
-      const err = new Error('Employee already has a login account');
-      err.statusCode = 400;
-      throw err;
-    }
-    await client.query(
-      'UPDATE employees SET role = $1 WHERE id = $2',
-      ['employee', id]
-    );
-    return getEmployeeById(id);
-  });
+  const current = await getEmployeeById(id);
+  validateCorporateEmail(current.email);
+  if (current.hasLogin) {
+    const err = new Error('Employee already has a login account');
+    err.statusCode = 400;
+    throw err;
+  }
+  await applyRole(pool, id, await resolveRole('employee'));
+  return getEmployeeById(id);
 };
 
 module.exports = {
+  resetEmployeePassword,
+  revokeEmployeeAccess,
   getLoginEmailDomains,
   getEmployees,
   getEmployeeById,

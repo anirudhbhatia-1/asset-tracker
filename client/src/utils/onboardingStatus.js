@@ -30,7 +30,9 @@ export const getOnboardingStatusOptions = (currentStatus) => (
  */
 export const getFulfilmentCandidates = (assets, item) => (
   (Array.isArray(assets) ? assets : []).filter(asset => (
-    asset.status === 'available'
+    // GET /assets/available omits status/assetType (it only returns
+    // in-stock company assets), so a missing field counts as a match.
+    (asset.status == null || asset.status === 'available')
     && asset.assetType !== 'client'
     && (!item?.category_id || Number(asset.categoryId) === Number(item.category_id))
   ))

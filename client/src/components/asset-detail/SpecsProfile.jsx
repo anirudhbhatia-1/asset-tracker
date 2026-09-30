@@ -149,9 +149,9 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Asset Type (Client vs Company) */}
             <div>
-              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+              <span className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
                 Asset Type Tag
-              </label>
+              </span>
               <div className="flex bg-surface border border-border rounded-lg p-1 gap-1">
                 <button
                   type="button"

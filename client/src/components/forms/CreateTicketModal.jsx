@@ -110,7 +110,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
           ) : (
             <>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Ticket Type</label>
+                <span className="text-sm font-medium text-primary">Ticket Type</span>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input 
@@ -139,8 +139,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
 
               {type === 'issue' && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-                  <label className="text-sm font-medium text-primary">Which device is having issues?</label>
+                  <label htmlFor="ticket-new-asset" className="text-sm font-medium text-primary">Which device is having issues?</label>
                   <select
+                    id="ticket-new-asset"
                     value={assetId}
                     onChange={(e) => setAssetId(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -155,8 +156,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
 
               {type === 'request' && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-                  <label className="text-sm font-medium text-primary">What do you need?</label>
+                  <label htmlFor="ticket-new-category" className="text-sm font-medium text-primary">What do you need?</label>
                   <select
+                    id="ticket-new-category"
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -170,8 +172,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Department</label>
+                <label htmlFor="ticket-new-department" className="text-sm font-medium text-primary">Department</label>
                 <select
+                  id="ticket-new-department"
                   value={targetAdminType}
                   onChange={(e) => setTargetAdminType(e.target.value)}
                   className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -184,8 +187,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Title</label>
+                <label htmlFor="ticket-new-title" className="text-sm font-medium text-primary">Title</label>
                 <input
+                  id="ticket-new-title"
                   type="text"
                   required
                   maxLength={150}
@@ -197,8 +201,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Description</label>
+                <label htmlFor="ticket-new-description" className="text-sm font-medium text-primary">Description</label>
                 <textarea
+                  id="ticket-new-description"
                   rows={4}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}

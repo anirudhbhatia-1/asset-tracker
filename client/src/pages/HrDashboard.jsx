@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
 import EditOnboardingModal from '../components/forms/EditOnboardingModal';
 import OnboardingDetailsModal from '../components/hr/OnboardingDetailsModal';
+import { parseDateValue } from '../utils/dates';
 
 const OnboardingStatusBadge = ({ status }) => {
   const styles = {
@@ -63,7 +64,7 @@ export default function HrDashboard({ embedded = false }) {
       if (filter === 'Completed') return req.status === 'completed';
       return true;
     })
-    .sort((a, b) => new Date(a.joining_date) - new Date(b.joining_date));
+    .sort((a, b) => parseDateValue(a.joining_date) - parseDateValue(b.joining_date));
 
   const safeAssets = Array.isArray(assets) ? assets : [];
 
@@ -154,7 +155,7 @@ export default function HrDashboard({ embedded = false }) {
                        <div className="flex justify-between items-start">
                          <div className="min-w-0">
                            <div className="text-sm font-bold text-primary truncate">{req.new_hire_name}</div>
-                           <div className="text-xs text-secondary mt-0.5">Joining: {new Date(req.joining_date).toLocaleDateString()}</div>
+                           <div className="text-xs text-secondary mt-0.5">Joining: {parseDateValue(req.joining_date).toLocaleDateString()}</div>
                          </div>
                          <OnboardingStatusBadge status={req.status} />
                        </div>

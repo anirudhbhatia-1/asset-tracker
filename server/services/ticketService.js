@@ -27,11 +27,12 @@ const getTickets = async (user, filters = {}) => {
     params.push(user.id);
   } else {
     // Administrative view (Director, Admin, HR with tickets:resolve permission)
-    if (filters.scope === 'all' || isDirector) {
-      // Director or explicit scope=all sees everything
-    } else if (filters.scope === 'my_tickets') {
+    if (filters.scope === 'my_tickets') {
+      // Checked first so a Director's "My Tickets" shows only their own.
       conditions.push(`t.employee_id = $${params.length + 1}`);
       params.push(user.id);
+    } else if (filters.scope === 'all' || isDirector) {
+      // Director or explicit scope=all sees everything
     } else {
       // Default (my_queue): filter by user's admin_type from employees table
       if (user.adminType) {
@@ -187,6 +188,14 @@ const updateTicket = async (id, payload, adminUser) => {
 
     const newNotes = resolutionNotes !== undefined ? resolutionNotes : current.resolution_notes;
     const newAssetId = resolvedAssetId !== undefined ? resolvedAssetId : current.resolved_asset_id;
+    // The fulfilling asset is handed out at the moment of resolving; changing
+    // it afterwards would record a device the requester never received.
+    if (current.status === 'resolved' && newStatus === 'resolved'
+        && resolvedAssetId !== undefined && Number(resolvedAssetId || 0) !== Number(current.resolved_asset_id || 0)) {
+      const err = new Error('Reopen the ticket to change the asset it was fulfilled with.');
+      err.statusCode = 400;
+      throw err;
+    }
     const isResolving = newStatus === 'resolved' && current.status !== 'resolved';
     const resolvedBy = isResolving ? adminUser.id : (newStatus === 'resolved' ? current.resolved_by : null);
 

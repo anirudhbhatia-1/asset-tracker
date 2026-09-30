@@ -179,6 +179,9 @@ const exportAssetsToExcel = async (dependencies = {}) => {
   };
 
   const holderEmail = (a) => a.assignee_email || '';
+  // An in-use asset whose holder record is gone can't be re-imported as
+  // in-use; export it as available (the note in Comments keeps the history).
+  const exportStatus = (a) => (a.status === 'in-use' && !a.assignee_email ? 'available' : a.status);
   const comments = (a) => [
     a.notes,
     a.assignee_deleted_at && a.assignee_email ? departedHolderNote(a.assignee_email) : null,
@@ -223,11 +226,11 @@ const exportAssetsToExcel = async (dependencies = {}) => {
   ]);
   for (const a of assetsFor('Headphones')) {
     headphoneSheet.addRow([
-      holderEmail(a), a.brand || '', a.hardware_type || a.category_name || '',
+      holderEmail(a), a.brand || '', a.hardware_type || '',
       a.model || '', a.color || '', a.serial_number,
       exportDate(a.purchase_date), a.warranty_plan || '',
       cost(a),
-      exportDate(a.assigned_date), exportDate(a.return_date), a.status, a.vendor || '',
+      exportDate(a.assigned_date), exportDate(a.return_date), exportStatus(a), a.vendor || '',
       ...trailing(a), comments(a),
     ]);
   }
@@ -243,11 +246,11 @@ const exportAssetsToExcel = async (dependencies = {}) => {
   for (const a of assetsFor('Keyboard Mouse')) {
     kbSheet.addRow([
       holderEmail(a), exportDate(a.assigned_date),
-      a.hardware_type || a.category_name || '', a.brand || '', a.model || '',
+      a.hardware_type || '', a.brand || '', a.model || '',
       a.serial_number, exportDate(a.purchase_date),
       a.warranty_plan || '', cost(a),
       comments(a), a.vendor || '',
-      a.status, ...trailing(a),
+      exportStatus(a), ...trailing(a),
     ]);
   }
 
@@ -256,15 +259,15 @@ const exportAssetsToExcel = async (dependencies = {}) => {
   clientSheet.addRow([
     'Issued To Email','Brand','Type','Model','Serial Number',
     'Status','Received On','Returned On','Client Name','Comments',
-    ...TRAILING_HEADERS,
+    ...TRAILING_HEADERS, 'Date of Issue',
   ]);
   for (const a of assetsFor('Client Laptops')) {
     clientSheet.addRow([
-      holderEmail(a), a.brand || '', a.hardware_type || a.category_name || '',
-      a.model || '', a.serial_number, a.status,
+      holderEmail(a), a.brand || '', a.hardware_type || '',
+      a.model || '', a.serial_number, exportStatus(a),
       exportDate(a.received_on || a.purchase_date),
       exportDate(a.return_date), a.client_name || '', comments(a),
-      ...trailing(a),
+      ...trailing(a), exportDate(a.assigned_date),
     ]);
   }
 
@@ -448,6 +451,9 @@ const parseSheetRow = (excelRow, rowNum, sheetName, layout, lookups, nextSerial)
     if (!category) {
       problems.push(`Category "${categoryText}" does not exist (available: ${lookups.categoryRows.map((row) => row.name).join(', ')})`);
     }
+  } else if (exportFormat && columns.category) {
+    // Exported with no category: keep it uncategorised rather than guessing.
+    categoryType = null;
   } else {
     categoryType = config.fixedType ? config.defaultType : (text('hardwareType') || config.defaultType);
   }
@@ -656,11 +662,16 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}, { d
   try {
     await runInTransaction(async (client) => {
       const categoryIds = new Map([...lookups.categoriesByName].map(([key, row]) => [key, row.id]));
+      // Same name apart from case, spaces or punctuation ("Laptop-Stand",
+      // "laptop stand") reuses the existing category instead of creating one.
+      const squash = (value) => String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+      const categoryIdsBySquashedName = new Map([...lookups.categoriesByName].map(([key, row]) => [squash(key), row.id]));
       const resolveCategory = async (type) => {
         const name = importCategoryName(type);
         if (!name) return null;
         const key = name.toLowerCase();
         if (categoryIds.has(key)) return categoryIds.get(key);
+        if (categoryIdsBySquashedName.has(squash(name))) return categoryIdsBySquashedName.get(squash(name));
 
         const created = await client.query(`
           INSERT INTO categories (name, badge_char, color, description, created_at)
@@ -674,6 +685,7 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}, { d
         const id = created.rows[0].id;
         results.categoriesCreated.push(name);
         categoryIds.set(key, id);
+        categoryIdsBySquashedName.set(squash(name), id);
         return id;
       };
 

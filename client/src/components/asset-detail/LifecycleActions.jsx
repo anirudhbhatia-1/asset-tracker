@@ -168,10 +168,11 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           </p>
 
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+            <label htmlFor="return-note" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
               Return Inspection Note (Optional)
             </label>
             <textarea
+              id="return-note"
               value={returnNote}
               onChange={(e) => setReturnNote(e.target.value)}
               placeholder="E.g., Returned in excellent condition. Charger included."
@@ -214,10 +215,11 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           </p>
 
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+            <label htmlFor="retire-note" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
               Reason for Retirement / Disposal Note
             </label>
             <textarea
+              id="retire-note"
               value={retireNote}
               onChange={(e) => setRetireNote(e.target.value)}
               placeholder="E.g., Hardware motherboard failure. E-waste recycling scheduled."

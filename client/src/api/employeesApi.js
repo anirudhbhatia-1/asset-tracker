@@ -14,6 +14,11 @@ export const getRoles = () => api.get('/roles');
 export const updateEmployeeRole = (id, roleOrId) => api.patch(`/employees/${id}/role`, rolePayload(roleOrId));
 export const updateEmployeeDetails = (id, data) => api.patch(`/employees/${id}`, data);
 export const grantEmployeeAccess = (id, roleOrId) => api.post(`/employees/${id}/grant-access`, rolePayload(roleOrId));
+// Issues a new temporary password (returned once as temporaryPassword) and
+// signs the employee out; they must change it on next login.
+export const resetEmployeePassword = (id) => api.post(`/employees/${id}/reset-password`);
+// Removes the employee's login. 409 if it would remove the last Director.
+export const revokeEmployeeAccess = (id) => api.post(`/employees/${id}/revoke-access`);
 
 // TESTING ONLY — remove when production Google Workspace flow is implemented
 export const grantEmployeeGoogleAccess = (id) => api.post(`/employees/${id}/grant-google-access`);

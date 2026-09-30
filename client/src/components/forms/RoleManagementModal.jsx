@@ -75,10 +75,10 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-accent" />
               <span>System Role</span>
-            </label>
+            </span>
             <div className="space-y-2">
               {roles.map((r) => (
                 <label
@@ -155,11 +155,11 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
             </p>
             <div className="p-4 rounded-xl bg-base border border-border space-y-3">
               <div>
-                <label className="block text-xs text-secondary mb-1">Email</label>
+                <span className="block text-xs text-secondary mb-1">Email</span>
                 <code className="text-sm font-bold text-primary">{employee.email}</code>
               </div>
               <div>
-                <label className="block text-xs text-secondary mb-1">Temporary Password</label>
+                <span className="block text-xs text-secondary mb-1">Temporary Password</span>
                 <code className="text-sm font-bold text-accent select-all bg-accent/10 px-2 py-1 rounded">{tempPassword}</code>
               </div>
             </div>

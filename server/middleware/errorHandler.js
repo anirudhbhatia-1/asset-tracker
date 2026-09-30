@@ -25,7 +25,9 @@ module.exports = (err, req, res, next) => {
   // only show them outside production.
   let message = err.message || 'Internal Server Error';
   if (pgResponse) message = pgResponse[1];
-  if (statusCode === 500 && process.env.NODE_ENV === 'production') {
+  // Only development and test show internal details; anything else (including
+  // a production server with NODE_ENV unset) gets the generic message.
+  if (statusCode === 500 && !['development', 'test'].includes(process.env.NODE_ENV)) {
     message = 'Something went wrong. Please try again.';
   }
 

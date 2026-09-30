@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useId } from 'react';
 import { X, Check, Loader2, Package, ArrowRightLeft, History, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
-import { getAssets } from '../../api/assetsApi';
+import { getAvailableAssets } from '../../api/assetsApi';
 import { ticketsApi } from '../../api/ticketsApi';
 import { formatDateTime } from '../../utils/formatters';
 import { canWorkTicket, getTicketStatusOptions, TICKET_STATUS_LABELS } from '../../utils/ticketStatus';
@@ -32,7 +32,8 @@ const errorMessage = (err, fallback) => err?.response?.data?.message || fallback
 //   onConfirmClose(id), onReopen(ticket) — onReopen may open a reason prompt.
 const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onConfirmClose, onReopen }) => {
   const { user, hasPermission } = useAuth();
-  const isTicketOwner = user?.id === ticket?.employee_id;
+  const isTicketOwner = user?.id != null && ticket?.employee_id != null
+    && String(user.id) === String(ticket.employee_id);
   const canResolve = hasPermission('tickets:resolve');
   // Only the queue that holds the ticket (or a Director) may work it.
   const canWork = canWorkTicket(user, ticket);
@@ -96,7 +97,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
     if (!showAssetPicker) return undefined;
     let cancelled = false;
     setLoadingAssets(true);
-    getAssets({ status: 'available', assetType: 'company' })
+    getAvailableAssets()
       .then(res => { if (!cancelled) setAssets(res.data?.data || []); })
       .catch(err => {
         if (!cancelled) setFormError(errorMessage(err, 'Could not load available assets'));
@@ -129,6 +130,33 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
       setSubmitting(false);
     }
   };
+
+  // The person who raised the ticket confirms or reopens it once resolved,
+  // even when they could also work it (e.g. a Director's own ticket).
+  const showOwnerActions = ticket.status === 'resolved' && isTicketOwner;
+  const ownerActions = (
+    <div className="pt-4 border-t border-accent/10 flex items-center justify-end gap-3 mt-4">
+      {onReopen && (
+        <button
+          type="button"
+          onClick={() => onReopen(ticket)}
+          disabled={submitting}
+          className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-base/50 rounded-lg transition-colors cursor-pointer"
+        >
+          Reopen Ticket
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => runAction(() => onConfirmClose(ticket.id), 'Failed to close ticket')}
+        disabled={submitting || !onConfirmClose}
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors cursor-pointer"
+      >
+        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+        Confirm Resolution
+      </button>
+    </div>
+  );
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -260,6 +288,15 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
 
           <hr className="border-border" />
 
+          {/* Owner confirm/reopen for a resolved ticket they can also work */}
+          {isHandlingAdmin && showOwnerActions && (
+            <div className="space-y-2 bg-accent/5 border border-accent/10 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-accent">Your ticket was resolved</h3>
+              {ticket.resolution_notes && <p className="text-sm text-primary">{ticket.resolution_notes}</p>}
+              {ownerActions}
+            </div>
+          )}
+
           {/* Resolution / Transfer Area */}
           {isHandlingAdmin ? (
             <form id="resolve-form" onSubmit={handleSubmit} className="space-y-4">
@@ -281,8 +318,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                   </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Status</label>
+                <label htmlFor="ticket-status" className="text-sm font-medium text-primary">Status</label>
                 <select
+                  id="ticket-status"
                   value={status}
                   onChange={(e) => { setStatus(e.target.value); setFormError(null); }}
                   className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -299,11 +337,12 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
 
               {showAssetPicker && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary flex items-center gap-2">
+                  <label htmlFor="ticket-resolved-asset" className="text-sm font-medium text-primary flex items-center gap-2">
                     Fulfill Request (Select Available Asset)
                     {loadingAssets && <Loader2 className="w-3 h-3 animate-spin text-accent" />}
                   </label>
                   <select
+                    id="ticket-resolved-asset"
                     value={resolvedAssetId}
                     onChange={(e) => { setResolvedAssetId(e.target.value); setFormError(null); }}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -318,8 +357,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Resolution Notes (Optional)</label>
+                <label htmlFor="ticket-resolution-notes" className="text-sm font-medium text-primary">Resolution Notes (Optional)</label>
                 <textarea
+                  id="ticket-resolution-notes"
                   rows={3}
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
@@ -345,8 +385,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Transfer To</label>
+                <label htmlFor="ticket-transfer-to" className="text-sm font-medium text-primary">Transfer To</label>
                 <select
+                  id="ticket-transfer-to"
                   required
                   value={targetAdminType}
                   onChange={(e) => setTargetAdminType(e.target.value)}
@@ -359,8 +400,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Transfer Reason / Note</label>
+                <label htmlFor="ticket-transfer-note" className="text-sm font-medium text-primary">Transfer Reason / Note</label>
                 <textarea
+                  id="ticket-transfer-note"
                   rows={3}
                   required
                   value={transferNote}
@@ -383,29 +425,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                   <p className="text-sm text-secondary italic">No notes provided.</p>
                 )}
                 
-                {ticket.status === 'resolved' && isTicketOwner && (
-                  <div className="pt-4 border-t border-accent/10 flex items-center justify-end gap-3 mt-4">
-                    {onReopen && (
-                      <button
-                        type="button"
-                        onClick={() => onReopen(ticket)}
-                        disabled={submitting}
-                        className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-base/50 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Reopen Ticket
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => runAction(() => onConfirmClose(ticket.id), 'Failed to close ticket')}
-                      disabled={submitting || !onConfirmClose}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors cursor-pointer"
-                    >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      Confirm Resolution
-                    </button>
-                  </div>
-                )}
+                {showOwnerActions && ownerActions}
               </div>
             )
           )}

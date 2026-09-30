@@ -8,8 +8,14 @@ const { Client } = require(path.join(__dirname, '../server/node_modules/pg'));
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
 module.exports = async () => {
-  const env = dotenv.parse(require('fs').readFileSync(path.join(__dirname, '../server/.env')));
-  const url = env.DATABASE_URL;
+  let url = process.env.DATABASE_URL;
+  if (!url) {
+    try {
+      url = dotenv.parse(require('fs').readFileSync(path.join(__dirname, '../server/.env'))).DATABASE_URL;
+    } catch {
+      url = undefined;
+    }
+  }
   if (!url || !LOCAL_HOSTS.has(new URL(url).hostname)) {
     console.warn('[e2e teardown] DATABASE_URL is not local; leaving test data in place.');
     return;

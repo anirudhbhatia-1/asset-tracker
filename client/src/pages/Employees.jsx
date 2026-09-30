@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import useEmployees from '../hooks/useEmployees';
 import EmployeeAssetDrawer from '../components/employees/EmployeeAssetDrawer';
+import EmployeeAccessModal from '../components/employees/EmployeeAccessModal';
 import AddEmployeeModal from '../components/forms/AddEmployeeModal';
 import RoleManagementModal from '../components/forms/RoleManagementModal';
 import EditEmployeeModal from '../components/forms/EditEmployeeModal';
@@ -10,20 +11,20 @@ import RoleManagementPanel from '../components/dashboard/RoleManagementPanel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
-import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package } from 'lucide-react';
+import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX } from 'lucide-react';
 import { onActivateKey } from '../utils/a11y';
 
 const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing'];
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
 
 export default function Employees() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const canGrantAccess = hasPermission('employees:grant-access');
   const canManageRoles = hasPermission('roles:manage');
   const canCreate = hasPermission('employees:create');
   const canEdit = hasPermission('employees:manage');
   const canAssignAssets = hasPermission('employees:assign-assets');
-  const { employees, loading, error, refresh, addEmployee, updateEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline } = useEmployees();
+  const { employees, loading, error, refresh, addEmployee, updateEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline, resetPassword, revokeAccess } = useEmployees();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'roles'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
@@ -36,6 +37,8 @@ export default function Employees() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
   const [bulkAssignTarget, setBulkAssignTarget] = useState(null);
+  // { mode: 'reset' | 'revoke', employee } for the access action dialog.
+  const [accessAction, setAccessAction] = useState(null);
 
   useEffect(() => {
     if (!canManageRoles && activeTab === 'roles') setActiveTab('directory');
@@ -80,6 +83,11 @@ export default function Employees() {
     e.stopPropagation();
     setSelectedEmployee(emp);
     setIsRoleModalOpen(true);
+  };
+
+  const openAccessAction = (e, mode, emp) => {
+    e.stopPropagation();
+    setAccessAction({ mode, employee: emp });
   };
 
   return (
@@ -140,6 +148,7 @@ export default function Employees() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search employees"
               placeholder="Search by name, corporate email, office, or department..."
               className="w-full pl-10 pr-4 py-2.5 bg-base border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent transition-all"
             />
@@ -286,6 +295,30 @@ export default function Employees() {
                       )}
                     </td>
                     <td className="px-5 py-3 text-right flex items-center justify-end gap-2">
+                      {canGrantAccess && emp.hasLogin && (
+                        <button
+                          type="button"
+                          onClick={(e) => openAccessAction(e, 'reset', emp)}
+                          aria-label={`Reset password for ${emp.name}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm"
+                          title="Reset password"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-accent" />
+                          Reset Password
+                        </button>
+                      )}
+                      {canGrantAccess && emp.hasLogin && String(emp.id) !== String(user?.id) && (
+                        <button
+                          type="button"
+                          onClick={(e) => openAccessAction(e, 'revoke', emp)}
+                          aria-label={`Revoke login access for ${emp.name}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-danger bg-base hover:bg-danger/10 border border-border transition-colors shadow-sm"
+                          title="Revoke login access"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                          Revoke Access
+                        </button>
+                      )}
                       {canAssignAssets && (
                         <button
                           onClick={(e) => {
@@ -361,6 +394,15 @@ export default function Employees() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={addEmployee}
+      />
+
+      <EmployeeAccessModal
+        isOpen={!!accessAction}
+        mode={accessAction?.mode}
+        employee={accessAction?.employee}
+        onClose={() => setAccessAction(null)}
+        onResetPassword={resetPassword}
+        onRevokeAccess={revokeAccess}
       />
 
       <BulkAssignModal

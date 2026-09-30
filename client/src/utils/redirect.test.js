@@ -16,5 +16,7 @@ describe('getPostLoginPath', () => {
   it('rejects paths that leave the app', () => {
     expect(getPostLoginPath('//evil.example.com')).toBe('/');
     expect(getPostLoginPath('https://evil.example.com')).toBe('/');
+    expect(getPostLoginPath('/\\evil.example.com')).toBe('/');
+    expect(getPostLoginPath({ pathname: '/\\evil.example.com', search: '?x=1' })).toBe('/');
   });
 });

@@ -149,10 +149,11 @@ export default function LocationsTab() {
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Add Office Location">
         <form onSubmit={handleAddLocation} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase mb-1.5">
+            <label htmlFor="new-location-name" className="block text-xs font-semibold text-secondary uppercase mb-1.5">
               Location Name <span className="text-danger">*</span>
             </label>
             <input
+              id="new-location-name"
               type="text"
               value={newLocationName}
               onChange={(e) => setNewLocationName(e.target.value)}
@@ -173,9 +174,9 @@ export default function LocationsTab() {
         <form onSubmit={handleSaveAddresses} className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold text-secondary uppercase">
+              <span className="block text-xs font-semibold text-secondary uppercase">
                 {editingLocation?.name} Addresses
-              </label>
+              </span>
               <Button type="button" variant="secondary" size="sm" onClick={addAddressField} className="text-xs py-1 px-2">
                 <Plus className="w-3 h-3 mr-1" /> Add Another
               </Button>

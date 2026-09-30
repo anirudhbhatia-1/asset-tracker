@@ -9,6 +9,7 @@ import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
 import OnboardingDetailsModal from '../components/hr/OnboardingDetailsModal';
 import { onActivateKey } from '../utils/a11y';
 import PageHeader from '../components/ui/PageHeader';
+import { parseDateValue } from '../utils/dates';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -201,7 +202,7 @@ const Onboarding = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 font-medium text-primary">
-                      {new Date(req.joining_date).toLocaleDateString()}
+                      {parseDateValue(req.joining_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
                     {hasPermission('onboarding:fulfill') && (

@@ -66,6 +66,21 @@ const serialExists = async (serial) => {
   return rows.length > 0;
 };
 
+// Minimal fields for pickers that hand out stock.
+const getAvailableCompanyAssets = async (categoryId = null) => {
+  const { rows } = await pool.query(`
+    SELECT a.id, a.name, a.serial_number, a.category_id, c.name AS category_name
+    FROM assets a LEFT JOIN categories c ON c.id = a.category_id
+    WHERE a.status = 'available' AND a.asset_type = 'company'
+      AND ($1::int IS NULL OR a.category_id = $1)
+    ORDER BY a.name, a.serial_number
+  `, [categoryId]);
+  return rows.map((row) => ({
+    id: row.id, name: row.name, serialNumber: row.serial_number,
+    categoryId: row.category_id, categoryName: row.category_name,
+  }));
+};
+
 const getAssets = async (filters = {}) => {
   const conditions = [];
   const params = [];
@@ -333,6 +348,10 @@ const updateAsset = async (id, data, actorUser = null) => {
   }
 
   await withTransaction(async (client) => {
+    // Re-read under a row lock so concurrent edits of different fields don't
+    // overwrite each other with stale values.
+    const { rows: [lockedRow] } = await client.query('SELECT * FROM assets WHERE id = $1 FOR UPDATE', [id]);
+    const fresh = mapAsset(lockedRow);
     await client.query(`
       UPDATE assets
       SET name = $1,
@@ -366,34 +385,34 @@ const updateAsset = async (id, data, actorUser = null) => {
           updated_at = NOW()
       WHERE id = $29
     `, [
-      name !== undefined ? name : current.name,
-      categoryId !== undefined ? (categoryId ? Number(categoryId) : null) : current.categoryId,
-      model !== undefined ? model : current.model,
-      serialNumber !== undefined ? serialNumber : current.serialNumber,
-      assetType !== undefined ? assetType : current.assetType,
-      location !== undefined ? location : current.location,
-      address !== undefined ? address : current.address,
-      costCents !== undefined ? Number(costCents) : current.costCents,
-      purchaseDate !== undefined ? purchaseDate : current.purchaseDate,
-      notes !== undefined ? notes : current.notes,
-      warrantyExpiryDate !== undefined ? warrantyExpiryDate : current.warrantyExpiryDate,
-      brand !== undefined ? brand : current.brand,
-      vendor !== undefined ? vendor : current.vendor,
-      processor !== undefined ? processor : current.processor,
-      ram !== undefined ? ram : current.ram,
-      storage !== undefined ? storage : current.storage,
-      screenSize !== undefined ? screenSize : current.screenSize,
-      graphicsCard !== undefined ? graphicsCard : current.graphicsCard,
-      os !== undefined ? os : current.os,
-      msOffice !== undefined ? msOffice : current.msOffice,
-      antiVirus !== undefined ? antiVirus : current.antiVirus,
-      warrantyPlan !== undefined ? warrantyPlan : current.warrantyPlan,
-      warrantyUpgrade !== undefined ? warrantyUpgrade : current.warrantyUpgrade,
-      color !== undefined ? color : current.color,
-      hardwareType !== undefined ? hardwareType : current.hardwareType,
-      clientName !== undefined ? clientName : current.clientName,
-      returnDate !== undefined ? returnDate : current.returnDate,
-      receivedOn !== undefined ? receivedOn : current.receivedOn,
+      name !== undefined ? name : fresh.name,
+      categoryId !== undefined ? (categoryId ? Number(categoryId) : null) : fresh.categoryId,
+      model !== undefined ? model : fresh.model,
+      serialNumber !== undefined ? serialNumber : fresh.serialNumber,
+      assetType !== undefined ? assetType : fresh.assetType,
+      location !== undefined ? location : fresh.location,
+      address !== undefined ? address : fresh.address,
+      costCents !== undefined ? (costCents === null ? null : Number(costCents)) : fresh.costCents,
+      purchaseDate !== undefined ? purchaseDate : fresh.purchaseDate,
+      notes !== undefined ? notes : fresh.notes,
+      warrantyExpiryDate !== undefined ? warrantyExpiryDate : fresh.warrantyExpiryDate,
+      brand !== undefined ? brand : fresh.brand,
+      vendor !== undefined ? vendor : fresh.vendor,
+      processor !== undefined ? processor : fresh.processor,
+      ram !== undefined ? ram : fresh.ram,
+      storage !== undefined ? storage : fresh.storage,
+      screenSize !== undefined ? screenSize : fresh.screenSize,
+      graphicsCard !== undefined ? graphicsCard : fresh.graphicsCard,
+      os !== undefined ? os : fresh.os,
+      msOffice !== undefined ? msOffice : fresh.msOffice,
+      antiVirus !== undefined ? antiVirus : fresh.antiVirus,
+      warrantyPlan !== undefined ? warrantyPlan : fresh.warrantyPlan,
+      warrantyUpgrade !== undefined ? warrantyUpgrade : fresh.warrantyUpgrade,
+      color !== undefined ? color : fresh.color,
+      hardwareType !== undefined ? hardwareType : fresh.hardwareType,
+      clientName !== undefined ? clientName : fresh.clientName,
+      returnDate !== undefined ? returnDate : fresh.returnDate,
+      receivedOn !== undefined ? receivedOn : fresh.receivedOn,
       id
     ]);
 
@@ -413,6 +432,13 @@ const deleteAsset = async (id, confirm, actorUser = null) => {
   const current = await getAssetById(id);
 
   await withTransaction(async (client) => {
+    // Someone is using it: return it first so the hand-back is on record.
+    const locked = await lockAsset(client, id);
+    if (locked.status === 'in-use') {
+      const err = new Error('Return this asset before deleting it');
+      err.statusCode = 409;
+      throw err;
+    }
     await historyService.logEvent(id, 'deleted', actorUser, current.assignedTo, `Permanently deleted asset: ${current.name} (${current.serialNumber})`, null, client);
     await client.query('DELETE FROM assets WHERE id = $1', [id]);
   });
@@ -628,8 +654,10 @@ const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
   }
   const today = todayISO();
   const assignedNote = note || `Bulk assignment of ${assetIds.length} asset(s)`;
+  // Lock in a fixed order so two overlapping bulk assignments can't deadlock.
+  const orderedIds = [...new Set(assetIds.map(Number))].sort((a, b) => a - b);
   await withTransaction(async (client) => {
-    for (const assetId of assetIds) {
+    for (const assetId of orderedIds) {
       // Lock the row and verify it is available
       const assetCheck = await client.query(
         'SELECT id, name, status FROM assets WHERE id = $1 FOR UPDATE',
@@ -652,20 +680,21 @@ const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
       // Log to audit trail using the existing historyService pattern
       await historyService.logEvent(assetId, 'assigned', actorUser, employeeId, assignedNote, null, client);
       // Cascade to any sub-assets (parent-child — Feature 3 prerequisite)
-      await client.query(
-        `UPDATE assets SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW() WHERE parent_id = $3 AND status = 'available'`,
+      const { rows: moved } = await client.query(
+        `UPDATE assets SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW()
+         WHERE parent_id = $3 AND status = 'available' RETURNING id`,
         [employeeId, today, assetId]
       );
-      const subAssets = await client.query('SELECT id FROM assets WHERE parent_id = $1', [assetId]);
-      for (const sub of subAssets.rows) {
+      for (const sub of moved) {
         await historyService.logEvent(sub.id, 'assigned', actorUser, employeeId, `Cascaded from parent asset #${assetId}`, null, client);
       }
     }
   });
-  return { assigned: assetIds.length, employeeId };
+  return { assigned: orderedIds.length, employeeId };
 };
 
 module.exports = {
+  getAvailableCompanyAssets,
   serialExists,
   getAssets,
   getAssetById,

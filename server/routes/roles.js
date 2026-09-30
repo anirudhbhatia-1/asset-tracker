@@ -212,6 +212,12 @@ router.put('/:id', [
     if (currentRole.is_system && name && name !== currentRole.name) {
       return res.status(400).json({ error: true, message: 'Cannot rename system role' });
     }
+    if (name && name.toLowerCase() !== currentRole.name.toLowerCase()) {
+      const clash = await pool.query('SELECT id FROM roles WHERE LOWER(name) = LOWER($1) AND id <> $2', [name, roleId]);
+      if (clash.rows.length > 0) {
+        return res.status(409).json({ error: true, message: 'Role with this name already exists' });
+      }
+    }
 
     await withTransaction(async (client) => {
       await client.query(`

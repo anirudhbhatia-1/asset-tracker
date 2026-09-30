@@ -89,11 +89,11 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
           </p>
           <div className="p-4 rounded-xl bg-base border border-border space-y-3">
             <div>
-              <label className="block text-xs text-secondary mb-1">Email</label>
+              <span className="block text-xs text-secondary mb-1">Email</span>
               <code className="text-sm font-bold text-primary">{email.trim().toLowerCase()}</code>
             </div>
             <div>
-              <label className="block text-xs text-secondary mb-1">Temporary Password</label>
+              <span className="block text-xs text-secondary mb-1">Temporary Password</span>
               <code className="text-sm font-bold text-accent select-all bg-accent/10 px-2 py-1 rounded">{temporaryPassword}</code>
             </div>
           </div>
@@ -111,11 +111,12 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
 
         {/* Full Name */}
         <div>
-          <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+          <label htmlFor="add-emp-name" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-accent" />
             <span>Full Name <span className="text-danger">*</span></span>
           </label>
           <input
+            id="add-emp-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -127,11 +128,12 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
 
         {/* Email Address */}
         <div>
-          <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+          <label htmlFor="add-emp-email" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
             <Mail className="w-3.5 h-3.5 text-accent" />
             <span>Email Address <span className="text-danger">*</span></span>
           </label>
           <input
+            id="add-emp-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -144,11 +146,12 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
         {/* Department & Location */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <label htmlFor="add-emp-department" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-accent" />
               <span>Department</span>
             </label>
             <select
+              id="add-emp-department"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
               className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
@@ -162,11 +165,12 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <label htmlFor="add-emp-location" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-accent" />
               <span>Office</span>
             </label>
             <select
+              id="add-emp-location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
@@ -187,11 +191,12 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
           if (addrs.length === 0) return null;
           return (
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <label htmlFor="add-emp-address" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-accent" />
                 <span>Office Address</span>
               </label>
               <select
+                id="add-emp-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
@@ -221,10 +226,11 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
           </label>
           {grantAccess && (
             <div className="mt-3 ml-7">
-              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+              <label htmlFor="add-emp-role" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
                 Role
               </label>
               <select
+                id="add-emp-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"

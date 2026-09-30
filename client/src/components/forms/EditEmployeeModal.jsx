@@ -99,7 +99,8 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
       // it actually changed and the employee already has a login account.
       await onSave(employee.id, payload);
       if (canEditRole && employee.hasLogin && role && role !== initialRole) {
-        await onChangeRole(employee.id, role);
+        // The details save already toasted; don't add a second success toast.
+        await onChangeRole(employee.id, role, { quiet: true });
       }
       onClose();
     } catch {
@@ -138,9 +139,9 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
             <form id="edit-employee-form" onSubmit={handleSubmit} className="p-5 space-y-4">
               {/* Read-only email */}
               <div className="space-y-1">
-                <label className={labelClass}>
+                <span className={labelClass}>
                   <User className="w-3.5 h-3.5" /> Email (read-only)
-                </label>
+                </span>
                 <p className="text-sm text-secondary font-mono bg-base/60 px-3 py-2.5 rounded-lg border border-border/60 truncate">
                   {employee.email}
                 </p>
@@ -148,10 +149,11 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
 
               {/* Full Name */}
               <div>
-                <label className={labelClass}>
+                <label htmlFor="edit-emp-name" className={labelClass}>
                   <User className="w-3.5 h-3.5" /> Full Name <span className="text-danger">*</span>
                 </label>
                 <input
+                  id="edit-emp-name"
                   type="text"
                   required
                   value={name}
@@ -162,10 +164,11 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
 
               {/* Department — Dropdown from DB + "Other" text fallback */}
               <div>
-                <label className={labelClass}>
+                <label htmlFor="edit-emp-department" className={labelClass}>
                   <Building2 className="w-3.5 h-3.5" /> Department
                 </label>
                 <select
+                  id="edit-emp-department"
                   value={department}
                   onChange={e => setDepartment(e.target.value)}
                   className={inputClass}
@@ -185,6 +188,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
                   <input
                     type="text"
                     autoFocus
+                    aria-label="New department name"
                     placeholder="Type department name..."
                     onChange={e => setDepartment(e.target.value)}
                     className={`${inputClass} mt-2`}
@@ -194,10 +198,11 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
 
               {/* Location — Dropdown from locations table */}
               <div>
-                <label className={labelClass}>
+                <label htmlFor="edit-emp-location" className={labelClass}>
                   <MapPin className="w-3.5 h-3.5" /> Office Location
                 </label>
                 <select
+                  id="edit-emp-location"
                   value={location}
                   onChange={e => handleLocationChange(e.target.value)}
                   className={inputClass}
@@ -216,10 +221,11 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
               {/* Address — Cascades from selected location's addresses (from DB) */}
               {location && availableAddresses.length > 0 && (
                 <div>
-                  <label className={labelClass}>
+                  <label htmlFor="edit-emp-address" className={labelClass}>
                     <MapPin className="w-3.5 h-3.5 text-secondary" /> Office Address
                   </label>
                   <select
+                    id="edit-emp-address"
                     value={address}
                     onChange={e => setAddress(e.target.value)}
                     className={inputClass}
@@ -240,9 +246,9 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
               {/* Role — only shown if the employee already has a login account */}
               {employee.hasLogin && canEditRole && (
                 <div>
-                  <label className={labelClass}>
+                  <span className={labelClass}>
                     <ShieldCheck className="w-3.5 h-3.5" /> System Role
-                  </label>
+                  </span>
                   <div className="space-y-2">
                     {roles.map(r => (
                       <label
@@ -278,9 +284,9 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
 
               {employee.hasLogin && !canEditRole && (
                 <div>
-                  <label className={labelClass}>
+                  <span className={labelClass}>
                     <ShieldCheck className="w-3.5 h-3.5" /> System Role
-                  </label>
+                  </span>
                   <div className="p-3 bg-base/60 rounded-lg border border-border/60 text-xs text-secondary flex items-start gap-2">
                     <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <span>Role changes require role-management access.</span>

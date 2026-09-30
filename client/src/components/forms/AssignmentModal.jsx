@@ -71,12 +71,13 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Searchable Employee List */}
         <div>
-          <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+          <label htmlFor="assign-employee-search" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
             Select Employee
           </label>
           <div className="relative mb-2">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
             <input
+              id="assign-employee-search"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -133,11 +134,12 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
 
         {/* Assignment Date */}
         <div>
-          <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+          <label htmlFor="assign-date" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-accent" />
             <span>Effective Assignment Date</span>
           </label>
           <input
+            id="assign-date"
             type="date"
             value={assignedDate}
             onChange={(e) => setAssignedDate(e.target.value)}
@@ -148,11 +150,12 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
 
         {/* Optional Notes */}
         <div>
-          <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+          <label htmlFor="assign-note" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5 text-accent" />
             <span>Assignment Notes (Optional)</span>
           </label>
           <textarea
+            id="assign-note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="E.g., Issued with laptop charger, external keyboard, and carry case."

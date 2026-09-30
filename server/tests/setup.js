@@ -12,7 +12,9 @@ try {
   host = '';
 }
 
-if (url && !LOCAL_HOSTS.has(host) && process.env.ALLOW_REMOTE_DB_TESTS !== '1') {
+// An empty URL would make pg fall back to PG* environment variables, which
+// could point anywhere, so require an explicit local URL.
+if (!LOCAL_HOSTS.has(host) && process.env.ALLOW_REMOTE_DB_TESTS !== '1') {
   throw new Error(
     `Refusing to run tests against a non-local database (${host || 'unparseable DATABASE_URL'}). `
     + 'Point DATABASE_URL at the local dev database, or set ALLOW_REMOTE_DB_TESTS=1 if you really mean it.'

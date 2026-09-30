@@ -433,9 +433,9 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
           {/* Asset Ownership Type Toggle */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+            <span className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
               Asset Ownership <span className="text-danger">*</span>
-            </label>
+            </span>
             <div className="flex bg-base border border-border p-1 rounded-xl">
               <button
                 type="button"
@@ -703,87 +703,87 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
             
             {/* BRAND & VENDOR (Always show if category selected) */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Brand</label>
-              <input type="text" value={brand} onChange={e => setBrand(e.target.value)} placeholder="e.g. Lenovo, Dell, Apple" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+              <label htmlFor="brand" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Brand</label>
+              <input id="brand" type="text" value={brand} onChange={e => setBrand(e.target.value)} placeholder="e.g. Lenovo, Dell, Apple" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
             </div>
             {!isClient && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Vendor / Supplier</label>
-                <input type="text" value={vendor} onChange={e => setVendor(e.target.value)} placeholder="e.g. Swastik Electronics" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                <label htmlFor="vendor" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Vendor / Supplier</label>
+                <input id="vendor" type="text" value={vendor} onChange={e => setVendor(e.target.value)} placeholder="e.g. Swastik Electronics" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
               </div>
             )}
             {/* ── LAPTOP ONLY FIELDS ── */}
             {isLaptop && (
               <>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Processor</label>
-                  <input type="text" value={processor} onChange={e => setProcessor(e.target.value)} placeholder="e.g. 11th Gen Intel Core i5" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="processor" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Processor</label>
+                  <input id="processor" type="text" value={processor} onChange={e => setProcessor(e.target.value)} placeholder="e.g. 11th Gen Intel Core i5" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">RAM</label>
-                  <input type="text" value={ram} onChange={e => setRam(e.target.value)} placeholder="e.g. 16 GB DDR4" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="ram" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">RAM</label>
+                  <input id="ram" type="text" value={ram} onChange={e => setRam(e.target.value)} placeholder="e.g. 16 GB DDR4" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Storage (HDD/SSD)</label>
-                  <input type="text" value={storage} onChange={e => setStorage(e.target.value)} placeholder="e.g. 512GB SSD" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="storage" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Storage (HDD/SSD)</label>
+                  <input id="storage" type="text" value={storage} onChange={e => setStorage(e.target.value)} placeholder="e.g. 512GB SSD" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Screen Size</label>
-                  <input type="text" value={screenSize} onChange={e => setScreenSize(e.target.value)} placeholder="e.g. 15.6" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="screenSize" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Screen Size</label>
+                  <input id="screenSize" type="text" value={screenSize} onChange={e => setScreenSize(e.target.value)} placeholder="e.g. 15.6" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Graphics Card</label>
-                  <input type="text" value={graphicsCard} onChange={e => setGraphicsCard(e.target.value)} placeholder="e.g. Intel Iris Xe" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="graphicsCard" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Graphics Card</label>
+                  <input id="graphicsCard" type="text" value={graphicsCard} onChange={e => setGraphicsCard(e.target.value)} placeholder="e.g. Intel Iris Xe" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">OS</label>
-                  <input type="text" value={os} onChange={e => setOs(e.target.value)} placeholder="e.g. Windows 11 Home" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="os" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">OS</label>
+                  <input id="os" type="text" value={os} onChange={e => setOs(e.target.value)} placeholder="e.g. Windows 11 Home" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">MS Office Version</label>
-                  <input type="text" value={msOffice} onChange={e => setMsOffice(e.target.value)} placeholder="e.g. Office Home & Student 2021" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="msOffice" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">MS Office Version</label>
+                  <input id="msOffice" type="text" value={msOffice} onChange={e => setMsOffice(e.target.value)} placeholder="e.g. Office Home & Student 2021" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Anti-Virus</label>
-                  <input type="text" value={antiVirus} onChange={e => setAntiVirus(e.target.value)} placeholder="e.g. QuickHeal" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="antiVirus" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Anti-Virus</label>
+                  <input id="antiVirus" type="text" value={antiVirus} onChange={e => setAntiVirus(e.target.value)} placeholder="e.g. QuickHeal" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Warranty Upgrade</label>
-                  <input type="text" value={warrantyUpgrade} onChange={e => setWarrantyUpgrade(e.target.value)} placeholder="e.g. Extended 1 Year" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="warrantyUpgrade" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Warranty Upgrade</label>
+                  <input id="warrantyUpgrade" type="text" value={warrantyUpgrade} onChange={e => setWarrantyUpgrade(e.target.value)} placeholder="e.g. Extended 1 Year" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
               </>
             )}
             {/* ── HEADPHONES ONLY FIELDS ── */}
             {isHeadphone && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Color</label>
-                <input type="text" value={color} onChange={e => setColor(e.target.value)} placeholder="e.g. Black, Silver" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                <label htmlFor="color" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Color</label>
+                <input id="color" type="text" value={color} onChange={e => setColor(e.target.value)} placeholder="e.g. Black, Silver" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
               </div>
             )}
             {/* ── SHARED BY MULTIPLE CATEGORIES ── */}
             {(isLaptop || isHeadphone || isKbMouse) && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Service / Warranty Plan</label>
-                <input type="text" value={warrantyPlan} onChange={e => setWarrantyPlan(e.target.value)} placeholder="e.g. 3 Year ADP" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                <label htmlFor="warrantyPlan" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Service / Warranty Plan</label>
+                <input id="warrantyPlan" type="text" value={warrantyPlan} onChange={e => setWarrantyPlan(e.target.value)} placeholder="e.g. 3 Year ADP" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
               </div>
             )}
             
             {(isHeadphone || isKbMouse || isClient) && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Hardware / Device Type</label>
-                <input type="text" value={hardwareType} onChange={e => setHardwareType(e.target.value)} placeholder="e.g. Wireless, Over-Ear" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                <label htmlFor="hardwareType" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Hardware / Device Type</label>
+                <input id="hardwareType" type="text" value={hardwareType} onChange={e => setHardwareType(e.target.value)} placeholder="e.g. Wireless, Over-Ear" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
               </div>
             )}
             {/* ── CLIENT ONLY FIELDS ── */}
             {isClient && (
               <>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Client Name</label>
-                  <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Infosys, TCS" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <label htmlFor="clientName" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Client Name</label>
+                  <input id="clientName" type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Infosys, TCS" className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Received On</label>
-                  <input type="date" value={receivedOn} onChange={e => setReceivedOn(e.target.value)} className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer" />
+                  <label htmlFor="receivedOn" className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">Received On</label>
+                  <input id="receivedOn" type="date" value={receivedOn} onChange={e => setReceivedOn(e.target.value)} className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer" />
                 </div>
               </>
             )}

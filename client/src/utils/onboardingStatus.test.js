@@ -28,4 +28,9 @@ describe('getFulfilmentCandidates', () => {
   it('accepts any category when the item has none', () => {
     expect(getFulfilmentCandidates(assets, { category_id: null }).map(a => a.id)).toEqual([1, 4]);
   });
+
+  it('accepts the narrow rows from GET /assets/available', () => {
+    const available = [{ id: 7, categoryId: 3 }, { id: 8, categoryId: 5 }];
+    expect(getFulfilmentCandidates(available, { category_id: 3 }).map(a => a.id)).toEqual([7]);
+  });
 });

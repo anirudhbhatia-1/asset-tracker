@@ -47,6 +47,7 @@ jobs:
             sleep 2
           done
           cat /tmp/devdb.log
+          grep -q "ready at" /tmp/devdb.log || { echo "Local database did not start"; exit 1; }
 
       - name: Server tests
         run: npm test --prefix server

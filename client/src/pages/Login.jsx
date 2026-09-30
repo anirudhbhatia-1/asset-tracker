@@ -13,6 +13,8 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [googleError, setGoogleError] = useState(null);
+  // Sign-in failures are shown inline (role="alert") next to the form.
+  const [formError, setFormError] = useState(null);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [googleButtonWidth, setGoogleButtonWidth] = useState(() => (
     getGoogleButtonWidth(typeof window === 'undefined' ? undefined : window.innerWidth)
@@ -31,16 +33,17 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error('Please enter both email and password');
+      setFormError('Please enter both email and password');
       return;
     }
     
+    setFormError(null);
     setIsSubmitting(true);
     try {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid credentials');
+      setFormError(err.response?.data?.message || 'Invalid credentials');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,12 +112,19 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                aria-invalid={formError ? true : undefined}
+                aria-describedby={formError ? 'login-error' : undefined}
                 placeholder="••••••••"
                 className="w-full pl-10 pr-4 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition-all duration-200"
                 required
               />
             </div>
           </div>
+          {formError && (
+            <div id="login-error" role="alert" className="p-3 rounded-xl bg-danger/10 border border-danger/30 text-sm text-danger">
+              {formError}
+            </div>
+          )}
           <button
             type="submit"
             disabled={isSubmitting}

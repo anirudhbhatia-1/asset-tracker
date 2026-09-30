@@ -52,8 +52,9 @@ const PERMISSION_DEPENDENCIES = {
   'employees:grant-access': ['employees:read'],
   // Bulk assign lists the available assets to pick from.
   'employees:assign-assets': ['employees:read', 'assets:read'],
-  'onboarding:create': ['onboarding:read'],
-  'onboarding:update': ['onboarding:read'],
+  // Onboarding forms need the category, office and department dropdowns.
+  'onboarding:create': ['onboarding:read', 'categories:read', 'locations:read', 'employees:read'],
+  'onboarding:update': ['onboarding:read', 'categories:read', 'locations:read', 'employees:read'],
   // Fulfillment presents the available-asset selector, whose endpoint is
   // protected by assets:read.
   'onboarding:fulfill': ['onboarding:read', 'assets:read'],

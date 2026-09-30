@@ -1,4 +1,5 @@
 import { format, isValid } from 'date-fns';
+import { parseDateValue } from './dates';
 
 /**
  * Formats a numeric value into a localized currency string (e.g. $1,250.00).
@@ -27,15 +28,9 @@ export function formatCurrency(amount, currency = 'INR') {
 export function formatDate(dateInput, patternStr = 'MMM dd, yyyy') {
   if (!dateInput) return 'N/A';
   try {
-    let dateObj;
-    if (dateInput instanceof Date) {
-      dateObj = dateInput;
-    } else if (typeof dateInput === 'string') {
-      const cleanStr = dateInput.replace(' ', 'T');
-      dateObj = new Date(cleanStr);
-    } else {
-      return 'Invalid Date';
-    }
+    if (!(dateInput instanceof Date) && typeof dateInput !== 'string') return 'Invalid Date';
+    // Date-only strings are local calendar dates, not UTC midnight.
+    const dateObj = parseDateValue(dateInput);
 
     if (!isValid(dateObj)) return 'Invalid Date';
     return format(dateObj, patternStr);
@@ -58,7 +53,7 @@ export function formatDateTime(dateInput) {
 export function getWarrantyStatus(warrantyExpiryDate) {
   if (!warrantyExpiryDate) return 'no warranty data';
   
-  const expiry = new Date(warrantyExpiryDate);
+  const expiry = parseDateValue(warrantyExpiryDate);
   if (!isValid(expiry)) return 'no warranty data';
   
   // Set times to midnight for clean day-diff
@@ -84,7 +79,7 @@ export function getWarrantyStatus(warrantyExpiryDate) {
  */
 export function getWarrantyDaysLeft(warrantyExpiryDate) {
   if (!warrantyExpiryDate) return null;
-  const expiry = new Date(warrantyExpiryDate);
+  const expiry = parseDateValue(warrantyExpiryDate);
   if (!isValid(expiry)) return null;
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -102,7 +97,7 @@ export function getWarrantyDaysLeft(warrantyExpiryDate) {
  * the same way as getWarrantyStatus, so amber matches its 60-day window.
  */
 export function getWarrantyBadge(warrantyExpiryDate, now = new Date()) {
-  const expiry = warrantyExpiryDate ? new Date(warrantyExpiryDate) : null;
+  const expiry = warrantyExpiryDate ? parseDateValue(warrantyExpiryDate) : null;
   if (!expiry || !isValid(expiry)) {
     return { label: 'No warranty', tone: 'muted', title: 'No warranty expiry date recorded' };
   }

@@ -89,11 +89,15 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
             <div class="serial">${serial}</div>
             ${model ? `<div class="model">${model}</div>` : ''}
           </div>
-          <script>window.onload = () => { window.print(); window.close(); }</script>
         </body>
       </html>
     `);
     printWindow.document.close();
+    // Print from here rather than an inline script in the popup, which the
+    // production Content-Security-Policy would block.
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   };
 
   return (

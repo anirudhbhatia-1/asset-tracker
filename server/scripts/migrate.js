@@ -29,14 +29,18 @@ const option = (name) => {
 };
 const confirmed = args.includes('--yes');
 
-const loadDatabaseUrl = () => {
+const loadSettings = () => {
   const envFile = option('--env-file');
   if (envFile) {
-    return dotenv.parse(fs.readFileSync(path.resolve(process.cwd(), envFile))).DATABASE_URL;
+    const parsed = dotenv.parse(fs.readFileSync(path.resolve(process.cwd(), envFile)));
+    return { databaseUrl: parsed.DATABASE_URL, caFile: parsed.DATABASE_SSL_CA_FILE };
   }
   require('../loadEnv');
-  return process.env.DATABASE_URL;
+  return { databaseUrl: process.env.DATABASE_URL, caFile: process.env.DATABASE_SSL_CA_FILE };
 };
+
+// Serialises concurrent runs of this tool against the same database.
+const MIGRATION_LOCK_KEY = 482917;
 
 const listMigrationFiles = () => fs.readdirSync(MIGRATIONS_DIR)
   .filter((file) => /^\d{14}_.+\.sql$/.test(file))
@@ -50,7 +54,7 @@ const main = async () => {
     process.exit(1);
   }
 
-  const databaseUrl = loadDatabaseUrl();
+  const { databaseUrl, caFile } = loadSettings();
   if (!databaseUrl) throw new Error('DATABASE_URL is not set');
   const { hostname } = new URL(databaseUrl);
   const isLocal = LOCAL_HOSTS.has(hostname);
@@ -58,9 +62,19 @@ const main = async () => {
 
   const client = new Client({
     connectionString: databaseUrl,
-    ssl: isLocal ? undefined : { rejectUnauthorized: false },
+    // With DATABASE_SSL_CA_FILE the server certificate is verified.
+    ssl: isLocal ? undefined : (caFile
+      ? { rejectUnauthorized: true, ca: fs.readFileSync(caFile, 'utf8') }
+      : { rejectUnauthorized: false }),
   });
   await client.connect();
+  if (command !== 'status') {
+    const { rows: [{ locked }] } = await client.query('SELECT pg_try_advisory_lock($1) AS locked', [MIGRATION_LOCK_KEY]);
+    if (!locked) {
+      await client.end();
+      throw new Error('Another migration run is in progress against this database.');
+    }
+  }
   try {
     // `status` is read-only: it never creates the tracking table.
     const tableExists = Boolean((await client.query("SELECT to_regclass('public.app_migrations') AS t")).rows[0].t);

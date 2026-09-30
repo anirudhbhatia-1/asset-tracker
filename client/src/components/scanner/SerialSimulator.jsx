@@ -42,10 +42,11 @@ export default function SerialSimulator({ onSimulateScan, disabled }) {
         {/* Dropdown Selection from Active Database */}
         <form onSubmit={handleDropdownSimulate} className="space-y-3 bg-base/50 p-4 rounded-xl border border-border/50 flex flex-col justify-between">
           <div>
-            <label className="block text-xs font-semibold text-secondary mb-1.5">
+            <label htmlFor="sim-existing-serial" className="block text-xs font-semibold text-secondary mb-1.5">
               Select Existing Hardware Tag
             </label>
             <select
+              id="sim-existing-serial"
               value={selectedSerial}
               onChange={(e) => setSelectedSerial(e.target.value)}
               disabled={loading || disabled}
@@ -76,12 +77,13 @@ export default function SerialSimulator({ onSimulateScan, disabled }) {
         {/* Manual Barcode Entry */}
         <form onSubmit={handleManualSimulate} className="space-y-3 bg-base/50 p-4 rounded-xl border border-border/50 flex flex-col justify-between">
           <div>
-            <label className="block text-xs font-semibold text-secondary mb-1.5">
+            <label htmlFor="sim-manual-serial" className="block text-xs font-semibold text-secondary mb-1.5">
               Manual Serial Tag Entry
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-secondary" />
               <input
+                id="sim-manual-serial"
                 type="text"
                 value={manualSerial}
                 onChange={(e) => setManualSerial(e.target.value.toUpperCase())}

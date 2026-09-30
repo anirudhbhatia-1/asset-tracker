@@ -100,10 +100,11 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+            <label htmlFor="role-name" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
               Role Name <span className="text-danger">*</span>
             </label>
             <input
+              id="role-name"
               type="text"
               disabled={role?.isSystem}
               value={name}
@@ -116,10 +117,11 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+            <label htmlFor="role-admin-type" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
               Default Target Support Queue (admin_type)
             </label>
             <select
+              id="role-admin-type"
               value={adminType}
               onChange={(e) => setAdminType(e.target.value)}
               className="w-full px-3 py-2 bg-base border border-border rounded-xl text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
@@ -134,10 +136,11 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+          <label htmlFor="role-description" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
             Role Description
           </label>
           <input
+            id="role-description"
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}

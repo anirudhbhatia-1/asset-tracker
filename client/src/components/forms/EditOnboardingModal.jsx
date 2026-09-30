@@ -34,31 +34,40 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
   const [departments, setDepartments] = useState([]);
   const [loadingContext, setLoadingContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Bumped every time the modal opens, switches request or closes. Async
+  // work captures the value it started with and drops its result when the
+  // value has moved on, so a late response from an earlier opening (or one
+  // arriving after Cancel) never overwrites the current form.
+  const sessionRef = useRef(0);
+  const fieldId = useId();
 
   useEffect(() => {
+    const session = ++sessionRef.current;
+    const isCurrent = () => sessionRef.current === session;
     if (isOpen && request) {
       const fetchData = async () => {
         setLoadingContext(true);
         try {
           const catRes = await getCategories();
-          setCategories(catRes.data?.data || catRes.data || []);
+          if (isCurrent()) setCategories(catRes.data?.data || catRes.data || []);
         } catch (err) {
           console.error('Failed to load categories:', err);
         }
         try {
           const depRes = await getDepartments();
-          setDepartments(depRes.data?.data || depRes.data || []);
+          if (isCurrent()) setDepartments(depRes.data?.data || depRes.data || []);
         } catch (err) {
           console.warn('Could not load departments:', err.message);
         }
         try {
           const full = request.items ? request : await onboardingApi.getById(request.id);
+          if (!isCurrent()) return;
           setItems((full.items || []).map(toFormItem));
           setItemsLoaded(true);
         } catch (err) {
           console.warn('Could not load onboarding items:', err.message);
         } finally {
-          setLoadingContext(false);
+          if (isCurrent()) setLoadingContext(false);
         }
       };
       setItems([]);
@@ -82,7 +91,11 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
       setNotes('');
       setItems([]);
       setItemsLoaded(false);
+      setLoadingContext(false);
+      setSubmitting(false);
     }
+    // Closing or switching request invalidates anything still in flight.
+    return () => { sessionRef.current += 1; };
   }, [isOpen, request]);
 
   const dialogRef = useRef(null);
@@ -106,6 +119,8 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    const session = sessionRef.current;
     setSubmitting(true);
     
     // Clean up items
@@ -132,12 +147,20 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
 
     try {
       await onUpdate(request.id, payload);
-      onClose();
+      // Cancelled or reopened meanwhile: that session owns the modal now.
+      if (sessionRef.current === session) onClose();
     } catch {
       // Error handled by hook
     } finally {
-      setSubmitting(false);
+      if (sessionRef.current === session) setSubmitting(false);
     }
+  };
+
+  const idFor = (name) => `${fieldId}-${name}`;
+  const parseAddresses = (loc) => {
+    if (!loc?.addresses) return [];
+    if (Array.isArray(loc.addresses)) return loc.addresses;
+    try { return JSON.parse(loc.addresses) || []; } catch { return []; }
   };
 
   return (
@@ -162,8 +185,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">New Hire Name <span className="text-error">*</span></label>
+                  <label htmlFor={idFor('name')} className="text-sm font-medium text-primary">New Hire Name <span className="text-error">*</span></label>
                   <input
+                    id={idFor('name')}
                     type="text"
                     required
                     value={newHireName}
@@ -172,8 +196,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Personal Email</label>
+                  <label htmlFor={idFor('email')} className="text-sm font-medium text-primary">Personal Email</label>
                   <input
+                    id={idFor('email')}
                     type="email"
                     value={newHireEmail}
                     onChange={(e) => setNewHireEmail(e.target.value)}
@@ -181,8 +206,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Department</label>
+                  <label htmlFor={idFor('department')} className="text-sm font-medium text-primary">Department</label>
                   <select
+                    id={idFor('department')}
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -194,8 +220,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Location</label>
+                  <label htmlFor={idFor('location')} className="text-sm font-medium text-primary">Location</label>
                   <select
+                    id={idFor('location')}
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -210,12 +237,13 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                 </div>
                 {location && (() => {
                   const selectedLoc = locations.find(l => l.name === location);
-                  const addrs = selectedLoc?.addresses ? (Array.isArray(selectedLoc.addresses) ? selectedLoc.addresses : JSON.parse(selectedLoc.addresses)) : [];
+                  const addrs = parseAddresses(selectedLoc);
                   if (addrs.length === 0) return null;
                   return (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-primary">Address</label>
+                      <label htmlFor={idFor('address')} className="text-sm font-medium text-primary">Address</label>
                       <select
+                        id={idFor('address')}
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                         className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
@@ -229,8 +257,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                   );
                 })()}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-primary">Joining Date <span className="text-error">*</span></label>
+                  <label htmlFor={idFor('joining')} className="text-sm font-medium text-primary">Joining Date <span className="text-error">*</span></label>
                   <input
+                    id={idFor('joining')}
                     type="date"
                     required
                     value={joiningDate}
@@ -241,8 +270,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">General Notes</label>
+                <label htmlFor={idFor('notes')} className="text-sm font-medium text-primary">General Notes</label>
                 <textarea
+                  id={idFor('notes')}
                   rows={2}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -284,6 +314,7 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                       <div className="flex-1">
                         <select
                           required
+                          aria-label={`Item ${idx + 1} category`}
                           value={item.categoryId}
                           disabled={item.fulfilled}
                           title={item.fulfilled ? 'An asset is already linked to this item' : undefined}
@@ -306,6 +337,7 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                           type="number"
                           min="1"
                           required
+                          aria-label={`Item ${idx + 1} quantity`}
                           value={item.quantity}
                           onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
                           placeholder="Qty"
@@ -315,6 +347,7 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                       <div className="flex-1">
                         <input
                           type="text"
+                          aria-label={`Item ${idx + 1} notes`}
                           value={item.notes}
                           onChange={(e) => handleItemChange(idx, 'notes', e.target.value)}
                           placeholder="Notes (e.g. Mac/Windows)"
