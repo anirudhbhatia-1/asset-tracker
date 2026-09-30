@@ -128,6 +128,38 @@ describe('Excel import value normalization', () => {
     expect(workbook.getWorksheet('Laptops').getCell(2, 1).value).toBe('amit@thinkvibes.com');
   });
 
+  it('puts every exported asset on exactly one sheet based on its category', async () => {
+    const asset = (serial, categoryName, extra = {}) => ({
+      serial_number: serial, category_name: categoryName, asset_type: 'company', status: 'available', ...extra,
+    });
+    const databasePool = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          asset('LAP-1', 'Laptop', { adaptor_serial_number: 'ADP-1' }),
+          asset('HEAD-1', 'Audio & Headset', { hardware_type: 'Headphone' }),
+          asset('MOUSE-1', 'Keyboard & Mouse', { hardware_type: 'Wireless Mouse' }),
+          asset('MON-1', 'Monitor'),
+          asset('STAND-1', 'Laptop Stand'),
+          asset('CL-1', 'Laptop', { asset_type: 'client', hardware_type: 'Laptop' }),
+        ],
+      }),
+    };
+
+    const workbook = await exportAssetsToExcel({ pool: databasePool });
+    const serialsOn = (sheetName, column) => {
+      const serials = [];
+      workbook.getWorksheet(sheetName).eachRow((row, rowNum) => { if (rowNum > 1) serials.push(row.getCell(column).value); });
+      return serials;
+    };
+
+    expect(serialsOn('Laptops', 4)).toEqual(['LAP-1']);
+    expect(workbook.getWorksheet('Laptops').getCell(2, 7).value).toBe('ADP-1');
+    expect(serialsOn('Headphones', 6)).toEqual(['HEAD-1']);
+    expect(serialsOn('Keyboard Mouse', 6)).toEqual(['MOUSE-1', 'MON-1', 'STAND-1']);
+    expect(workbook.getWorksheet('Keyboard Mouse').getCell(2, 3).value).toBe('Wireless Mouse');
+    expect(serialsOn('Client Laptops', 5)).toEqual(['CL-1']);
+  });
+
   it('does not guess missing or ambiguous employee mappings', async () => {
     await expect(findEmployeeIdByImportName(
       { query: vi.fn().mockResolvedValue({ rows: [] }) },
@@ -320,6 +352,8 @@ describe('Legacy workbook interpretation', () => {
     expect(parseLifecycleText('Returned to Store as Damaged')).toBe('retired');
     expect(parseLifecycleText('One Side earphone not working')).toBe('retired');
     expect(parseLifecycleText('In-use')).toBe('in-use');
+    expect(parseLifecycleText('retired')).toBe('retired');
+    expect(parseLifecycleText('available')).toBe('available');
     expect(parseLifecycleText('with mouse pad')).toBeNull();
     expect(parseLifecycleText('')).toBeNull();
   });

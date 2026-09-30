@@ -132,20 +132,37 @@ const exportAssetsToExcel = async (dependencies = {}) => {
   workbook.creator = 'AssetTrack';
   workbook.created = new Date();
 
-  // Fetch all assets with full joins
+  // Adaptors are exported in their laptop's "Adaptor S/N" column rather than
+  // as rows of their own; any other linked accessory keeps its own row. A
+  // subquery (not a join) keeps one row per laptop when it has several children.
   const { rows: assets } = await databasePool.query(`
     SELECT a.*,
            c.name AS category_name,
            e.name AS assignee_name,
            e.email AS assignee_email,
-           adaptor.serial_number AS adaptor_serial_number
+           (SELECT ad.serial_number
+            FROM assets ad
+            LEFT JOIN categories adc ON adc.id = ad.category_id
+            WHERE ad.parent_id = a.id AND (adc.name IS NULL OR LOWER(adc.name) = 'adaptor')
+            ORDER BY ad.id
+            LIMIT 1) AS adaptor_serial_number
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
     LEFT JOIN employees e ON a.assigned_to = e.id
-    LEFT JOIN assets adaptor ON adaptor.parent_id = a.id
-    WHERE a.parent_id IS NULL
+    WHERE NOT (a.parent_id IS NOT NULL AND (c.name IS NULL OR LOWER(c.name) = 'adaptor'))
     ORDER BY a.category_id, a.id
   `);
+
+  // Every asset lands on exactly one sheet, mirroring how import reads them:
+  // client-owned items, laptops, audio, and everything else as accessories.
+  const sheetFor = (asset) => {
+    if (asset.asset_type === 'client') return 'Client Laptops';
+    const category = importCategoryName(asset.category_name);
+    if (category === 'Laptop') return 'Laptops';
+    if (category === 'Audio & Headset') return 'Headphones';
+    return 'Keyboard Mouse';
+  };
+  const assetsFor = (sheetName) => assets.filter((asset) => sheetFor(asset) === sheetName);
 
   // Helper to calculate remaining warranty days
   const remainingDays = (expiryStr) => {
@@ -165,7 +182,7 @@ const exportAssetsToExcel = async (dependencies = {}) => {
     'MS Office','Anti-Virus','Service/Warranty','Purchase Price','Comments',
     'Warranty Last Date','Remaining Days','Warranty Upgrade','Vendor'
   ]);
-  const laptops = assets.filter(a => a.category_name?.toLowerCase() === 'laptop');
+  const laptops = assetsFor('Laptops');
   for (const a of laptops) {
     laptopSheet.addRow([
       a.assignee_email || '',
@@ -189,10 +206,10 @@ const exportAssetsToExcel = async (dependencies = {}) => {
     'Date of Invoice','Service/Warranty','Purchase Price',
     'Issue Date','Return Date','Status','Vendor'
   ]);
-  const headphones = assets.filter(a => a.category_name?.toLowerCase() === 'headphones' || a.category_name?.toLowerCase() === 'headphone');
+  const headphones = assetsFor('Headphones');
   for (const a of headphones) {
     headphoneSheet.addRow([
-      a.assignee_email || '', a.brand || '', a.hardware_type || '',
+      a.assignee_email || '', a.brand || '', a.hardware_type || a.category_name || '',
       a.model || '', a.color || '', a.serial_number,
       a.purchase_date || '', a.warranty_plan || '',
       a.cost_cents ? a.cost_cents / 100 : '',
@@ -207,14 +224,11 @@ const exportAssetsToExcel = async (dependencies = {}) => {
     'Serial Number','Date of Invoice','Service/Warranty',
     'Purchase Price','Comments','Vendor Name'
   ]);
-  const keyboards = assets.filter(a =>
-    a.category_name?.toLowerCase().includes('keyboard') ||
-    a.category_name?.toLowerCase().includes('mouse')
-  );
+  const keyboards = assetsFor('Keyboard Mouse');
   for (const a of keyboards) {
     kbSheet.addRow([
       a.assignee_email || '', a.assigned_date || '',
-      a.category_name || '', a.brand || '', a.model || '',
+      a.hardware_type || a.category_name || '', a.brand || '', a.model || '',
       a.serial_number, a.purchase_date || '',
       a.warranty_plan || '', a.cost_cents ? a.cost_cents / 100 : '',
       a.notes || '', a.vendor || ''
@@ -227,10 +241,10 @@ const exportAssetsToExcel = async (dependencies = {}) => {
     'Issued To Email','Brand','Type','Model','Serial Number',
     'Status','Received On','Returned On','Client Name','Comments'
   ]);
-  const clientLaptops = assets.filter(a => a.asset_type === 'client');
+  const clientLaptops = assetsFor('Client Laptops');
   for (const a of clientLaptops) {
     clientSheet.addRow([
-      a.assignee_email || '', a.brand || '', a.hardware_type || '',
+      a.assignee_email || '', a.brand || '', a.hardware_type || a.category_name || '',
       a.model || '', a.serial_number, a.status,
       a.received_on || a.purchase_date || '',
       a.return_date || '', a.client_name || '', a.notes || ''
@@ -289,6 +303,8 @@ const parseLifecycleText = (value) => {
   if (RETIRED_PATTERN.test(text)) return 'retired';
   if (RELEASED_PATTERN.test(text)) return 'available';
   if (IN_USE_PATTERN.test(text.trim())) return 'in-use';
+  if (/^retired$/i.test(text.trim())) return 'retired';
+  if (/^available$/i.test(text.trim())) return 'available';
   return null;
 };
 
