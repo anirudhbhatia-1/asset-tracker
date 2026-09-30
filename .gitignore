@@ -1,28 +1,64 @@
-# Environment files
+# Environment files: every real .env stays local or on the server.
+# Only the *.example templates are committed.
 .env
-.env.local
-.env.*.local
-server/.env
-client/.env
+.env.*
+!.env.example
+!.env.*.example
+.env.keys
+
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+service-account*.json
+credentials*.json
 
 # Dependencies
 node_modules/
 
-# Database & Backups
-data/assets.db
+# Database files, dumps and backups
+data/
+backups/
 server/database.sqlite
 server/database.sqlite3
-backups/
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
 
-# Build outputs
-client/dist/
+# Local development database (PGlite)
+server/.devdb/
 
-# Logs & OS files
-*.log
-.DS_Store
+# Asset/employee data exports and imports (real company data)
+*.xlsx
+*.xls
+*.csv
+
+# Uploaded files awaiting import
 server/tmp/
 
-# Playwright artifacts
+# Build outputs
+dist/
+dist-ssr/
+client/dist/
+
+# Test artifacts
 test-results/
 playwright-report/
+blob-report/
+coverage/
 laptop_screenshot.png
+
+# Logs
+*.log
+logs/
+
+# Editor, OS and local tool settings
+.DS_Store
+.vscode/
+.idea/
+*.swp
+.claude/
