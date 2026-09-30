@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../api/axiosInstance';
+import api, { PASSWORD_CHANGE_REQUIRED_EVENT } from '../api/axiosInstance';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -37,6 +37,16 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+  // The API refused a call until the password is changed: flag the user so
+  // ProtectedRoute swaps in the change-password screen.
+  useEffect(() => {
+    const handlePasswordChangeRequired = () => {
+      setUser(prev => (prev && !prev.mustChangePassword ? { ...prev, mustChangePassword: true } : prev));
+    };
+    window.addEventListener(PASSWORD_CHANGE_REQUIRED_EVENT, handlePasswordChangeRequired);
+    return () => window.removeEventListener(PASSWORD_CHANGE_REQUIRED_EVENT, handlePasswordChangeRequired);
+  }, []);
+
   const hasPermission = useCallback((permissionKey) => {
     if (!user) return false;
     if (user.role === 'director' || user.isDirector || (user.permissions && user.permissions.includes('*'))) {
@@ -49,19 +59,15 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   const login = async (email, password) => {
-    try {
-      const res = await api.post('/auth/login', { email, password }, { skipAuthRedirect: true });
-      const { token, user: userData } = res.data.data;
-      
-      sessionStorage.setItem('token', token);
-      sessionStorage.setItem('user', JSON.stringify(userData));
-      
-      setUser(userData);
-      toast.success('Logged in successfully');
-      return true;
-    } catch (err) {
-      throw err;
-    }
+    const res = await api.post('/auth/login', { email, password }, { skipAuthRedirect: true });
+    const { token, user: userData } = res.data.data;
+
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('user', JSON.stringify(userData));
+
+    setUser(userData);
+    toast.success('Logged in successfully');
+    return true;
   };
 
   const loginWithToken = (token, userData) => {
@@ -96,8 +102,25 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  // Re-reads the signed-in user (e.g. after their role's permissions were
+  // edited) so permission checks reflect the change without signing out.
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await api.get('/auth/me');
+      const freshUser = res.data?.data;
+      if (freshUser) {
+        sessionStorage.setItem('user', JSON.stringify(freshUser));
+        setUser(freshUser);
+      }
+      return freshUser || null;
+    } catch (err) {
+      console.error('Failed to refresh the current user', err);
+      return null;
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, setUser: updateUser, loading, login, logout, loginWithToken, hasPermission }}>
+    <AuthContext.Provider value={{ user, setUser: updateUser, refreshUser, loading, login, logout, loginWithToken, hasPermission }}>
       {!loading && children}
     </AuthContext.Provider>
   );

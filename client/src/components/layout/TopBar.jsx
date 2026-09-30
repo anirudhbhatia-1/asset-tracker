@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Bell, Sun, Moon, Settings, X, ShieldCheck, LogOut, Menu, ChevronDown, Key, User } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, X, LogOut, Menu, ChevronDown, Key, User } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from './ChangePasswordModal';
 import useNotifications from '../../hooks/useNotifications';
 import NotificationPanel from './NotificationPanel';
+import { withSearchParam } from '../../utils/searchParams';
 
-const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
+const TopBar = ({ toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -19,6 +20,8 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout, hasPermission } = useAuth();
   const { notifications, loading: notifLoading, hasUnread, refresh, markAsRead } = useNotifications();
+  // Search lands on the inventory, which needs assets:read.
+  const canSearchAssets = hasPermission('assets:read');
 
   // Close user menu on outside click
   useEffect(() => {
@@ -43,11 +46,8 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
     const val = e.target.value;
     setQuery(val);
     if (location.pathname === '/inventory') {
-      if (val.trim()) {
-        navigate(`/inventory?q=${encodeURIComponent(val.trim())}`, { replace: true });
-      } else {
-        navigate('/inventory', { replace: true });
-      }
+      // Only q changes; the page's other filters stay in the URL.
+      setSearchParams(prev => withSearchParam(prev, 'q', val), { replace: true });
     }
   };
 
@@ -64,7 +64,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
     <header className="h-[4.5rem] bg-surface/80 backdrop-blur-xl border-b border-border/80 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 shadow-[0_1px_0_rgba(20,33,58,0.02)]">
       
       {/* Mobile Expanded Search */}
-      {isSearchExpanded ? (
+      {isSearchExpanded && canSearchAssets ? (
         <div className="flex-1 flex items-center gap-2">
           <div className="relative w-full">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
@@ -108,6 +108,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
             </div>
 
             
+            {canSearchAssets && (
             <div className="relative w-full hidden md:block">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
               <input
@@ -119,11 +120,13 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
                 className="w-full pl-9 pr-4 py-2 bg-raised/80 border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
               />
             </div>
+            )}
           </div>
 
           {/* Quick Actions & User Profile */}
           <div className="flex items-center gap-1 sm:gap-4 shrink-0 ml-2">
             
+            {canSearchAssets && (
             <button 
               className="md:hidden p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50"
               onClick={() => setIsSearchExpanded(true)}
@@ -131,6 +134,7 @@ const TopBar = ({ toggleSidebar, isSidebarOpen }) => {
             >
               <Search className="w-5 h-5" />
             </button>
+            )}
 
             {/* Only Users with assets:create permission can add assets */}
             {hasPermission('assets:create') && (

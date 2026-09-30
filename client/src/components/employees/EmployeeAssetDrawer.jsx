@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from '../ui/Modal';
 import Badge from '../ui/Badge';
@@ -22,7 +22,7 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
       try {
         const res = await getEmployeeAssets(employee.id);
         setAssets(res.data?.data || (Array.isArray(res.data) ? res.data : []));
-      } catch (err) {
+      } catch {
         setError('Failed to fetch assigned assets.');
       } finally {
         setLoading(false);

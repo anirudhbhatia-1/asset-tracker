@@ -8,6 +8,9 @@ const { getGoogleAuthConfigProblem, normalizeAllowedDomain } = require('./servic
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+// Optional bind address: set HOST=127.0.0.1 on a VM behind nginx; leave it
+// unset on hosting platforms, which route traffic to all interfaces.
+const HOST = process.env.HOST || undefined;
 
 // When deployed behind a known reverse proxy (for example the supplied Nginx
 // config), trust only the configured number of proxy hops so rate limits use
@@ -63,7 +66,7 @@ app.use(errorHandler);
 
 let server;
 if (require.main === module) {
-  server = app.listen(PORT, (err) => {
+  server = app.listen(PORT, HOST, (err) => {
     // Express 5 reports listen failures (e.g. port in use) here, not as a throw.
     if (err) {
       console.error(err.code === 'EADDRINUSE'

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, Plus, Edit2, Trash2, Lock, Users, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Plus, Edit2, Trash2, Lock, Users } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
@@ -7,7 +7,7 @@ import RoleMatrixModal from './RoleMatrixModal';
 import toast from 'react-hot-toast';
 
 export default function RolesTab() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, refreshUser } = useAuth();
   const [roles, setRoles] = useState([]);
   const [permissionsCatalog, setPermissionsCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ export default function RolesTab() {
       const res = await api.get('/roles');
       setRoles(res.data.data || []);
       setPermissionsCatalog(res.data.permissionsCatalog || []);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load roles and permissions');
     } finally {
       setLoading(false);
@@ -54,6 +54,7 @@ export default function RolesTab() {
       await api.delete(`/roles/${role.id}`);
       toast.success('Role deleted successfully');
       fetchRoles();
+      refreshUser();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete role');
     }
@@ -163,7 +164,11 @@ export default function RolesTab() {
         onClose={() => setIsModalOpen(false)}
         role={selectedRole}
         permissionsCatalog={permissionsCatalog}
-        onSaved={fetchRoles}
+        onSaved={() => {
+          fetchRoles();
+          // The edited role may be the viewer's own; pick up its permissions.
+          refreshUser();
+        }}
       />
     </div>
   );

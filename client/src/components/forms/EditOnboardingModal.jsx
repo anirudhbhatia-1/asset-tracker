@@ -2,9 +2,18 @@ import React, { useState, useEffect, useRef, useId } from 'react';
 import { X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { getCategories } from '../../api/categoriesApi';
 import { getDepartments } from '../../api/employeesApi';
+import { onboardingApi } from '../../api/onboardingApi';
 import useLocations from '../../hooks/useLocations';
 import useFocusTrap from '../../hooks/useFocusTrap';
 import { toDateInputValue } from '../../utils/dates';
+
+const toFormItem = (item) => ({
+  categoryId: item.category_id,
+  quantity: item.quantity,
+  notes: item.notes || '',
+  // Items with an asset linked stay put; the server refuses to drop them.
+  fulfilled: Boolean(item.fulfilled_asset_id),
+});
 
 const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
   const { locations } = useLocations(isOpen);
@@ -17,6 +26,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
   const [notes, setNotes] = useState('');
   
   const [items, setItems] = useState([]);
+  // List rows carry no items, so they are loaded here. Until they are,
+  // `items` is left out of the update so the server keeps them as they are.
+  const [itemsLoaded, setItemsLoaded] = useState(false);
   
   const [categories, setCategories] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -38,10 +50,19 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
           setDepartments(depRes.data?.data || depRes.data || []);
         } catch (err) {
           console.warn('Could not load departments:', err.message);
+        }
+        try {
+          const full = request.items ? request : await onboardingApi.getById(request.id);
+          setItems((full.items || []).map(toFormItem));
+          setItemsLoaded(true);
+        } catch (err) {
+          console.warn('Could not load onboarding items:', err.message);
         } finally {
           setLoadingContext(false);
         }
       };
+      setItems([]);
+      setItemsLoaded(false);
       fetchData();
       
       setNewHireName(request.new_hire_name || '');
@@ -51,12 +72,6 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
       setAddress(request.address || '');
       setJoiningDate(toDateInputValue(request.joining_date));
       setNotes(request.notes || '');
-      
-      if (request.items && request.items.length > 0) {
-        setItems(request.items.map(i => ({ categoryId: i.category_id, quantity: i.quantity, notes: i.notes || '' })));
-      } else {
-        setItems([]);
-      }
     } else {
       setNewHireName('');
       setNewHireEmail('');
@@ -66,6 +81,7 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
       setJoiningDate('');
       setNotes('');
       setItems([]);
+      setItemsLoaded(false);
     }
   }, [isOpen, request]);
 
@@ -85,9 +101,7 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
   };
 
   const handleItemChange = (index, field, value) => {
-    const newItems = [...items];
-    newItems[index][field] = value;
-    setItems(newItems);
+    setItems(items.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
   const handleSubmit = async (e) => {
@@ -111,13 +125,15 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
       address: address || undefined,
       joiningDate,
       notes: notes || undefined,
-      items: cleanItems.length > 0 ? cleanItems : undefined
+      // Sent whole once loaded (an empty list removes every unfulfilled
+      // item); left out otherwise so nothing is dropped by accident.
+      items: itemsLoaded ? cleanItems : undefined
     };
 
     try {
       await onUpdate(request.id, payload);
       onClose();
-    } catch (err) {
+    } catch {
       // Error handled by hook
     } finally {
       setSubmitting(false);
@@ -242,14 +258,21 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/10 rounded-md transition-colors"
+                    disabled={!itemsLoaded}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/10 rounded-md transition-colors disabled:opacity-50"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Item
                   </button>
                 </div>
                 
-                {items.length === 0 && (
+                {!itemsLoaded && (
+                  <p className="text-xs text-warning">
+                    The requested items could not be loaded; saving keeps them unchanged.
+                  </p>
+                )}
+
+                {itemsLoaded && items.length === 0 && (
                   <div className="text-sm text-secondary text-center py-4 bg-base rounded-lg border border-dashed border-border">
                     No hardware requested yet. Click 'Add Item' to request equipment.
                   </div>
@@ -262,6 +285,8 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                         <select
                           required
                           value={item.categoryId}
+                          disabled={item.fulfilled}
+                          title={item.fulfilled ? 'An asset is already linked to this item' : undefined}
                           onChange={(e) => handleItemChange(idx, 'categoryId', e.target.value)}
                           className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                         >
@@ -300,7 +325,9 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
                         type="button"
                         aria-label="Remove item"
                         onClick={() => handleRemoveItem(idx)}
-                        className="p-2 text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
+                        disabled={item.fulfilled}
+                        title={item.fulfilled ? 'An asset is already linked; unassign it before removing this item' : undefined}
+                        className="p-2 text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

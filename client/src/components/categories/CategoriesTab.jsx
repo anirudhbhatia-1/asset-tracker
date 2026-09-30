@@ -20,7 +20,7 @@ export default function CategoriesTab() {
       setLoading(true);
       const res = await getCategories();
       setCategories(res.data.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to fetch categories');
     } finally {
       setLoading(false);

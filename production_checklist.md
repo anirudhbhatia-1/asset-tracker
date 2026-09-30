@@ -24,17 +24,24 @@ setting does.
 
 ## 2. Database
 
-- [ ] Back up first: `scripts/backup_db.sh` (needs PostgreSQL client tools 17+).
-- [ ] Apply every migration in `supabase/migrations/` that production does not
-  have yet, oldest first, and check the result. Never apply files from
-  `supabase/rollbacks/` unless deliberately undoing a change.
+- [ ] Back up first: `scripts/backup_db.sh` (needs PostgreSQL client tools 17+),
+  or a Supabase dashboard backup.
+- [ ] See what production is missing, then apply it (each file runs in its own
+  transaction and is recorded in `app_migrations`):
+  `node scripts/migrate.js status --env-file .env.supabase.local` then
+  `node scripts/migrate.js apply --env-file .env.supabase.local --yes` (from `server/`).
+  The first time, record what production already has with
+  `baseline --through <last applied file>`. Never re-run old migrations by hand,
+  and never apply files from `supabase/rollbacks/` unless deliberately undoing a change.
 - [ ] Schedule the backup daily (cron example in the script header) and test a
   restore into a scratch database at least once.
 
 ## 3. Accounts
 
 - [ ] No real account uses a shared or default password. The seeded test
-  password (`password`) must not exist in production.
+  password (`password`) and test accounts (`admin@company.com` etc.) must not
+  exist in production. Accounts whose password may be known are flagged
+  `must_change_password = true` so they must set a new one at next login.
 - [ ] Only the people who need it have the Director role.
 - [ ] The GitHub repository is private.
 
@@ -56,6 +63,6 @@ setting does.
 
 ## 6. After deploy
 
-- [ ] Log in with a real account; open Dashboard, Inventory, Tickets,
-  Onboarding and Scanner.
+- [ ] Log in with a real account (a flagged account is asked for a new password
+  first); open Dashboard, Inventory, Tickets, Onboarding and Scanner.
 - [ ] Deploys that change session storage sign everyone out once — tell users.

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { Key, Edit3, ShieldCheck, User } from 'lucide-react';
+import { Key, Edit3, ShieldCheck } from 'lucide-react';
 import useRoles, { findRoleValue, defaultRoleValue } from '../../hooks/useRoles';
 
 export default function RoleManagementModal({ isOpen, onClose, employee, onGrantAccess, onChangeRole, onGrantGoogleAccess }) {

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useId } from 'react';
-import { X, Check, Loader2, Package, Search, ArrowRightLeft, History } from 'lucide-react';
+import { X, Check, Loader2, Package, ArrowRightLeft, History, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { getAssets } from '../../api/assetsApi';
-import { useTickets } from '../../hooks/useTickets';
+import { ticketsApi } from '../../api/ticketsApi';
 import { formatDateTime } from '../../utils/formatters';
+import { canWorkTicket, getTicketStatusOptions, TICKET_STATUS_LABELS } from '../../utils/ticketStatus';
 import { TicketAgeBadge } from './TicketStatusBadge';
 import useFocusTrap from '../../hooks/useFocusTrap';
 
@@ -22,67 +24,86 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
+const errorMessage = (err, fallback) => err?.response?.data?.message || fallback;
+
+// Actions come from the page that owns the ticket list (useTickets there), so
+// a change made here shows up in that list straight away.
+//   onUpdate(id, payload), onTransfer(id, targetAdminType, note),
+//   onConfirmClose(id), onReopen(ticket) — onReopen may open a reason prompt.
+const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onConfirmClose, onReopen }) => {
   const { user, hasPermission } = useAuth();
   const isTicketOwner = user?.id === ticket?.employee_id;
-  const isHandlingAdmin = (hasPermission('tickets:update') || hasPermission('tickets:resolve')) &&
-                          (!isTicketOwner || ticket?.current_admin_type === (user?.adminType || 'hr'));
-  
+  const canResolve = hasPermission('tickets:resolve');
+  // Only the queue that holds the ticket (or a Director) may work it.
+  const canWork = canWorkTicket(user, ticket);
+  const canUpdate = canWork && hasPermission('tickets:update') && !!onUpdate;
+  const canTransfer = canWork && canResolve && !!onTransfer;
+  const isHandlingAdmin = canUpdate || canTransfer;
+  // Someone who may transfer but not edit only gets the transfer form.
+  const transferOnly = canTransfer && !canUpdate;
+
   const [status, setStatus] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolvedAssetId, setResolvedAssetId] = useState('');
-  
+
   const [assets, setAssets] = useState([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
-  const { transferTicket, fetchTicketHistory, confirmCloseTicket, reopenTicket } = useTickets();
+  const [formError, setFormError] = useState(null);
+
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  
+
   const [transferNote, setTransferNote] = useState('');
-  const [isTransferring, setIsTransferring] = useState(false);
   const [showTransferMode, setShowTransferMode] = useState(false);
   const [targetAdminType, setTargetAdminType] = useState('');
 
+  const ticketId = ticket?.id;
+
   useEffect(() => {
-    if (isOpen && ticket) {
-      setStatus(ticket.status);
-      setResolutionNotes(ticket.resolution_notes || '');
-      setResolvedAssetId(ticket.resolved_asset_id || '');
-      setShowTransferMode(false);
-      setTransferNote('');
-      setTargetAdminType('');
-      
-      loadHistory();
+    if (!isOpen || !ticket) return;
+    setStatus(ticket.status);
+    setResolutionNotes(ticket.resolution_notes || '');
+    setResolvedAssetId('');
+    setShowTransferMode(false);
+    setTransferNote('');
+    setTargetAdminType('');
+    setFormError(null);
+  }, [isOpen, ticket]);
 
-      if (isHandlingAdmin && ticket.type === 'request' && ticket.status !== 'resolved') {
-        loadAssets();
-      }
-    }
-  }, [isOpen, ticket, isHandlingAdmin]);
-
-  const loadHistory = async () => {
+  useEffect(() => {
+    if (!isOpen || !ticketId) return undefined;
+    let cancelled = false;
     setLoadingHistory(true);
-    try {
-      const data = await fetchTicketHistory(ticket.id);
-      setHistory(data || []);
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
+    ticketsApi.getHistory(ticketId)
+      .then(data => { if (!cancelled) setHistory(data || []); })
+      .catch(() => {
+        if (!cancelled) {
+          setHistory([]);
+          toast.error('Failed to load ticket history');
+        }
+      })
+      .finally(() => { if (!cancelled) setLoadingHistory(false); });
+    return () => { cancelled = true; };
+  }, [isOpen, ticketId]);
 
-  const loadAssets = async () => {
+  // Fulfilling a request hands out an in-stock company asset, so the picker
+  // only appears (and only loads) when the admin is choosing Resolved.
+  const isChoosingResolved = !!ticket && status === 'resolved' && ticket.status !== 'resolved';
+  const showAssetPicker = isChoosingResolved && ticket?.type === 'request';
+
+  useEffect(() => {
+    if (!showAssetPicker) return undefined;
+    let cancelled = false;
     setLoadingAssets(true);
-    try {
-      const res = await getAssets({ status: 'available', assetType: 'company' });
-      setAssets(res.data?.data || res.data || []);
-    } catch (err) {
-      console.error('Failed to load assets', err);
-    } finally {
-      setLoadingAssets(false);
-    }
-  };
+    getAssets({ status: 'available', assetType: 'company' })
+      .then(res => { if (!cancelled) setAssets(res.data?.data || []); })
+      .catch(err => {
+        if (!cancelled) setFormError(errorMessage(err, 'Could not load available assets'));
+      })
+      .finally(() => { if (!cancelled) setLoadingAssets(false); });
+    return () => { cancelled = true; };
+  }, [showAssetPicker]);
 
   const dialogRef = useRef(null);
   const titleId = useId();
@@ -91,38 +112,43 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
 
   if (!isOpen || !ticket) return null;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    
-    if (showTransferMode) {
-      if (!targetAdminType) {
-        setSubmitting(false);
-        return;
-      }
-      try {
-        await transferTicket(ticket.id, targetAdminType, transferNote);
-        onClose();
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-    
-    const payload = {
-      status,
-      resolutionNotes: resolutionNotes || null,
-      resolvedAssetId: resolvedAssetId ? parseInt(resolvedAssetId, 10) : null
-    };
+  const statusOptions = getTicketStatusOptions(ticket.status, canResolve);
+  const inTransferMode = showTransferMode || transferOnly;
 
+  // Runs a ticket action; server refusals (400/403/409) stay visible in the
+  // modal so the admin can adjust and retry.
+  const runAction = async (action, fallback) => {
+    setSubmitting(true);
+    setFormError(null);
     try {
-      await onUpdate(ticket.id, payload);
+      await action();
       onClose();
     } catch (err) {
-      // Handled by hook
+      setFormError(errorMessage(err, fallback));
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (inTransferMode) {
+      if (!targetAdminType) return;
+      runAction(() => onTransfer(ticket.id, targetAdminType, transferNote), 'Failed to transfer ticket');
+      return;
+    }
+
+    const payload = {
+      status,
+      resolutionNotes: resolutionNotes || null,
+    };
+    // Only send an asset when fulfilling now; leaving it out keeps whatever
+    // the ticket already records.
+    if (showAssetPicker && resolvedAssetId) {
+      payload.resolvedAssetId = parseInt(resolvedAssetId, 10);
+    }
+    runAction(() => onUpdate(ticket.id, payload), 'Failed to update ticket');
   };
 
   const getEventIcon = (type) => {
@@ -238,14 +264,14 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
           {isHandlingAdmin ? (
             <form id="resolve-form" onSubmit={handleSubmit} className="space-y-4">
               
-              {!showTransferMode ? (
+              {!inTransferMode ? (
                 <>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-primary">Admin Resolution</h3>
-                    {user.adminType === ticket.current_admin_type && (
+                    {canTransfer && canUpdate && (
                       <button 
                         type="button" 
-                        onClick={() => setShowTransferMode(true)}
+                        onClick={() => { setShowTransferMode(true); setFormError(null); }}
                         className="text-xs font-medium text-accent hover:text-accent/80 flex items-center gap-1 cursor-pointer"
                       >
                         <ArrowRightLeft className="w-3 h-3" />
@@ -258,18 +284,20 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                 <label className="text-sm font-medium text-primary">Status</label>
                 <select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value)}
+                  onChange={(e) => { setStatus(e.target.value); setFormError(null); }}
                   className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                 >
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="closed" disabled>Closed</option>
+                  {/* Only the moves the server allows from the current status */}
+                  {statusOptions.map(value => (
+                    <option key={value} value={value}>{TICKET_STATUS_LABELS[value] || value}</option>
+                  ))}
                 </select>
+                {!canResolve && (
+                  <p className="text-xs text-secondary">Resolving or rejecting needs the Resolve Tickets permission.</p>
+                )}
               </div>
 
-              {ticket.type === 'request' && (status === 'resolved' || status === 'in_progress') && (
+              {showAssetPicker && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-primary flex items-center gap-2">
                     Fulfill Request (Select Available Asset)
@@ -277,7 +305,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                   </label>
                   <select
                     value={resolvedAssetId}
-                    onChange={(e) => setResolvedAssetId(e.target.value)}
+                    onChange={(e) => { setResolvedAssetId(e.target.value); setFormError(null); }}
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                   >
                     <option value="">-- No asset selected --</option>
@@ -285,6 +313,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                       <option key={a.id} value={a.id}>{a.name} ({a.serialNumber})</option>
                     ))}
                   </select>
+                  <p className="text-xs text-secondary">The selected asset is assigned to the requester when you save.</p>
                 </div>
               )}
 
@@ -305,13 +334,15 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                 <h3 className="text-sm font-semibold text-primary">
                   Transfer Ticket
                 </h3>
-                <button 
-                  type="button" 
-                  onClick={() => setShowTransferMode(false)}
-                  className="text-xs font-medium text-secondary hover:text-primary cursor-pointer"
-                >
-                  Cancel Transfer
-                </button>
+                {!transferOnly && (
+                  <button 
+                    type="button" 
+                    onClick={() => { setShowTransferMode(false); setFormError(null); }}
+                    className="text-xs font-medium text-secondary hover:text-primary cursor-pointer"
+                  >
+                    Cancel Transfer
+                  </button>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-primary">Transfer To</label>
@@ -354,34 +385,20 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                 
                 {ticket.status === 'resolved' && isTicketOwner && (
                   <div className="pt-4 border-t border-accent/10 flex items-center justify-end gap-3 mt-4">
+                    {onReopen && (
+                      <button
+                        type="button"
+                        onClick={() => onReopen(ticket)}
+                        disabled={submitting}
+                        className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-base/50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Reopen Ticket
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          setSubmitting(true);
-                          await reopenTicket(ticket.id);
-                          onClose();
-                        } finally {
-                          setSubmitting(false);
-                        }
-                      }}
-                      disabled={submitting}
-                      className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-base/50 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Reopen Ticket
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          setSubmitting(true);
-                          await confirmCloseTicket(ticket.id);
-                          onClose();
-                        } finally {
-                          setSubmitting(false);
-                        }
-                      }}
-                      disabled={submitting}
+                      onClick={() => runAction(() => onConfirmClose(ticket.id), 'Failed to close ticket')}
+                      disabled={submitting || !onConfirmClose}
                       className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors cursor-pointer"
                     >
                       {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
@@ -391,6 +408,19 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                 )}
               </div>
             )
+          )}
+
+          {!isHandlingAdmin && hasPermission('tickets:update') && ticket.status !== 'closed' && (
+            <p className="text-xs text-secondary">
+              This ticket is in the {(ticket.current_admin_type || '').toUpperCase()} queue; only that team or a Director can update it.
+            </p>
+          )}
+
+          {formError && (
+            <div role="alert" className="flex items-start gap-2 bg-error/10 border border-error/20 text-error rounded-lg p-3 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{formError}</span>
+            </div>
           )}
         </div>
 
@@ -403,8 +433,8 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate }) => {
               disabled={submitting}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (showTransferMode ? <ArrowRightLeft className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
-              {showTransferMode ? 'Confirm Transfer' : 'Save Changes'}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (inTransferMode ? <ArrowRightLeft className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
+              {inTransferMode ? 'Confirm Transfer' : 'Save Changes'}
             </button>
           )}
           {!isHandlingAdmin && (

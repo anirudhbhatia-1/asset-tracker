@@ -52,6 +52,8 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
     try {
       await onSave(formData);
       onClose();
+    } catch {
+      // The parent already showed the error toast; keep the builder open.
     } finally {
       setIsSubmitting(false);
     }

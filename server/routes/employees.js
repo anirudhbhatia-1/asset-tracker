@@ -120,7 +120,7 @@ router.post('/', [
   body('department').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('address').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
-  body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL().withMessage('Must be a valid URL'),
+  body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL({ protocols: ['http', 'https'], require_protocol: true }).withMessage('Must be a valid URL'),
   body('grantAccess').optional().isBoolean(),
   body('role').optional().isString().trim(),
   body('roleId').optional().isInt({ min: 1 }),
@@ -247,6 +247,7 @@ router.patch('/:id', [
   body('department').optional().trim(),
   body('location').optional().trim(),
   body('address').optional().trim(),
+  body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL({ protocols: ['http', 'https'], require_protocol: true }),
   validateRequest,
 ], async (req, res, next) => {
   try {

@@ -2,7 +2,6 @@ import api from './axiosInstance';
 
 export const getAssets = (filters = {}) => api.get('/assets', { params: filters });
 export const getAsset = (id) => api.get(`/assets/${id}`);
-export const getAssetHistory = (id) => api.get(`/assets/${id}/history`);
 // Tickets raised about the asset or fulfilled by handing it out (timeline).
 export const getAssetTickets = (id) => api.get(`/assets/${id}/tickets`);
 export const createAsset = (payload) => api.post('/assets', payload);

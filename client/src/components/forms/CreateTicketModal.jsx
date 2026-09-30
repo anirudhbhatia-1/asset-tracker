@@ -83,7 +83,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
     try {
       await onSubmit(payload);
       onClose();
-    } catch (err) {
+    } catch {
       // Error is handled by hook
     } finally {
       setSubmitting(false);

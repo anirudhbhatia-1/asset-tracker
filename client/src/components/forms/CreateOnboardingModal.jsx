@@ -106,7 +106,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
     try {
       await onSubmit(payload);
       onClose();
-    } catch (err) {
+    } catch {
       // Error handled by hook
     } finally {
       setSubmitting(false);

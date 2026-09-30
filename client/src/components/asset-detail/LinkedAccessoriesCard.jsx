@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Package, ExternalLink } from 'lucide-react';
 
-export default function LinkedAccessoriesCard({ children: items, parentAsset }) {
+export default function LinkedAccessoriesCard({ childAssets: items, parentAsset }) {
   // parentAsset = the parent this asset belongs to (if this IS a sub-asset)
   if (parentAsset && parentAsset.id) {
     return (

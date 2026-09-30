@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { ShieldCheck, Save, X, Lock } from 'lucide-react';
+import { ShieldCheck, Save, Lock } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
 
@@ -164,7 +164,6 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
             {Object.entries(groupedCatalog).map(([moduleName, modulePerms]) => {
               const moduleKeys = modulePerms.map(p => p.key);
               const allChecked = moduleKeys.every(k => selectedKeys.includes(k));
-              const someChecked = moduleKeys.some(k => selectedKeys.includes(k));
 
               return (
                 <div key={moduleName} className="p-3.5 rounded-xl bg-base border border-border">

@@ -4,24 +4,19 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import OfflineBanner from './OfflineBanner';
 
+const WIDE_QUERY = '(min-width: 1024px)';
+const isWideScreen = () => typeof window === 'undefined' || window.matchMedia(WIDE_QUERY).matches;
+
 const MainLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(isWideScreen);
 
-  // Auto-close on smaller screens
+  // Open on wide screens, collapsed below 1024px — but only when the width
+  // crosses that breakpoint, so ordinary resizes keep a manual toggle.
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        setIsSidebarOpen(false);
-      } else {
-        setIsSidebarOpen(true);
-      }
-    };
-    
-    // Initial check
-    handleResize();
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const media = window.matchMedia(WIDE_QUERY);
+    const handleChange = (e) => setIsSidebarOpen(e.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
   }, []);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
@@ -33,7 +28,7 @@ const MainLayout = () => {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-20'}`}>
         <OfflineBanner />
-        <TopBar toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+        <TopBar toggleSidebar={toggleSidebar} />
         {/* overflow-x-clip (not overflow-auto) so position: sticky children stick to the window scroll */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-x-clip">
           <Outlet />

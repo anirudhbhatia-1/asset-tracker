@@ -63,6 +63,10 @@ export default function Scanner() {
     }
   }, [showAsset]);
 
+  // Hold camera decoding while a lookup runs, a result is on the card or a
+  // dialog is open; Reset Card clears the result and resumes it.
+  const scanPaused = loading || !!scanResult || isAssignOpen || isReturnOpen;
+
   const {
     videoRef,
     cameraAvailable,
@@ -70,7 +74,7 @@ export default function Scanner() {
     startScanner,
     stopScanner,
     resetScannerState
-  } = useScanner({ onDecode: resolveSerial });
+  } = useScanner({ onDecode: resolveSerial, paused: scanPaused });
 
   const handleManualLookup = (e) => {
     e.preventDefault();
@@ -184,7 +188,6 @@ export default function Scanner() {
         {cameraAvailable && isScanning ? (
           <WebcamFeed
             videoRef={videoRef}
-            isScanning={isScanning}
             onStop={stopScanner}
           />
         ) : (

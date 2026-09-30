@@ -21,10 +21,15 @@ function AssetLinkOrDiv({ linkable, to, className, children }) {
 export default function EmployeeDashboard({ embedded = false }) {
   const { user, hasPermission } = useAuth();
   const canViewAssets = hasPermission('assets:read');
+  const canReadTickets = hasPermission('tickets:read');
+  const canRaiseTicket = hasPermission('tickets:create');
   const [assets, setAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
   
-  const { tickets, loading: ticketsLoading, fetchTickets, createTicket, updateTicket, confirmCloseTicket, reopenTicket } = useTickets();
+  const {
+    tickets, loading: ticketsLoading, fetchTickets, createTicket, updateTicket,
+    transferTicket, confirmCloseTicket, reopenTicket,
+  } = useTickets();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [ticketInitialParams, setTicketInitialParams] = useState({ type: 'issue', assetId: '' });
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -42,10 +47,19 @@ export default function EmployeeDashboard({ embedded = false }) {
   }, [user]);
 
   useEffect(() => {
-    if (hasPermission('tickets:read')) {
-      fetchTickets();
+    if (canReadTickets) {
+      // "My Tickets": for ticket resolvers the default scope is their queue.
+      fetchTickets({ scope: 'my_tickets' });
     }
-  }, [fetchTickets, hasPermission]);
+  }, [fetchTickets, canReadTickets]);
+
+  const handleConfirmClose = async (ticketId) => {
+    try {
+      await confirmCloseTicket(ticketId);
+    } catch {
+      // useTickets already showed the error toast.
+    }
+  };
 
   const recentTickets = tickets.slice(0, 5); // show most recent 5 on dashboard
   const safeAssets = Array.isArray(assets) ? assets : [];
@@ -105,6 +119,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                           )}
                         </div>
                       </div>
+                      {canRaiseTicket && (
                       <div className="pt-2 border-t border-border/50 flex justify-end">
                         <button
                           onClick={() => {
@@ -116,6 +131,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                           Report Issue
                         </button>
                       </div>
+                      )}
                     </div>
                   ))}
                </div>
@@ -123,14 +139,15 @@ export default function EmployeeDashboard({ embedded = false }) {
           </div>
         </div>
 
-        {/* My Tickets */}
+        {/* My Tickets (hidden without tickets:read) */}
+        {canReadTickets && (
         <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 border-b border-border bg-base/50 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
               <TicketIcon className="w-4 h-4 text-accent" />
               My Tickets
             </h2>
-            {hasPermission('tickets:create') && (
+            {canRaiseTicket && (
               <button
                 onClick={() => {
                   setTicketInitialParams({ type: 'issue', assetId: '' });
@@ -188,7 +205,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                        {ticket.status === 'resolved' && (
                          <div className="flex gap-2 mt-1">
                            <button 
-                             onClick={(e) => { e.stopPropagation(); confirmCloseTicket(ticket.id); }}
+                             onClick={(e) => { e.stopPropagation(); handleConfirmClose(ticket.id); }}
                              className="flex-1 py-1.5 bg-success/10 hover:bg-success/20 text-success text-xs font-medium rounded-lg transition-colors border border-success/20"
                            >
                              Confirm & Close
@@ -215,6 +232,7 @@ export default function EmployeeDashboard({ embedded = false }) {
              )}
           </div>
         </div>
+        )}
       </div>
       <CreateTicketModal 
         isOpen={isCreateModalOpen} 
@@ -223,7 +241,18 @@ export default function EmployeeDashboard({ embedded = false }) {
         initialType={ticketInitialParams.type}
         initialAssetId={ticketInitialParams.assetId}
       />
-      <TicketDetailsModal isOpen={!!selectedTicket} ticket={selectedTicket} onClose={() => setSelectedTicket(null)} onUpdate={updateTicket} />
+      <TicketDetailsModal
+        isOpen={!!selectedTicket}
+        ticket={selectedTicket}
+        onClose={() => setSelectedTicket(null)}
+        onUpdate={updateTicket}
+        onTransfer={transferTicket}
+        onConfirmClose={confirmCloseTicket}
+        onReopen={(ticket) => {
+          setSelectedTicket(null);
+          setReopeningTicket(ticket);
+        }}
+      />
       <ReopenTicketModal ticket={reopeningTicket} onClose={() => setReopeningTicket(null)} onReopen={reopenTicket} />
     </div>
   );

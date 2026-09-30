@@ -65,10 +65,12 @@ schema_paths = []
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
-enabled = true
+# Disabled: local seeding is done by server/scripts/devDb.mjs, and there is
+# no seed.sql (test accounts must never be seeded into production).
+enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seed.sql"]
+sql_paths = []
 
 [db.network_restrictions]
 # Enable management of network restrictions.

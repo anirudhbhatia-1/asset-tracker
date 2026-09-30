@@ -8,7 +8,7 @@ export default function AssetTable({ assets = [], loading = false, onClearFilter
   const [sortField, setSortField] = useState('updatedAt');
   const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
 
-  const safeAssets = Array.isArray(assets) ? assets : [];
+  const safeAssets = useMemo(() => (Array.isArray(assets) ? assets : []), [assets]);
 
   const handleSort = (field) => {
     if (sortField === field) {

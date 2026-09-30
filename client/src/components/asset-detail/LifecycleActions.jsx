@@ -29,6 +29,8 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
       await onReturn(returnNote.trim());
       setIsReturnModalOpen(false);
       setReturnNote('');
+    } catch {
+      // useAsset already showed the error toast; keep the dialog open.
     } finally {
       setSubmittingAction(false);
     }
@@ -40,6 +42,8 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
       await onRetire(retireNote.trim());
       setIsRetireModalOpen(false);
       setRetireNote('');
+    } catch {
+      // useAsset already showed the error toast; keep the dialog open.
     } finally {
       setSubmittingAction(false);
     }
@@ -52,6 +56,8 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
     try {
       await onDelete();
       navigate('/inventory');
+    } catch {
+      // useAsset already showed the error toast; keep the dialog open.
     } finally {
       setSubmittingAction(false);
     }

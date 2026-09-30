@@ -14,7 +14,7 @@ import SerialSimulator from '../scanner/SerialSimulator';
 import { scanSerial, checkSerialExists } from '../../api/assetsApi';
 import { Wand2, Plus, AlertCircle, Calendar, DollarSign, MapPin, Tag, FileText, UserCheck, Search, QrCode, Cpu } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { todayLocalISO } from '../../utils/dates';
+import { todayLocalISO, toDateInputValue } from '../../utils/dates';
 
 export default function AddAssetForm({ initialData, isEdit = false, onSaveSuccess }) {
   const navigate = useNavigate();
@@ -30,10 +30,10 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [location, setLocation] = useState(initialData?.location || '');
   const [address, setAddress] = useState(initialData?.address || '');
   const [costString, setCostString] = useState(
-    initialData?.costCents ? (initialData.costCents / 100).toFixed(2) : ''
+    initialData?.costCents != null ? (initialData.costCents / 100).toFixed(2) : ''
   );
-  const [purchaseDate, setPurchaseDate] = useState(initialData?.purchaseDate || '');
-  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState(initialData?.warrantyExpiryDate || '');
+  const [purchaseDate, setPurchaseDate] = useState(toDateInputValue(initialData?.purchaseDate));
+  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState(toDateInputValue(initialData?.warrantyExpiryDate));
   const [serialNumber, setSerialNumber] = useState(initialData?.serialNumber || '');
   const [notes, setNotes] = useState(initialData?.notes || '');
 
@@ -53,9 +53,9 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [hardwareType, setHardwareType] = useState(initialData?.hardwareType || '');
   const [color, setColor] = useState(initialData?.color || '');
   const [clientName, setClientName] = useState(initialData?.clientName || '');
-  const [receivedOn, setReceivedOn] = useState(initialData?.receivedOn || '');
+  const [receivedOn, setReceivedOn] = useState(toDateInputValue(initialData?.receivedOn));
   // No input edits this yet; the stored value is round-tripped on save.
-  const [returnDate] = useState(initialData?.returnDate || '');
+  const [returnDate] = useState(toDateInputValue(initialData?.returnDate));
 
   // Optional Immediate Allocation (Only for new registrations)
   const [assignImmediately, setAssignImmediately] = useState(false);
@@ -225,44 +225,51 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
     setSubmitting(true);
     try {
-      // Parse cost to cents safely
+      // Parse cost to cents safely (0 is a valid cost)
       let costCents = null;
-      if (costString && !isNaN(parseFloat(costString))) {
-        costCents = Math.round(parseFloat(costString) * 100);
+      const trimmedCost = costString.trim();
+      if (trimmedCost !== '' && !isNaN(parseFloat(trimmedCost))) {
+        costCents = Math.round(parseFloat(trimmedCost) * 100);
       }
+
+      // Blank optional fields: on create they are simply left out; on edit
+      // they are sent as null so clearing a field actually clears it.
+      const blank = isEdit ? null : undefined;
+      const text = (value) => value.trim() || blank;
+      const date = (value) => value || blank;
 
       const assetPayload = {
         name: name.trim(),
         categoryId: Number(categoryId),
         assetType,
         model: model.trim() || null,
-        location: location.trim() || undefined,
-        address: address.trim() || undefined,
-        purchaseDate: purchaseDate || undefined,
-        warrantyExpiryDate: warrantyExpiryDate || undefined,
-        costCents: costCents || undefined,
+        location: text(location),
+        address: text(address),
+        purchaseDate: date(purchaseDate),
+        warrantyExpiryDate: date(warrantyExpiryDate),
+        costCents: costCents ?? blank,
         serialNumber: serialNumber.trim(),
         notes: notes.trim() || null,
         subAssets: subAssets.filter(s => s.serialNumber && s.serialNumber.trim()),
 
         // NEW FIELDS:
-        brand: brand.trim() || undefined,
-        vendor: vendor.trim() || undefined,
-        processor: processor.trim() || undefined,
-        ram: ram.trim() || undefined,
-        storage: storage.trim() || undefined,
-        screenSize: screenSize.trim() || undefined,
-        graphicsCard: graphicsCard.trim() || undefined,
-        os: os.trim() || undefined,
-        msOffice: msOffice.trim() || undefined,
-        antiVirus: antiVirus.trim() || undefined,
-        warrantyPlan: warrantyPlan.trim() || undefined,
-        warrantyUpgrade: warrantyUpgrade.trim() || undefined,
-        hardwareType: hardwareType.trim() || undefined,
-        color: color.trim() || undefined,
-        clientName: clientName.trim() || undefined,
-        receivedOn: receivedOn || undefined,
-        returnDate: returnDate || undefined,
+        brand: text(brand),
+        vendor: text(vendor),
+        processor: text(processor),
+        ram: text(ram),
+        storage: text(storage),
+        screenSize: text(screenSize),
+        graphicsCard: text(graphicsCard),
+        os: text(os),
+        msOffice: text(msOffice),
+        antiVirus: text(antiVirus),
+        warrantyPlan: text(warrantyPlan),
+        warrantyUpgrade: text(warrantyUpgrade),
+        hardwareType: text(hardwareType),
+        color: text(color),
+        clientName: text(clientName),
+        receivedOn: date(receivedOn),
+        returnDate: date(returnDate),
       };
 
       if (isEdit && initialData?.id) {
@@ -985,7 +992,6 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
             {cameraAvailable && isScanning ? (
               <WebcamFeed
                 videoRef={videoRef}
-                isScanning={isScanning}
                 onStop={stopScanner}
               />
             ) : (
@@ -1035,7 +1041,6 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
             {subCameraAvailable && subIsScanning ? (
               <WebcamFeed
                 videoRef={subVideoRef}
-                isScanning={subIsScanning}
                 onStop={subStopScanner}
               />
             ) : (

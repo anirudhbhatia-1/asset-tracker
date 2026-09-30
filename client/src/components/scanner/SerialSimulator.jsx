@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import useAssets from '../../hooks/useAssets';
-import Badge from '../ui/Badge';
 import { Terminal, Play, Search, ArrowRight } from 'lucide-react';
 
 export default function SerialSimulator({ onSimulateScan, disabled }) {

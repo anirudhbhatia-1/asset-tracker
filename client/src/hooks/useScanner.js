@@ -1,11 +1,27 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/library';
 
-export default function useScanner({ onDecode, autoStart = true } = {}) {
+// `paused`: keep the camera running but ignore decodes (e.g. while a result
+// card or a dialog is showing), so a tag left in view doesn't fire again.
+export default function useScanner({ onDecode, autoStart = true, paused = false } = {}) {
   const videoRef = useRef(null);
   const readerRef = useRef(null);
   const streamRef = useRef(null);
   const lastScannedRef = useRef({ text: null, timestamp: 0 });
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
+
+  // Shared by both decoders: drops decodes while paused and repeats of the
+  // same code within a second.
+  const handleDecoded = useCallback((text) => {
+    if (!text || pausedRef.current) return;
+    const now = Date.now();
+    if (lastScannedRef.current.text === text && now - lastScannedRef.current.timestamp < 1000) return;
+    lastScannedRef.current = { text, timestamp: now };
+    if (onDecode) onDecode(text);
+  }, [onDecode]);
 
   const [cameraAvailable, setCameraAvailable] = useState(null); // null = checking, true = available, false = denied/unavailable
   const [isScanning, setIsScanning] = useState(false);
@@ -15,7 +31,7 @@ export default function useScanner({ onDecode, autoStart = true } = {}) {
     if (readerRef.current) {
       try {
         readerRef.current.reset();
-      } catch (e) {
+      } catch {
         // ignore
       }
       readerRef.current = null;
@@ -24,7 +40,7 @@ export default function useScanner({ onDecode, autoStart = true } = {}) {
       streamRef.current.getTracks().forEach((track) => {
         try {
           track.stop();
-        } catch (e) {
+        } catch {
           // ignore
         }
       });
@@ -93,18 +109,12 @@ export default function useScanner({ onDecode, autoStart = true } = {}) {
       const detectLoop = async () => {
         if (!isLooping) return;
         try {
-          if (videoElem.readyState >= 2) {
+          // Skip the detection work entirely while paused.
+          if (!pausedRef.current && videoElem.readyState >= 2) {
             const barcodes = await barcodeDetector.detect(videoElem);
-            if (barcodes.length > 0) {
-              const text = barcodes[0].rawValue;
-              const now = Date.now();
-              if (lastScannedRef.current.text !== text || now - lastScannedRef.current.timestamp >= 1000) {
-                lastScannedRef.current = { text, timestamp: now };
-                if (onDecode) onDecode(text);
-              }
-            }
+            if (barcodes.length > 0) handleDecoded(barcodes[0].rawValue);
           }
-        } catch (e) {
+        } catch {
           // Ignore transient errors
         }
         
@@ -162,21 +172,8 @@ export default function useScanner({ onDecode, autoStart = true } = {}) {
       readerRef.current = reader;
 
       try {
-        reader.decodeFromVideoElementContinuously(videoElem, (result, error) => {
-          if (result) {
-            const text = result.getText();
-            if (!text) return;
-
-            const now = Date.now();
-            if (lastScannedRef.current.text === text && now - lastScannedRef.current.timestamp < 1000) {
-              return;
-            }
-
-            lastScannedRef.current = { text, timestamp: now };
-            if (onDecode) {
-              onDecode(text);
-            }
-          }
+        reader.decodeFromVideoElementContinuously(videoElem, (result) => {
+          if (result) handleDecoded(result.getText());
         });
       } catch (err) {
         console.warn('Error initializing ZXing fallback:', err);
@@ -187,11 +184,13 @@ export default function useScanner({ onDecode, autoStart = true } = {}) {
       if (readerRef.current) {
         try {
           readerRef.current.reset();
-        } catch (e) {}
+        } catch {
+          // ignore
+        }
         readerRef.current = null;
       }
     };
-  }, [isScanning, onDecode]);
+  }, [isScanning, handleDecoded]);
 
   useEffect(() => {
     if (autoStart) {

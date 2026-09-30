@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import app from '../index';
+import { pool } from '../db';
 
 describe('API Integration Tests', () => {
   let testAssetId;
   let adminToken;
+  let laptopCategoryId;
+  let assigneeId;
   const uniqueSerial = `INT-SN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   beforeAll(async () => {
@@ -12,6 +15,13 @@ describe('API Integration Tests', () => {
       .post('/api/auth/login')
       .send({ email: 'admin@company.com', password: 'password' });
     adminToken = res.body?.data?.token;
+    // Look ids up instead of assuming seed ids.
+    laptopCategoryId = (await pool.query("SELECT id FROM categories WHERE name = 'Laptop'")).rows[0].id;
+    assigneeId = (await pool.query("SELECT id FROM employees WHERE email = 'employee@company.com'")).rows[0].id;
+  });
+
+  afterAll(async () => {
+    if (testAssetId) await pool.query('DELETE FROM assets WHERE id = $1', [testAssetId]);
   });
 
   it('POST /api/assets should validate required fields and create asset', async () => {
@@ -21,7 +31,7 @@ describe('API Integration Tests', () => {
       .send({
         name: 'Integration Test MacBook Pro',
         serialNumber: uniqueSerial,
-        categoryId: 1,
+        categoryId: laptopCategoryId,
         status: 'available',
         purchaseDate: '2026-07-01',
         costCents: 249900,
@@ -53,14 +63,14 @@ describe('API Integration Tests', () => {
       .post(`/api/assets/${testAssetId}/assign`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
-        employeeId: 1,
+        employeeId: assigneeId,
         assignedDate: '2026-07-22',
         note: 'Assigned via integration test'
       });
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('in-use');
-    expect(res.body.data.assignedTo).toBe(1);
+    expect(res.body.data.assignedTo).toBe(assigneeId);
 
     // Verify GET /api/assets/:id shows updated assignee
     const getRes = await request(app)
@@ -68,7 +78,7 @@ describe('API Integration Tests', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(getRes.status).toBe(200);
     expect(getRes.body.data.assignee).toBeDefined();
-    expect(getRes.body.data.assignee.id).toBe(1);
+    expect(getRes.body.data.assignee.id).toBe(assigneeId);
   });
 
   it('POST /api/assets should return 400 when required fields are missing', async () => {

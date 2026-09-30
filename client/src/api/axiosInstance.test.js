@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import axiosInstance, { shouldRedirectForUnauthorized } from './axiosInstance';
+import axiosInstance, {
+  flagPasswordChangeRequired,
+  isPasswordChangeRequired,
+  PASSWORD_CHANGE_REQUIRED_EVENT,
+  shouldRedirectForUnauthorized,
+} from './axiosInstance';
 
 describe('unauthorized response handling', () => {
   it('does not reload the login page for expected login failures', () => {
@@ -48,5 +53,54 @@ describe('request serialization', () => {
 
     expect(config.data).toBe('{"name":"Laptop"}');
     expect(config.headers.getContentType()).toContain('application/json');
+  });
+});
+
+describe('password change required handling', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('recognises the server refusal', () => {
+    expect(isPasswordChangeRequired({ response: { status: 403, data: { reason: 'PASSWORD_CHANGE_REQUIRED' } } })).toBe(true);
+    expect(isPasswordChangeRequired({ response: { status: 403, data: { message: 'Forbidden' } } })).toBe(false);
+    expect(isPasswordChangeRequired({ response: { status: 401, data: { reason: 'PASSWORD_CHANGE_REQUIRED' } } })).toBe(false);
+  });
+
+  it('flags the stored user and notifies the app once per call', () => {
+    const store = { user: JSON.stringify({ id: 7, mustChangePassword: false }) };
+    const dispatched = [];
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key) => store[key] ?? null,
+      setItem: (key, value) => { store[key] = value; },
+    });
+    vi.stubGlobal('window', { dispatchEvent: (event) => dispatched.push(event.type) });
+
+    flagPasswordChangeRequired();
+
+    expect(JSON.parse(store.user)).toEqual({ id: 7, mustChangePassword: true });
+    expect(dispatched).toEqual([PASSWORD_CHANGE_REQUIRED_EVENT]);
+  });
+
+  it('flags the user when a response is refused, without redirecting', async () => {
+    const store = { user: JSON.stringify({ id: 7 }) };
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key) => store[key] ?? null,
+      setItem: (key, value) => { store[key] = value; },
+      removeItem: (key) => { delete store[key]; },
+    });
+    vi.stubGlobal('window', { dispatchEvent: () => true, location: { href: '/assets' } });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(axiosInstance.get('/assets', {
+      adapter: async (config) => Promise.reject(Object.assign(new Error('Forbidden'), {
+        config,
+        response: { status: 403, data: { reason: 'PASSWORD_CHANGE_REQUIRED' }, config },
+      })),
+    })).rejects.toThrow('Forbidden');
+
+    expect(JSON.parse(store.user).mustChangePassword).toBe(true);
+    expect(window.location.href).toBe('/assets');
   });
 });

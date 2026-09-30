@@ -17,13 +17,13 @@ const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operatio
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
 
 export default function Employees() {
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const canGrantAccess = hasPermission('employees:grant-access');
   const canManageRoles = hasPermission('roles:manage');
   const canCreate = hasPermission('employees:create');
   const canEdit = hasPermission('employees:manage');
   const canAssignAssets = hasPermission('employees:assign-assets');
-  const { employees, loading, error, refresh, addEmployee, updateEmployee, deleteEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline } = useEmployees();
+  const { employees, loading, error, refresh, addEmployee, updateEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline } = useEmployees();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'roles'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
@@ -37,24 +37,11 @@ export default function Employees() {
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
   const [bulkAssignTarget, setBulkAssignTarget] = useState(null);
 
-  const handleCardClick = (emp, action) => {
-    if (action === 'bulk-assign') {
-      setBulkAssignTarget(emp);
-      setIsBulkAssignOpen(true);
-    } else if (action === 'role') {
-      setSelectedEmployee(emp);
-      setIsRoleModalOpen(true);
-    } else {
-      setSelectedEmployee(emp);
-      setIsEditModalOpen(true);
-    }
-  };
-
   useEffect(() => {
     if (!canManageRoles && activeTab === 'roles') setActiveTab('directory');
   }, [canManageRoles, activeTab]);
 
-  const safeEmployees = Array.isArray(employees) ? employees : [];
+  const safeEmployees = useMemo(() => (Array.isArray(employees) ? employees : []), [employees]);
 
   const filteredEmployees = useMemo(() => {
     return safeEmployees.filter((emp) => {

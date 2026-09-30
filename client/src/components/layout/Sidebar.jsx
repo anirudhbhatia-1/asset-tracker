@@ -25,7 +25,7 @@ const allNavItems = [
 ];
 
 const Sidebar = ({ isOpen = true }) => {
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
 
   const visibleNavItems = allNavItems.filter(item => {
     if (item.permissionKeys) return item.permissionKeys.some(hasPermission);

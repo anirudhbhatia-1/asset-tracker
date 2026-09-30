@@ -1,37 +1,37 @@
+// PM2 process file for a VM deployment:
+//   pm2 start ecosystem.config.js            (production settings)
+//   pm2 restart ecosystem.config.js --update-env
+// Settings such as DATABASE_URL and GOOGLE_* come from server/.env (loaded by
+// server/loadEnv.js regardless of the working directory).
 module.exports = {
   apps: [
     {
       name: 'assettrack-api',
+      cwd: __dirname,
       script: './server/index.js',
-      
-      // Scale across CPU cores (if applicable, though SQLite works best with 1 instance to avoid locking issues)
-      instances: 1, 
-      
-      // Auto restart if the app crashes
+
+      // One instance: the API is stateless, but keep it simple until needed.
+      instances: 1,
       autorestart: true,
-      
-      // Restart if memory exceeds 300MB
       max_memory_restart: '300M',
-      
-      // Watch for file changes (disabled in production)
       watch: false,
-      
-      // Environment variables for standard operation
+
+      // Production is the default so a plain `pm2 start` never runs without
+      // database SSL or the Google domain restriction.
       env: {
-        NODE_ENV: 'development'
-      },
-      
-      // Environment variables for production (used via `pm2 start ecosystem.config.js --env production`)
-      env_production: {
         NODE_ENV: 'production',
         PORT: 3001,
+        HOST: '127.0.0.1',
       },
-      
-      // Logs
+
+      // PM2 creates these files; the directory must exist (see below).
       error_file: './logs/api-err.log',
       out_file: './logs/api-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
-    }
-  ]
+    },
+  ],
 };
+
+// Make sure the log directory exists when PM2 loads this file.
+require('fs').mkdirSync(require('path').join(__dirname, 'logs'), { recursive: true });

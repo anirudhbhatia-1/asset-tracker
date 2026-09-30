@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getAsset,
   updateAsset as updateAssetApi,
@@ -12,19 +12,33 @@ import toast from 'react-hot-toast';
 export default function useAsset(id) {
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  // Id whose data is on screen; reloading it is a background refresh that
+  // keeps the page up instead of swapping back to the skeleton.
+  const loadedIdRef = useRef(null);
 
   const fetchAssetData = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
-    setError(null);
+    const isRefresh = loadedIdRef.current === id;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await getAsset(id);
       setAsset(res.data?.data || res.data || null);
+      setError(null);
+      loadedIdRef.current = id;
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to load asset details');
+      const message = err.response?.data?.message || err.message || 'Failed to load asset details';
+      if (isRefresh) toast.error(message);
+      else setError(message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [id]);
 
@@ -63,7 +77,7 @@ export default function useAsset(id) {
       const res = await returnAssetApi(id, note);
       const updated = res.data?.data || res.data;
       setAsset(updated);
-      toast.success('Asset returned to stock');
+      toast.success((updated?.assetType ?? asset?.assetType) === 'client' ? 'Returned to client' : 'Asset returned to stock');
       return updated;
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Failed to return asset');
@@ -98,6 +112,7 @@ export default function useAsset(id) {
   return {
     asset,
     loading,
+    refreshing,
     error,
     refresh: fetchAssetData,
     updateAssetData,

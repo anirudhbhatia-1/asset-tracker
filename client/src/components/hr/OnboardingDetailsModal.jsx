@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
-import { X, Loader2, Check, Package, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useId, useCallback } from 'react';
+import { X, Loader2, Package, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getAssets } from '../../api/assetsApi';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { getFulfilmentCandidates, getOnboardingStatusOptions, ONBOARDING_STATUS_LABELS } from '../../utils/onboardingStatus';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -19,6 +20,8 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const errorMessage = (err, fallback) => err?.response?.data?.message || fallback;
+
 const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, onUpdateStatus, onFulfillItem }) => {
   const { hasPermission } = useAuth();
   const canUpdateStatus = hasPermission('onboarding:update');
@@ -34,52 +37,63 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [fulfillingItemId, setFulfillingItemId] = useState(null);
   const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [submittingFulfil, setSubmittingFulfil] = useState(false);
+  // Server refusals (e.g. 409 asset reserved / not in stock, 400 bad move)
+  const [actionError, setActionError] = useState(null);
+
+  const requestId = request?.id;
+
+  const loadFullDetails = useCallback(async () => {
+    if (!requestId) return;
+    setLoading(true);
+    try {
+      const data = await getRequestDetails(requestId);
+      setFullData(data);
+      setStatus(data?.status || '');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [requestId, getRequestDetails]);
+
+  // Only in-stock company assets can fulfil an item.
+  const loadAvailableAssets = useCallback(async () => {
+    setLoadingAssets(true);
+    try {
+      const res = await getAssets({ status: 'available', assetType: 'company' });
+      setAssets(res.data?.data || []);
+    } catch (err) {
+      setActionError(errorMessage(err, 'Could not load available assets'));
+    } finally {
+      setLoadingAssets(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (isOpen && request) {
+    if (isOpen && requestId) {
+      setActionError(null);
       loadFullDetails();
-      setStatus(request.status);
-      
       if (canFulfillItems) {
         loadAvailableAssets();
       }
     } else {
       setFullData(null);
       setFulfillingItemId(null);
+      setSelectedAssetId('');
+      setActionError(null);
     }
-  }, [isOpen, request, canFulfillItems]);
-
-  const loadFullDetails = async () => {
-    setLoading(true);
-    try {
-      const data = await getRequestDetails(request.id);
-      setFullData(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAvailableAssets = async () => {
-    setLoadingAssets(true);
-    try {
-      const res = await getAssets({ status: 'available', assetType: 'company' });
-      setAssets(res.data?.data || res.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingAssets(false);
-    }
-  };
+    // Keyed on the id, so a list refresh (new row objects) doesn't reload.
+  }, [isOpen, requestId, canFulfillItems, loadFullDetails, loadAvailableAssets]);
 
   const handleUpdateStatus = async () => {
     setUpdatingStatus(true);
+    setActionError(null);
     try {
       await onUpdateStatus(request.id, status);
       await loadFullDetails();
     } catch (err) {
-      // hook handles error toast
+      setActionError(errorMessage(err, 'Failed to update status'));
     } finally {
       setUpdatingStatus(false);
     }
@@ -87,6 +101,8 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
 
   const handleFulfillItem = async (itemId) => {
     if (!selectedAssetId) return;
+    setSubmittingFulfil(true);
+    setActionError(null);
     try {
       await onFulfillItem(request.id, itemId, parseInt(selectedAssetId, 10));
       setFulfillingItemId(null);
@@ -94,9 +110,17 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
       await loadFullDetails();
       await loadAvailableAssets(); // refresh available assets
     } catch (err) {
-      // hook handles error toast
+      setActionError(errorMessage(err, 'Failed to fulfil item'));
+    } finally {
+      setSubmittingFulfil(false);
     }
   };
+
+  // Assets already linked to another item of this request are taken.
+  const linkedAssetIds = new Set((fullData?.items || []).map(i => i.fulfilled_asset_id).filter(Boolean));
+  const currentStatus = fullData?.status || request?.status;
+  const statusOptions = getOnboardingStatusOptions(currentStatus);
+  const itemsLocked = ['completed', 'cancelled'].includes(currentStatus);
 
   const dialogRef = useRef(null);
   const titleId = useId();
@@ -188,22 +212,25 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                               <CheckCircle2 className="w-4 h-4" />
                               Arranged: {item.fulfilled_asset_name}
                             </div>
-                          ) : canFulfillItems ? (
+                          ) : canFulfillItems && !itemsLocked ? (
                             fulfillingItemId === item.id ? (
                               <div className="flex items-center gap-2 w-full sm:w-max">
                                 <select
                                   value={selectedAssetId}
-                                  onChange={(e) => setSelectedAssetId(e.target.value)}
+                                  onChange={(e) => { setSelectedAssetId(e.target.value); setActionError(null); }}
+                                  aria-label={`Asset for ${item.category_name || 'item'}`}
                                   className="w-full sm:w-48 px-2 py-1.5 bg-surface border border-border rounded-md text-xs text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                                 >
-                                  <option value="">Select Asset...</option>
-                                  {assets.filter(a => a.categoryId === item.category_id).map(a => (
-                                    <option key={a.id} value={a.id}>{a.name} ({a.serialNumber || a.serial_number})</option>
-                                  ))}
+                                  <option value="">{loadingAssets ? 'Loading assets...' : 'Select Asset...'}</option>
+                                  {getFulfilmentCandidates(assets, item)
+                                    .filter(a => !linkedAssetIds.has(a.id))
+                                    .map(a => (
+                                      <option key={a.id} value={a.id}>{a.name} ({a.serialNumber})</option>
+                                    ))}
                                 </select>
                                 <button
                                   onClick={() => handleFulfillItem(item.id)}
-                                  disabled={!selectedAssetId}
+                                  disabled={!selectedAssetId || submittingFulfil}
                                   className="px-3 py-1.5 bg-accent hover:bg-accent/90 text-on-accent text-xs font-medium rounded-md disabled:opacity-50 transition-colors"
                                 >
                                   Fulfill
@@ -217,7 +244,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                               </div>
                             ) : (
                               <button
-                                onClick={() => setFulfillingItemId(item.id)}
+                                onClick={() => { setFulfillingItemId(item.id); setSelectedAssetId(''); setActionError(null); }}
                                 className="px-3 py-1.5 border border-accent text-accent hover:bg-accent/5 text-xs font-medium rounded-md transition-colors"
                               >
                                 Link Asset
@@ -235,6 +262,13 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
 
             </div>
           ) : null}
+
+          {actionError && (
+            <div role="alert" className="mt-4 flex items-start gap-2 bg-error/10 border border-error/20 text-error rounded-lg p-3 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{actionError}</span>
+            </div>
+          )}
         </div>
 
         {/* Footer (Admin Status Update) */}
@@ -245,18 +279,18 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
               <span className="text-sm font-medium text-primary whitespace-nowrap">Update Status:</span>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                onChange={(e) => { setStatus(e.target.value); setActionError(null); }}
+                disabled={statusOptions.length <= 1}
                 className="w-full sm:w-auto px-3 py-1.5 bg-surface border border-border rounded-md text-sm text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
               >
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="arranged">Arranged</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                {/* Only the moves the server allows from the current status */}
+                {statusOptions.map(value => (
+                  <option key={value} value={value}>{ONBOARDING_STATUS_LABELS[value] || value}</option>
+                ))}
               </select>
               <button
                 onClick={handleUpdateStatus}
-                disabled={updatingStatus || status === fullData?.status}
+                disabled={updatingStatus || !fullData || status === fullData.status}
                 className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-surface text-sm font-medium rounded-md disabled:opacity-50 transition-colors"
               >
                 {updatingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}

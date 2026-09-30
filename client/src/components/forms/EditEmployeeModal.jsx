@@ -102,7 +102,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
         await onChangeRole(employee.id, role);
       }
       onClose();
-    } catch (err) {
+    } catch {
       // Error shown by hook via toast
     } finally {
       setSubmitting(false);

@@ -47,7 +47,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user?.id) loadProfile();
-  }, [loadProfile]);
+  }, [user?.id, loadProfile]);
 
   const handleStartEditName = () => {
     setNameValue(profile?.name || '');

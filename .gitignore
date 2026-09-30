@@ -65,3 +65,6 @@ logs/
 .idea/
 *.swp
 .claude/
+
+# Stray spreadsheet exports saved as markdown
+Untitled spreadsheet*.md

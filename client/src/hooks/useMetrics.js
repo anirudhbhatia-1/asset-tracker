@@ -98,8 +98,9 @@ export default function useMetrics() {
             name: 'Uncategorized',
             badgeChar: 'U',
             color: '#64748B',
-            filterKey: 'categoryId',
-            filterValue: '0',
+            // The inventory API has no "no category" filter, so no link.
+            filterKey: null,
+            filterValue: undefined,
             count: 0,
           });
         }
@@ -122,12 +123,14 @@ export default function useMetrics() {
     const map = new Map();
     const locationColors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#06B6D4', '#EC4899'];
 
+    // Keyed by the real location; assets without one share a bucket that
+    // can't be filtered for (the inventory API has no "no location" filter).
     assets.forEach((asset) => {
-      const loc = asset.location || 'Unassigned Location';
-      if (!map.has(loc)) {
-        map.set(loc, { name: loc, count: 0 });
+      const key = asset.location || null;
+      if (!map.has(key)) {
+        map.set(key, { name: key || 'Unassigned Location', location: key, count: 0 });
       }
-      map.get(loc).count += 1;
+      map.get(key).count += 1;
     });
 
     return Array.from(map.values())
@@ -135,8 +138,8 @@ export default function useMetrics() {
         id: item.name,
         name: item.name,
         color: locationColors[index % locationColors.length],
-        filterKey: 'location',
-        filterValue: item.name,
+        filterKey: item.location ? 'location' : null,
+        filterValue: item.location || undefined,
         count: item.count,
         percentage: Math.round((item.count / total) * 100),
       }))

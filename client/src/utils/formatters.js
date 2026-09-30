@@ -1,4 +1,4 @@
-import { format, parseISO, isValid } from 'date-fns';
+import { format, isValid } from 'date-fns';
 
 /**
  * Formats a numeric value into a localized currency string (e.g. $1,250.00).
@@ -15,7 +15,7 @@ export function formatCurrency(amount, currency = 'INR') {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(Number(amount));
-  } catch (e) {
+  } catch {
     return `₹${Number(amount).toFixed(2)}`;
   }
 }
@@ -39,7 +39,7 @@ export function formatDate(dateInput, patternStr = 'MMM dd, yyyy') {
 
     if (!isValid(dateObj)) return 'Invalid Date';
     return format(dateObj, patternStr);
-  } catch (e) {
+  } catch {
     return 'Invalid Date';
   }
 }

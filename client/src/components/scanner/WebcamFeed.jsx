@@ -1,7 +1,7 @@
 import React from 'react';
-import { Camera, RefreshCw } from 'lucide-react';
+import { Camera } from 'lucide-react';
 
-export default function WebcamFeed({ videoRef, isScanning, onStop }) {
+export default function WebcamFeed({ videoRef, onStop }) {
   return (
     <div className="relative w-full max-w-xl mx-auto bg-base rounded-2xl border border-border/80 overflow-hidden shadow-2xl aspect-[4/5] sm:aspect-[4/3] flex items-center justify-center">
       {/* Video element connected to media stream */}

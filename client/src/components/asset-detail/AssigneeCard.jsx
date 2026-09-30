@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { User, Mail, Building2, Calendar, CheckCircle2, Shield } from 'lucide-react';
+import { User, Mail, Building2, Calendar } from 'lucide-react';
 
 export default function AssigneeCard({ asset }) {
   if (!asset || asset.status !== 'in-use' || !asset.assignedTo) {

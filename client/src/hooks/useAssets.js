@@ -13,7 +13,8 @@ export default function useAssets(filters = {}) {
     setLoading(true);
     setError(null);
     try {
-      const res = await getAssets(filters);
+      // Parsed back from the key so the callback only changes with the filters' values.
+      const res = await getAssets(JSON.parse(filtersKey));
       setAssets(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to load assets');

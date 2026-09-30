@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import EmbeddedPostgres from 'embedded-postgres';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
@@ -80,10 +81,23 @@ await client.connect();
 
 // Apply any migration not yet applied, in filename order, each in its own
 // transaction (files that manage their own BEGIN/COMMIT run as they are).
+// Uses the same app_migrations table as scripts/migrate.js.
 const migrate = async () => {
-  await client.query('CREATE TABLE IF NOT EXISTS _dev_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW())');
-  const applied = new Set((await client.query('SELECT name FROM _dev_migrations')).rows.map((row) => row.name));
-  const files = fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql')).sort();
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      name TEXT PRIMARY KEY,
+      checksum TEXT,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      baselined BOOLEAN NOT NULL DEFAULT false
+    )`);
+  // Local databases created before app_migrations existed.
+  if ((await client.query("SELECT to_regclass('_dev_migrations') AS t")).rows[0].t) {
+    await client.query(`INSERT INTO app_migrations (name, baselined)
+      SELECT name, true FROM _dev_migrations ON CONFLICT (name) DO NOTHING`);
+    await client.query('DROP TABLE _dev_migrations');
+  }
+  const applied = new Set((await client.query('SELECT name FROM app_migrations')).rows.map((row) => row.name));
+  const files = fs.readdirSync(migrationsDir).filter((file) => /^\d{14}_.+\.sql$/.test(file)).sort();
 
   for (const file of files) {
     if (applied.has(file)) continue;
@@ -92,7 +106,8 @@ const migrate = async () => {
     try {
       if (!managesOwnTransaction) await client.query('BEGIN');
       if (sql.trim()) await client.query(sql);
-      await client.query('INSERT INTO _dev_migrations (name) VALUES ($1)', [file]);
+      await client.query('INSERT INTO app_migrations (name, checksum) VALUES ($1, $2)',
+        [file, crypto.createHash('sha256').update(sql).digest('hex')]);
       if (!managesOwnTransaction) await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});

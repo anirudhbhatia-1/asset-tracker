@@ -8,7 +8,9 @@
     "dev": "nodemon index.js",
     "db": "node scripts/devDb.mjs",
     "db:reset": "node scripts/devDb.mjs --reset",
-    "test": "vitest run"
+    "test": "vitest run",
+    "migrate:status": "node scripts/migrate.js status",
+    "migrate:apply": "node scripts/migrate.js apply"
   },
   "keywords": [],
   "author": "",
@@ -42,5 +44,8 @@
   },
   "allowScripts": {
     "@embedded-postgres/darwin-arm64": true
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

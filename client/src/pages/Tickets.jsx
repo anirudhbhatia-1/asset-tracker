@@ -7,6 +7,7 @@ import { ticketsApi } from '../api/ticketsApi';
 import { useTickets } from '../hooks/useTickets';
 import CreateTicketModal from '../components/forms/CreateTicketModal';
 import TicketDetailsModal from '../components/tickets/TicketDetailsModal';
+import ReopenTicketModal from '../components/tickets/ReopenTicketModal';
 import StatusBadge, { TicketAgeBadge } from '../components/tickets/TicketStatusBadge';
 import { formatDate } from '../utils/formatters';
 import { onActivateKey } from '../utils/a11y';
@@ -24,12 +25,20 @@ const Tickets = () => {
   const { user, hasPermission } = useAuth();
   const isDirector = user?.role === 'director' || user?.isDirector;
   const isHr = user?.role === 'hr';
-  const isAdminOrHr = isDirector || hasPermission('tickets:resolve') || hasPermission('tickets:update');
+  // The server only lists other people's tickets for tickets:resolve holders
+  // and Directors; everyone else sees just their own.
+  const isAdminOrHr = isDirector || hasPermission('tickets:resolve');
+  // Directors always get every ticket, so the queue toggle is for resolvers.
+  const showQueueToggle = isAdminOrHr && !isDirector;
   const canRaiseTicket = hasPermission('tickets:create');
-  const { tickets, loading, error, fetchTickets, createTicket, updateTicket } = useTickets();
+  const {
+    tickets, loading, error, fetchTickets, createTicket, updateTicket,
+    transferTicket, confirmCloseTicket, reopenTicket,
+  } = useTickets();
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [reopeningTicket, setReopeningTicket] = useState(null);
   const [filter, setFilter] = useState('all');
   const [queueScope, setQueueScope] = useState('my_queue'); // 'my_queue' | 'all' | 'my_tickets'
   // Which scope the current `tickets` list belongs to, so the deep-link
@@ -134,7 +143,7 @@ const Tickets = () => {
           ))}
         </div>
 
-        {isAdminOrHr && (
+        {showQueueToggle && (
           <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
             <span className="px-2 text-xs font-medium uppercase tracking-wider text-secondary">View:</span>
             {[
@@ -263,8 +272,16 @@ const Tickets = () => {
         isOpen={!!selectedTicket} 
         ticket={selectedTicket} 
         onClose={closeTicketDetails} 
-        onUpdate={updateTicket} 
+        onUpdate={updateTicket}
+        onTransfer={transferTicket}
+        onConfirmClose={confirmCloseTicket}
+        onReopen={(ticket) => {
+          closeTicketDetails();
+          setReopeningTicket(ticket);
+        }}
       />
+
+      <ReopenTicketModal ticket={reopeningTicket} onClose={() => setReopeningTicket(null)} onReopen={reopenTicket} />
     </div>
   );
 };

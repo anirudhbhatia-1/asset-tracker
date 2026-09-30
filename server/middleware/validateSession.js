@@ -34,9 +34,11 @@ const getDefaultPermissionsForRole = (role) => DEFAULT_ROLE_PERMISSIONS[role] ||
 // and read endpoint. Treat the read permission as an effective dependency so
 // custom roles behave consistently in the API, router, and UI.
 const PERMISSION_DEPENDENCIES = {
-  'assets:create': ['assets:read'],
+  // The Add Asset form needs its category and office dropdowns.
+  'assets:create': ['assets:read', 'categories:read', 'locations:read'],
   'assets:update': ['assets:read'],
-  'assets:assign': ['assets:read'],
+  // Assigning means choosing an employee.
+  'assets:assign': ['assets:read', 'employees:read'],
   'assets:delete': ['assets:read'],
   'assets:export': ['assets:read'],
   'assets:import': ['assets:read'],
@@ -48,7 +50,8 @@ const PERMISSION_DEPENDENCIES = {
   'employees:manage': ['employees:read'],
   'employees:delete': ['employees:read'],
   'employees:grant-access': ['employees:read'],
-  'employees:assign-assets': ['employees:read'],
+  // Bulk assign lists the available assets to pick from.
+  'employees:assign-assets': ['employees:read', 'assets:read'],
   'onboarding:create': ['onboarding:read'],
   'onboarding:update': ['onboarding:read'],
   // Fulfillment presents the available-asset selector, whose endpoint is

@@ -13,18 +13,19 @@ import { useAuth } from '../context/AuthContext';
 export default function Dashboard({ embedded = false }) {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+  const canReadTickets = hasPermission('tickets:read');
   const { metrics, breakdown, breakdownByLocation, breakdownByStatus, breakdownByWarranty, lowStockCategories, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
   const { tickets, loading: ticketsLoading, error: ticketsError, fetchTickets } = useTickets();
 
   useEffect(() => {
-    if (hasPermission('tickets:read')) {
+    if (canReadTickets) {
       fetchTickets({ scope: 'all' });
     }
-  }, [fetchTickets, hasPermission]);
+  }, [fetchTickets, canReadTickets]);
 
   const handleRefresh = () => {
     refreshMetrics();
-    if (hasPermission('tickets:read')) {
+    if (canReadTickets) {
       fetchTickets({ scope: 'all' });
     }
   };
@@ -105,6 +106,7 @@ export default function Dashboard({ embedded = false }) {
               colorClass="text-info-blue bg-info-blue/10 border-info-blue/20"
               onClick={() => navigate('/inventory?status=in-use')}
             />
+            {canReadTickets && (
             <MetricCard
               title="Open Tickets"
               count={openTickets.length}
@@ -113,6 +115,7 @@ export default function Dashboard({ embedded = false }) {
               colorClass="text-warning bg-warning/10 border-warning/20"
               onClick={() => navigate('/tickets')}
             />
+            )}
             <MetricCard
               title="Retired / EOL"
               count={metrics.retired}
@@ -127,7 +130,8 @@ export default function Dashboard({ embedded = false }) {
 
       {/* 2. TIER 2 — "Requires Attention" Widgets (Middle Row) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Widget A: Pending Tickets */}
+        {/* Widget A: Pending Tickets (hidden without tickets:read) */}
+        {canReadTickets && (
         <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -148,7 +152,7 @@ export default function Dashboard({ embedded = false }) {
             ) : (
               <div className="space-y-3">
                 {pendingTickets.map(ticket => (
-                  <Link key={ticket.id} to="/tickets" className="flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-border hover:bg-raised transition-colors cursor-pointer group">
+                  <Link key={ticket.id} to={`/tickets?ticket=${ticket.id}`} className="flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-border hover:bg-raised transition-colors cursor-pointer group">
                     <div className="flex-1 min-w-0 pr-4">
                       <p className="text-sm font-medium text-primary truncate">{ticket.title}</p>
                       <p className="text-xs text-secondary mt-0.5">{ticket.employee_name}</p>
@@ -167,6 +171,7 @@ export default function Dashboard({ embedded = false }) {
             )}
           </div>
         </div>
+        )}
 
         {/* Widget B: Low Stock Alert */}
         <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">

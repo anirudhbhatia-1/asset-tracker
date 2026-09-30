@@ -1,3 +1,13 @@
+-- SAFETY GUARD: this migration drops and recreates tickets, onboarding and
+-- sessions. It must only ever run on a fresh database; refuse if real data
+-- exists (e.g. someone re-applies it by mistake).
+DO $$
+BEGIN
+  IF to_regclass('public.tickets') IS NOT NULL AND EXISTS (SELECT 1 FROM tickets) THEN
+    RAISE EXCEPTION 'Refusing to re-run 20260727100000_rbac_rebuild: it would delete existing tickets and onboarding data';
+  END IF;
+END $$;
+
 DROP TABLE IF EXISTS onboarding_request_items CASCADE;
 DROP TABLE IF EXISTS onboarding_requests CASCADE;
 DROP TABLE IF EXISTS tickets CASCADE;

@@ -4,7 +4,7 @@ import { getEmployeeAssets } from '../api/employeesApi';
 import { useOnboarding } from '../hooks/useOnboarding';
 import Badge from '../components/ui/Badge';
 import StatusPill from '../components/ui/StatusPill';
-import { Laptop, Users, Calendar, Plus, PackageX, Briefcase, Settings, Target } from 'lucide-react';
+import { Laptop, Users, Calendar, Plus, PackageX, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
 import EditOnboardingModal from '../components/forms/EditOnboardingModal';

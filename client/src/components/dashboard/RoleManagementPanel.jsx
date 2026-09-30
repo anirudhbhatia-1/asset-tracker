@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, User, Key } from 'lucide-react';
+import { ShieldCheck, Key } from 'lucide-react';
 import api from '../../api/axiosInstance';
 
 const roleStyles = {
@@ -34,8 +34,13 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
   const handleRoleChange = async (emp, targetRole) => {
     if (emp.role === targetRole || String(emp.roleId) === String(targetRole)) return;
     setSavingId(emp.id);
-    await onRoleChange(emp.id, targetRole);
-    setSavingId(null);
+    try {
+      await onRoleChange(emp.id, targetRole);
+    } catch {
+      // The employees hook already showed the error toast.
+    } finally {
+      setSavingId(null);
+    }
   };
 
   return (

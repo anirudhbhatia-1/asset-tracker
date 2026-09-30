@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Users, Search, AlertCircle, Building2, MapPin } from 'lucide-react';
+import { Plus, Users, AlertCircle, Building2, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { onboardingApi } from '../api/onboardingApi';
@@ -26,7 +26,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const Onboarding = () => {
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const { requests, loading, error, fetchRequests, createRequest, updateStatus, fulfillItem, getRequestDetails } = useOnboarding();
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

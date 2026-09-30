@@ -10,10 +10,17 @@
     "start": "npm run dev",
     "build": "npm run build --prefix client",
     "test": "npm test --prefix server",
-    "db:reset": "npm run db:reset --prefix server"
+    "db:reset": "npm run db:reset --prefix server",
+    "test:client": "npm test --prefix client",
+    "test:all": "npm test --prefix server && npm test --prefix client",
+    "test:e2e": "playwright test",
+    "lint": "npm run lint --prefix client"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

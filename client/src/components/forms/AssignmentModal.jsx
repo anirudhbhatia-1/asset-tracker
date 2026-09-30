@@ -26,8 +26,8 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
       try {
         const res = await getEmployees();
         setEmployees(res.data?.data || (Array.isArray(res.data) ? res.data : []));
-      } catch (err) {
-        // Handle error safely
+      } catch {
+        // Leave the list empty; the modal shows its empty state.
       } finally {
         setLoadingEmployees(false);
       }
@@ -52,7 +52,7 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
     try {
       await onAssign(Number(selectedEmployeeId), assignedDate, note.trim());
       onClose();
-    } catch (err) {
+    } catch {
       // Error handled in parent hook with toast
     } finally {
       setSubmitting(false);

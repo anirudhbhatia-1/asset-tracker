@@ -45,7 +45,8 @@ describe('Category & Location Permission Integration Tests', () => {
   });
 
   it('POST /api/categories should fail with 403 for employee without categories:manage', async () => {
-    if (!employeeToken) return;
+    // The employee session must exist, or these checks would pass vacuously.
+    expect(employeeToken).toBeTruthy();
     const res = await request(app)
       .post('/api/categories')
       .set('Authorization', `Bearer ${employeeToken}`)
@@ -62,7 +63,8 @@ describe('Category & Location Permission Integration Tests', () => {
   });
 
   it('POST /api/locations should fail with 403 for employee without locations:manage', async () => {
-    if (!employeeToken) return;
+    // The employee session must exist, or these checks would pass vacuously.
+    expect(employeeToken).toBeTruthy();
     const res = await request(app)
       .post('/api/locations')
       .set('Authorization', `Bearer ${employeeToken}`)

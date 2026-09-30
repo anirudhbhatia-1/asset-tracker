@@ -874,8 +874,9 @@ CREATE INDEX IF NOT EXISTS idx_employees_email     ON employees(email);
 
 - Supabase CLI manages migrations natively.
 - `supabase migration new <name>` creates timestamped SQL files in `supabase/migrations/`.
-- `supabase db push` applies them to the remote project.
-- `supabase db reset` re-applies them locally.
+- Superseded: production migrations are applied with `npm run migrate:apply --prefix server`
+  (see README.md), which records each file in `app_migrations`; the local database applies
+  them on start.
 - No ORM is used — raw SQL via `pg` driver for maximum control and performance.
 
 ---
@@ -1184,25 +1185,9 @@ services:
 
 ### `server/.env`
 
-```env
-# Server
-PORT=3001
-NODE_ENV=development
-
-# Database (Supabase Session Pooler URL - Port 5432)
-# Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
-# Requires SSL enabled in pg client (ssl: { rejectUnauthorized: false })
-DATABASE_URL=postgresql://postgres.xxx:pass@aws-0-xx.pooler.supabase.com:5432/postgres
-
-# Google OAuth
-GOOGLE_CLIENT_ID=1234567890-abcde.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxx
-GOOGLE_REDIRECT_URI=http://localhost:5173
-
-# Security
-CLIENT_ORIGIN=http://localhost:5173
-SESSION_SECRET=change-me-in-production
-```
+> **Outdated example removed.** Development must use the local database, never a
+> Supabase address. See `server/.env.example` and the Configuration section of
+> [README.md](README.md) for the current settings.
 
 ### `client/.env`
 

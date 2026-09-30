@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, MapPin, X, Trash2 } from 'lucide-react';
+import { Plus, Edit2, MapPin, Trash2 } from 'lucide-react';
 import useLocations from '../../hooks/useLocations';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
@@ -51,7 +51,7 @@ export default function LocationsTab() {
       setIsEditOpen(false);
       setEditingLocation(null);
       refresh();
-    } catch (err) {
+    } catch {
       toast.error('Failed to update addresses');
     } finally {
       setSubmitting(false);

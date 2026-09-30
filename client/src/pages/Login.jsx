@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
 import api from '../api/axiosInstance';
 import { getGoogleButtonWidth, getGoogleLoginError, isGoogleLoginConfigured } from '../utils/googleAuth';
+import { getPostLoginPath } from '../utils/redirect';
 
 const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
   const [email, setEmail] = useState('');
@@ -19,7 +20,8 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
   const { login, loginWithToken } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/";
+  // Back to the page that required sign-in, query string included.
+  const from = getPostLoginPath(location.state?.from);
   const isGoogleLoginEnabled = isGoogleLoginConfigured(googleClientId);
   useEffect(() => {
     const updateGoogleButtonWidth = () => setGoogleButtonWidth(getGoogleButtonWidth(window.innerWidth));

@@ -38,7 +38,7 @@ export default function InventoryBreakdown({
 
   let currentOffset = 0;
 
-  const chartSegments = data.map((item, index) => {
+  const chartSegments = data.map((item) => {
     const percentage = totalItems > 0 ? item.count / totalItems : 0;
     const strokeDasharray = `${percentage * circumference} ${circumference}`;
     const strokeDashoffset = -currentOffset;
@@ -51,8 +51,11 @@ export default function InventoryBreakdown({
     };
   });
 
+  // Buckets with no inventory filter (e.g. Uncategorized) are not links.
+  const isLinkable = (segment) => Boolean(segment?.filterKey) && segment.filterValue !== undefined;
+
   const handleNavigateToInventory = (segment) => {
-    if (!segment || !segment.filterKey || segment.filterValue === undefined) return;
+    if (!isLinkable(segment)) return;
     const url = `/inventory?${segment.filterKey}=${encodeURIComponent(segment.filterValue)}`;
     navigate(url);
   };
@@ -132,7 +135,7 @@ export default function InventoryBreakdown({
                         onMouseLeave={() => setHoveredIndex(null)}
                         onClick={() => handleNavigateToInventory(segment)}
                         style={{ opacity, transition: 'all 0.2s ease-in-out' }}
-                        className="cursor-pointer"
+                        className={isLinkable(segment) ? 'cursor-pointer' : undefined}
                       >
                         <title>{segment.name}: {segment.count} ({segment.percentage}%)</title>
                       </circle>
@@ -168,19 +171,20 @@ export default function InventoryBreakdown({
                 const isHovered = hoveredIndex === i;
                 const isAnyHovered = hoveredIndex !== null;
                 const opacityClass = isAnyHovered ? (isHovered ? 'opacity-100' : 'opacity-40') : 'opacity-100';
+                const linkable = isLinkable(segment);
 
                 return (
                   <div 
                     key={i} 
                     onMouseEnter={() => setHoveredIndex(i)}
                     onMouseLeave={() => setHoveredIndex(null)}
-                    onClick={() => handleNavigateToInventory(segment)}
-                    role="link"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleNavigateToInventory(segment); }}
+                    onClick={linkable ? () => handleNavigateToInventory(segment) : undefined}
+                    role={linkable ? 'link' : undefined}
+                    tabIndex={linkable ? 0 : undefined}
+                    onKeyDown={linkable ? (e) => { if (e.key === 'Enter') handleNavigateToInventory(segment); } : undefined}
                     onFocus={() => setHoveredIndex(i)}
                     onBlur={() => setHoveredIndex(null)}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border border-transparent transition-all cursor-pointer group ${opacityClass} ${
+                    className={`flex items-center justify-between p-2.5 rounded-xl border border-transparent transition-all group ${linkable ? 'cursor-pointer' : ''} ${opacityClass} ${
                       isHovered ? 'bg-raised border-border/80 shadow-sm scale-[1.01]' : 'hover:bg-raised/50'
                     }`}
                   >
@@ -197,7 +201,9 @@ export default function InventoryBreakdown({
                     <div className="flex items-center gap-3 text-sm shrink-0">
                       <span className="text-primary font-semibold font-mono">{segment.count}</span>
                       <span className="text-secondary w-10 text-right font-medium">{segment.percentage}%</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-accent opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                      {linkable
+                        ? <ArrowRight className="w-3.5 h-3.5 text-accent opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                        : <span className="w-3.5 ml-1" aria-hidden="true" />}
                     </div>
                   </div>
                 );

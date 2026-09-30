@@ -46,6 +46,11 @@ router.use(validateSession);
 // GET /api/assets — list assets with optional filters
 router.get('/', requirePermission('assets:read'), async (req, res, next) => {
   try {
+    // Filters take one value each; ?status=a&status=b would reach SQL as an array.
+    const repeated = Object.keys(req.query).filter((key) => Array.isArray(req.query[key]));
+    if (repeated.length > 0) {
+      return res.status(400).json({ error: true, message: `Filter given more than once: ${repeated.join(', ')}`, code: 400 });
+    }
     const assets = await assetService.getAssets(req.query);
     res.status(200).json({
       data: assets,
@@ -195,10 +200,10 @@ router.post('/', [
   body('categoryId').notEmpty().withMessage('Category ID is required').isInt({ min: 1 }),
   body('status').optional().isIn(['available', 'in-use', 'retired', 'returned']).withMessage('Invalid status'),
   body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Must be valid ISO date'),
-  body('costCents').optional({ nullable: true }).isInt({ min: 0 }),
+  body('costCents').optional({ nullable: true }).isInt({ min: 0, max: 2147483647 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim(),
   body('notes').optional({ nullable: true, checkFalsy: true }).isString().trim(),
-  body('warrantyExpiryDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Must be valid ISO date'),
+  body('warrantyExpiryDate').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true }).withMessage('Must be valid ISO date'),
   body('brand').optional({ nullable: true, checkFalsy: true }).isString().trim(),
   body('vendor').optional({ nullable: true, checkFalsy: true }).isString().trim(),
   body('processor').optional({ nullable: true, checkFalsy: true }).isString().trim(),
@@ -214,8 +219,10 @@ router.post('/', [
   body('color').optional({ nullable: true, checkFalsy: true }).isString().trim(),
   body('hardwareType').optional({ nullable: true, checkFalsy: true }).isString().trim(),
   body('clientName').optional({ nullable: true, checkFalsy: true }).isString().trim(),
-  body('receivedOn').optional({ nullable: true, checkFalsy: true }).isISO8601(),
-  body('assignToEmployeeId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
+  body('receivedOn').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true }),
+  body('returnDate').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true }),
+  body('assetType').optional().isIn(['company', 'client']).withMessage('assetType must be company or client'),
+  body('assignedTo').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   body('parentId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   validateRequest,
 ], async (req, res, next) => {
@@ -239,10 +246,15 @@ router.patch('/:id', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   body('name').optional().notEmpty().withMessage('Asset name cannot be empty').trim().isLength({ max: 150 }),
   body('serialNumber').optional().notEmpty().withMessage('Serial number cannot be empty').trim().isLength({ max: 100 }),
-  body('categoryId').optional().isInt({ min: 1 }),
-  body('status').optional().isIn(['available', 'in-use', 'retired', 'returned']).withMessage('Invalid status'),
-  body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601(),
-  body('costCents').optional({ nullable: true }).isInt({ min: 0 }),
+  body('categoryId').optional({ nullable: true }).isInt({ min: 1 }),
+  // Status only changes through assign/return/retire so history stays right.
+  body('status').not().exists().withMessage('Change status with the assign, return or retire actions'),
+  body('assetType').optional().isIn(['company', 'client']).withMessage('assetType must be company or client'),
+  body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true }),
+  body('warrantyExpiryDate').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true }),
+  body('receivedOn').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true }),
+  body('returnDate').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true }),
+  body('costCents').optional({ nullable: true }).isInt({ min: 0, max: 2147483647 }),
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim(),
   body('notes').optional({ nullable: true, checkFalsy: true }).isString().trim(),
   validateRequest,

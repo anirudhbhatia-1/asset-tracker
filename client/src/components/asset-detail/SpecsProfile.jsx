@@ -62,7 +62,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
         warrantyExpiryDate: warrantyValue || null,
       });
       setIsEditing(false);
-    } catch (err) {
+    } catch {
       // Error toast already handled inside hook
     } finally {
       setSaving(false);

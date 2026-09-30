@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, new_test]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix server
+          npm ci --prefix client
+
+      - name: Lint (client)
+        run: npm run lint
+
+      - name: Client unit tests
+        run: npm test --prefix client
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Start local PostgreSQL (migrated and seeded)
+        working-directory: server
+        run: |
+          cp .env.example .env
+          node scripts/devDb.mjs > /tmp/devdb.log 2>&1 &
+          for i in $(seq 1 60); do
+            grep -q "ready at" /tmp/devdb.log && break
+            grep -q "failed" /tmp/devdb.log && { cat /tmp/devdb.log; exit 1; }
+            sleep 2
+          done
+          cat /tmp/devdb.log
+
+      - name: Server tests
+        run: npm test --prefix server

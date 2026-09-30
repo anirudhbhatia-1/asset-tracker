@@ -4,7 +4,6 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
   const [displayCount, setDisplayCount] = useState(0);
 
   useEffect(() => {
-    let start = 0;
     const end = Number(count) || 0;
     if (end === 0) {
       setDisplayCount(0);

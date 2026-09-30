@@ -59,7 +59,8 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
   const toggleAsset = (id) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -77,7 +78,8 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
   const toggleCollapse = (cat) => {
     setCollapsedCategories(prev => {
       const next = new Set(prev);
-      next.has(cat) ? next.delete(cat) : next.add(cat);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
       return next;
     });
   };

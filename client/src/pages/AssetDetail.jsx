@@ -8,7 +8,6 @@ import AssigneeCard from '../components/asset-detail/AssigneeCard';
 import LifecycleActions from '../components/asset-detail/LifecycleActions';
 import LinkedAccessoriesCard from '../components/asset-detail/LinkedAccessoriesCard';
 import EmptyState from '../components/ui/EmptyState';
-import { SkeletonCard } from '../components/ui/Skeleton';
 import { ArrowLeft, RefreshCw, PackageX } from 'lucide-react';
 import { getChildAssets, getAssetTickets } from '../api/assetsApi';
 
@@ -17,6 +16,7 @@ export default function AssetDetail() {
   const {
     asset,
     loading,
+    refreshing,
     error,
     refresh,
     updateAssetData,
@@ -39,13 +39,19 @@ export default function AssetDetail() {
   const [childAssets, setChildAssets] = useState([]);
   const [assetTickets, setAssetTickets] = useState([]);
 
+  // Keyed on the asset object so Refresh and assign/return/retire (which
+  // cascade to accessories) reload the linked accessories too.
   useEffect(() => {
-    if (asset?.id) {
-      getChildAssets(asset.id)
-        .then(res => setChildAssets(res.data?.data || []))
-        .catch(() => {});
+    if (!asset?.id) {
+      setChildAssets([]);
+      return undefined;
     }
-  }, [asset?.id]);
+    let cancelled = false;
+    getChildAssets(asset.id)
+      .then(res => { if (!cancelled) setChildAssets(res.data?.data || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [asset]);
 
   // Linked tickets are a nice-to-have on this page: a failed request just
   // leaves the timeline showing audit history alone. Keyed on the asset
@@ -118,10 +124,11 @@ export default function AssetDetail() {
         <button
           type="button"
           onClick={refresh}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer shadow-sm"
+          disabled={refreshing}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer shadow-sm disabled:cursor-wait"
           title="Refresh asset state"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-accent' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-accent' : ''}`} />
           <span>Refresh</span>
         </button>
       </div>
@@ -140,7 +147,7 @@ export default function AssetDetail() {
             <LinkedAccessoriesCard parentAsset={{ id: asset.parentId, name: asset.parentAssetName }} />
           )}
           {childAssets.length > 0 && (
-            <LinkedAccessoriesCard children={childAssets} />
+            <LinkedAccessoriesCard childAssets={childAssets} />
           )}
 
           {/* 3. Lifecycle & Operational Controls */}

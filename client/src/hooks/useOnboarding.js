@@ -22,6 +22,17 @@ export const useOnboarding = () => {
     }
   }, []);
 
+  // Create/update/fulfil return a request without the list's joined fields
+  // (items_summary, requested_by_email, linked_employee_name) — fulfil even
+  // returns just the item — so reload the list quietly after those.
+  const refreshRequests = useCallback(async () => {
+    try {
+      setRequests(await onboardingApi.getAll());
+    } catch {
+      // Keep the current list; the next full load will catch up.
+    }
+  }, []);
+
   const fetchHrMetrics = useCallback(async () => {
     try {
       const data = await onboardingApi.getHrMetrics();
@@ -34,8 +45,8 @@ export const useOnboarding = () => {
   const createRequest = async (data) => {
     try {
       const newReq = await onboardingApi.create(data);
-      setRequests(prev => [newReq, ...prev]);
       toast.success('Onboarding request created');
+      await refreshRequests();
       return newReq;
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to create request';
@@ -47,8 +58,8 @@ export const useOnboarding = () => {
   const updateRequestDetails = async (id, data) => {
     try {
       const updatedReq = await onboardingApi.updateRequest(id, data);
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, ...updatedReq } : r));
       toast.success('Onboarding request updated');
+      await refreshRequests();
       return updatedReq;
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to update request';
@@ -72,11 +83,11 @@ export const useOnboarding = () => {
 
   const fulfillItem = async (id, itemId, assetId) => {
     try {
-      const updatedReq = await onboardingApi.fulfillItem(id, itemId, assetId);
-      // Fulfilling an item returns the full updated request, so we can update our local state completely
-      setRequests(prev => prev.map(r => r.id === id ? updatedReq : r));
+      // The API answers with the updated item row, not the whole request.
+      const updatedItem = await onboardingApi.fulfillItem(id, itemId, assetId);
       toast.success('Item fulfilled');
-      return updatedReq;
+      refreshRequests();
+      return updatedItem;
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to fulfill item';
       toast.error(message);
@@ -85,14 +96,14 @@ export const useOnboarding = () => {
   };
 
   // Helper to fetch a single request's details (since the list API doesn't include items)
-  const getRequestDetails = async (id) => {
+  const getRequestDetails = useCallback(async (id) => {
     try {
       return await onboardingApi.getById(id);
     } catch (err) {
       toast.error('Failed to load request details');
       throw err;
     }
-  };
+  }, []);
 
   return {
     requests,
@@ -100,6 +111,7 @@ export const useOnboarding = () => {
     loading,
     error,
     fetchRequests,
+    refreshRequests,
     fetchHrMetrics,
     createRequest,
     updateRequestDetails,
