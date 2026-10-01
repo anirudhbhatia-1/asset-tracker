@@ -9,6 +9,7 @@ import {
   Settings, 
   Ticket,
   UserPlus,
+  UserMinus,
   MoreHorizontal
 } from 'lucide-react';
 
@@ -17,6 +18,7 @@ const allNavItems = [
   { name: 'Inventory', path: '/inventory', icon: Package, permissionKey: 'assets:read' },
   { name: 'Tickets', path: '/tickets', icon: Ticket, permissionKey: 'tickets:read' },
   { name: 'Onboarding', path: '/onboarding', icon: UserPlus, permissionKey: 'onboarding:read' },
+  { name: 'Offboarding', path: '/offboarding', icon: UserMinus, permissionKey: 'offboarding:read' },
   { name: 'Scanner', path: '/scanner', icon: QrCode, permissionKey: 'scanner:read' },
   { name: 'Employees', path: '/employees', icon: Users, permissionKey: 'employees:read' },
   // Everyone can read categories/locations (form dropdowns need them), so

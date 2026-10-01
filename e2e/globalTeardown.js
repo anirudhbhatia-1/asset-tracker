@@ -37,6 +37,7 @@ module.exports = async () => {
     await client.query('DELETE FROM assets WHERE id = ANY($1)', [assetIds]);
     await client.query('DELETE FROM sessions WHERE employee_id = ANY($1)', [personIds]);
     await client.query('UPDATE asset_history SET employee_id = NULL WHERE employee_id = ANY($1)', [personIds]);
+    await client.query('DELETE FROM offboarding_requests WHERE employee_id = ANY($1)', [personIds]);
     await client.query('DELETE FROM employees WHERE id = ANY($1)', [personIds]);
     await client.query(`
       DELETE FROM role_permissions WHERE role_id IN (

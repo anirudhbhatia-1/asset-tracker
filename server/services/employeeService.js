@@ -1,6 +1,12 @@
 const { pool, withTransaction } = require('../db');
 const { hasPermission, expandPermissions, getDefaultPermissionsForRole } = require('../middleware/validateSession');
 
+const OPEN_OFFBOARDING_SQL = `(
+  SELECT json_build_object('id', o.id, 'lastWorkingDate', o.last_working_date, 'status', o.status)
+  FROM offboarding_requests o
+  WHERE o.employee_id = e.id AND o.status IN ('pending', 'in_progress')
+  LIMIT 1)`;
+
 const mapEmployee = (row) => {
   if (!row) return null;
   return {
@@ -21,6 +27,8 @@ const mapEmployee = (row) => {
     roleName: row.role_name || row.role || null,
     customRoleName: row.custom_role_name || row.role_name || row.role || null,
     adminType: row.admin_type || null,
+    // The open exit, if one is in progress: { id, lastWorkingDate, status }.
+    offboarding: row.offboarding || null,
     hasLogin: row.has_login !== undefined ? Boolean(row.has_login) : (row.password_hash != null || row.google_id != null || Boolean(row.role)),
   };
 };
@@ -80,7 +88,8 @@ const getEmployees = async (filters = {}) => {
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role, e.role_id, e.admin_type, e.password_hash,
            r.name as role_name, r.name as custom_role_name,
-           COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
+           COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count,
+           ${OPEN_OFFBOARDING_SQL} AS offboarding
     FROM employees e
     LEFT JOIN roles r ON e.role_id = r.id
     LEFT JOIN assets a ON e.id = a.assigned_to
@@ -99,7 +108,8 @@ const getEmployeeById = async (id) => {
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role, e.role_id, e.admin_type, e.password_hash,
            r.name as role_name, r.name as custom_role_name,
-           COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count
+           COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count,
+           ${OPEN_OFFBOARDING_SQL} AS offboarding
     FROM employees e
     LEFT JOIN roles r ON e.role_id = r.id
     LEFT JOIN assets a ON e.id = a.assigned_to
@@ -355,7 +365,10 @@ const updateEmployee = async (id, data, actingUser) => {
   return getEmployeeById(id);
 };
 
-const deleteEmployee = async (id, actingUser) => {
+// options.client — run inside the caller's transaction (offboarding).
+const inTransaction = (client, fn) => (client ? fn(client) : withTransaction(fn));
+
+const deleteEmployee = async (id, actingUser, options = {}) => {
   const current = await getEmployeeById(id);
 
   if (current.deletedAt) {
@@ -372,7 +385,7 @@ const deleteEmployee = async (id, actingUser) => {
   );
   if (heldAssets.length > 0) {
     const err = new Error(
-      `Return ${heldAssets.length} assigned asset(s) before removing this employee: `
+      `Return ${heldAssets.length} assigned asset(s) before removing this employee (or start their offboarding): `
       + heldAssets.map((asset) => `${asset.name} (${asset.serial_number})`).join(', ')
     );
     err.statusCode = 409;
@@ -380,7 +393,7 @@ const deleteEmployee = async (id, actingUser) => {
     throw err;
   }
 
-  await withTransaction(async (client) => {
+  await inTransaction(options.client, async (client) => {
     await client.query('SELECT id FROM employees WHERE id = $1 FOR UPDATE', [id]);
     await assertNotLastDirector(client, id, 'remove');
     // Re-check under the lock: an asset may have been assigned meanwhile.
@@ -501,7 +514,7 @@ const resetEmployeePassword = async (id, passwordHash, actingUser) => {
 
 // Removes the ability to log in (password and Google) while keeping the
 // directory entry and its asset history.
-const revokeEmployeeAccess = async (id, actingUser) => {
+const revokeEmployeeAccess = async (id, actingUser, options = {}) => {
   const current = await getEmployeeById(id);
   if (!current.role && !current.hasLogin) {
     const err = new Error('This employee has no login access');
@@ -510,7 +523,7 @@ const revokeEmployeeAccess = async (id, actingUser) => {
   }
   assertCanActOnRole(actingUser, await getCurrentRole(current), 'revoke access for');
 
-  await withTransaction(async (client) => {
+  await inTransaction(options.client, async (client) => {
     await client.query('SELECT id FROM employees WHERE id = $1 FOR UPDATE', [id]);
     await assertNotLastDirector(client, id, 'revoke access for');
     await client.query(`

@@ -64,5 +64,5 @@ setting does.
 ## 6. After deploy
 
 - [ ] Log in with a real account (a flagged account is asked for a new password
-  first); open Dashboard, Inventory, Tickets, Onboarding and Scanner.
+  first); open Dashboard, Inventory, Tickets, Onboarding, Offboarding and Scanner.
 - [ ] Deploys that change session storage sign everyone out once — tell users.

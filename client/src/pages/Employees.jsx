@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useEmployees from '../hooks/useEmployees';
 import EmployeeAssetDrawer from '../components/employees/EmployeeAssetDrawer';
@@ -7,11 +8,14 @@ import AddEmployeeModal from '../components/forms/AddEmployeeModal';
 import RoleManagementModal from '../components/forms/RoleManagementModal';
 import EditEmployeeModal from '../components/forms/EditEmployeeModal';
 import BulkAssignModal from '../components/forms/BulkAssignModal';
+import StartOffboardingModal from '../components/offboarding/StartOffboardingModal';
+import { useOffboarding } from '../hooks/useOffboarding';
+import { formatDate } from '../utils/formatters';
 import RoleManagementPanel from '../components/dashboard/RoleManagementPanel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
-import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX } from 'lucide-react';
+import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX, UserMinus, LogOut } from 'lucide-react';
 import { onActivateKey } from '../utils/a11y';
 
 const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing'];
@@ -24,6 +28,10 @@ export default function Employees() {
   const canCreate = hasPermission('employees:create');
   const canEdit = hasPermission('employees:manage');
   const canAssignAssets = hasPermission('employees:assign-assets');
+  const canStartOffboarding = hasPermission('offboarding:create');
+  const canReadOffboarding = hasPermission('offboarding:read');
+  const navigate = useNavigate();
+  const { createRequest: createOffboarding } = useOffboarding();
   const { employees, loading, error, refresh, addEmployee, updateEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline, resetPassword, revokeAccess } = useEmployees();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'roles'
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +47,8 @@ export default function Employees() {
   const [bulkAssignTarget, setBulkAssignTarget] = useState(null);
   // { mode: 'reset' | 'revoke', employee } for the access action dialog.
   const [accessAction, setAccessAction] = useState(null);
+  // Employee whose exit is being started from their row.
+  const [offboardTarget, setOffboardTarget] = useState(null);
 
   useEffect(() => {
     if (!canManageRoles && activeTab === 'roles') setActiveTab('directory');
@@ -88,6 +98,10 @@ export default function Employees() {
   const openAccessAction = (e, mode, emp) => {
     e.stopPropagation();
     setAccessAction({ mode, employee: emp });
+  };
+
+  const openOffboarding = (requestId) => {
+    if (requestId && canReadOffboarding) navigate(`/offboarding?request=${requestId}`);
   };
 
   return (
@@ -264,7 +278,25 @@ export default function Employees() {
                           {emp.name?.substring(0, 2) || 'U'}
                         </div>
                         <div>
-                          <div className="font-medium text-primary">{emp.name}</div>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-medium text-primary">{emp.name}</span>
+                            {emp.offboarding && (canReadOffboarding ? (
+                              <Link
+                                to={`/offboarding?request=${emp.offboarding.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                title="Open offboarding"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full hover:underline whitespace-nowrap"
+                              >
+                                <LogOut className="w-3 h-3" aria-hidden="true" />
+                                Leaving {formatDate(emp.offboarding.lastWorkingDate)}
+                              </Link>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                <LogOut className="w-3 h-3" aria-hidden="true" />
+                                Leaving {formatDate(emp.offboarding.lastWorkingDate)}
+                              </span>
+                            ))}
+                          </div>
                           <div className="text-xs text-secondary">{emp.email}</div>
                         </div>
                       </div>
@@ -331,6 +363,18 @@ export default function Employees() {
                         >
                           <Package className="w-3.5 h-3.5 text-accent" />
                           Assign Hardware
+                        </button>
+                      )}
+                      {canStartOffboarding && !emp.offboarding && !emp.deletedAt && String(emp.id) !== String(user?.id) && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setOffboardTarget(emp); }}
+                          aria-label={`Start offboarding for ${emp.name}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm"
+                          title="Start offboarding"
+                        >
+                          <UserMinus className="w-3.5 h-3.5 text-warning" />
+                          Offboard
                         </button>
                       )}
                       <button
@@ -403,6 +447,21 @@ export default function Employees() {
         onClose={() => setAccessAction(null)}
         onResetPassword={resetPassword}
         onRevokeAccess={revokeAccess}
+      />
+
+      <StartOffboardingModal
+        isOpen={!!offboardTarget}
+        onClose={() => setOffboardTarget(null)}
+        preselectedEmployee={offboardTarget}
+        onSubmit={createOffboarding}
+        onCreated={(created) => {
+          refresh();
+          openOffboarding(created?.id);
+        }}
+        onOpenExisting={canReadOffboarding ? (requestId) => {
+          refresh();
+          openOffboarding(requestId);
+        } : undefined}
       />
 
       <BulkAssignModal

@@ -10,6 +10,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'categories:read', 'categories:manage',
     'employees:read', 'employees:create', 'employees:manage', 'employees:delete', 'employees:grant-access', 'employees:assign-assets',
     'onboarding:read', 'onboarding:create', 'onboarding:update', 'onboarding:fulfill',
+    'offboarding:read', 'offboarding:create', 'offboarding:update', 'offboarding:collect',
     'tickets:read', 'tickets:create', 'tickets:update', 'tickets:resolve',
     'locations:read', 'locations:manage',
     'scanner:read', 'settings:read', 'settings:manage'
@@ -18,6 +19,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'categories:read',
     'employees:read', 'employees:create', 'employees:manage',
     'onboarding:read', 'onboarding:create', 'onboarding:update',
+    'offboarding:read', 'offboarding:create', 'offboarding:update',
     'tickets:read', 'tickets:create', 'tickets:update',
     'locations:read'
   ],
@@ -58,6 +60,10 @@ const PERMISSION_DEPENDENCIES = {
   // Fulfillment presents the available-asset selector, whose endpoint is
   // protected by assets:read.
   'onboarding:fulfill': ['onboarding:read', 'assets:read'],
+  // Starting an exit means picking the employee.
+  'offboarding:create': ['offboarding:read', 'employees:read'],
+  'offboarding:update': ['offboarding:read'],
+  'offboarding:collect': ['offboarding:read'],
   'tickets:create': ['tickets:read'],
   'tickets:update': ['tickets:read'],
   'tickets:resolve': ['tickets:read'],

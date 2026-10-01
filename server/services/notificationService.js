@@ -226,6 +226,105 @@ const getHrNotifications = async (employeeId) => {
 };
 
 /**
+ * Exit (offboarding) notifications:
+ * - collectors: exits whose last day is within a week (or past) with assets still out;
+ * - whoever started an exit: when it is completed;
+ * - the departing employee: which assets to hand back, and by when.
+ */
+const getOffboardingNotifications = async (user, { collector, requester, accessManager }) => {
+  const notifications = [];
+
+  if (collector) {
+    const { rows } = await pool.query(
+      `SELECT o.id, o.last_working_date, o.created_at, e.name, COUNT(a.id) AS pending
+       FROM offboarding_requests o
+       JOIN employees e ON e.id = o.employee_id
+       JOIN assets a ON a.assigned_to = o.employee_id AND a.status = 'in-use'
+       WHERE o.status IN ('pending', 'in_progress')
+         AND o.last_working_date <= CURRENT_DATE + 7
+       GROUP BY o.id, e.name
+       ORDER BY o.last_working_date
+       LIMIT 10`
+    );
+    for (const row of rows) {
+      notifications.push({
+        id: `offboarding-collect-${row.id}`,
+        type: 'warning',
+        title: 'Collect Assets Before Exit',
+        message: `${row.name} leaves on ${row.last_working_date}; ${row.pending} asset(s) still to collect.`,
+        link: `/offboarding?request=${row.id}`,
+        createdAt: row.created_at,
+      });
+    }
+  }
+
+  if (requester) {
+    const { rows } = await pool.query(
+      `SELECT o.id, o.completed_at, e.name
+       FROM offboarding_requests o JOIN employees e ON e.id = o.employee_id
+       WHERE o.requested_by = $1 AND o.status = 'completed'
+         AND o.completed_at > NOW() - INTERVAL '7 days'
+       ORDER BY o.completed_at DESC LIMIT 10`,
+      [user.id]
+    );
+    for (const row of rows) {
+      notifications.push({
+        id: `offboarding-completed-${row.id}`,
+        type: 'success',
+        title: 'Offboarding Completed',
+        message: `All assets from ${row.name} are accounted for.`,
+        link: `/offboarding?request=${row.id}`,
+        createdAt: row.completed_at,
+      });
+    }
+  }
+
+  // Exits completed while the person can still sign in (the completer could
+  // not, or chose not to, revoke access).
+  if (accessManager) {
+    const { rows } = await pool.query(
+      `SELECT o.id, o.completed_at, e.name
+       FROM offboarding_requests o JOIN employees e ON e.id = o.employee_id
+       WHERE o.status = 'completed' AND o.completed_at > NOW() - INTERVAL '30 days'
+         AND e.deleted_at IS NULL
+         AND (e.password_hash IS NOT NULL OR e.google_id IS NOT NULL OR e.role IS NOT NULL)
+       ORDER BY o.completed_at DESC LIMIT 10`
+    );
+    for (const row of rows) {
+      notifications.push({
+        id: `offboarding-access-${row.id}`,
+        type: 'warning',
+        title: 'Login Still Active After Exit',
+        message: `${row.name} has left but can still sign in. Revoke their access from Employees.`,
+        link: '/employees',
+        createdAt: row.completed_at,
+      });
+    }
+  }
+
+  const { rows: own } = await pool.query(
+    `SELECT o.id, o.last_working_date, o.created_at, COUNT(a.id) AS pending
+     FROM offboarding_requests o
+     JOIN assets a ON a.assigned_to = o.employee_id AND a.status = 'in-use'
+     WHERE o.employee_id = $1 AND o.status IN ('pending', 'in_progress')
+     GROUP BY o.id`,
+    [user.id]
+  );
+  for (const row of own) {
+    notifications.push({
+      id: `offboarding-own-${row.id}`,
+      type: 'info',
+      title: 'Return Company Assets',
+      message: `Please hand back ${row.pending} asset(s) before your last working day, ${row.last_working_date}.`,
+      link: '/',
+      createdAt: row.created_at,
+    });
+  }
+
+  return notifications;
+};
+
+/**
  * Main entry point — routes to correct function by permissions.
  */
 const getNotifications = async (user) => {
@@ -253,6 +352,12 @@ const getNotifications = async (user) => {
     const empNotifs = await getEmployeeNotifications(user.id);
     allNotifications = allNotifications.concat(empNotifs);
   }
+
+  allNotifications = allNotifications.concat(await getOffboardingNotifications(user, {
+    collector: hasPermission(user, 'offboarding:collect'),
+    requester: hasPermission(user, 'offboarding:create'),
+    accessManager: hasPermission(user, 'employees:grant-access'),
+  }));
 
   // Deduplicate by ID
   const unique = Array.from(new Map(allNotifications.map(item => [item.id, item])).values());

@@ -545,8 +545,10 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null,
   return outerClient ? null : getAssetById(id);
 };
 
-const returnAsset = async (id, note, actorUser = null) => {
-  await withTransaction(async (client) => {
+// options.client — run inside the caller's transaction (returns null).
+const returnAsset = async (id, note, actorUser = null, options = {}) => {
+  const { client: outerClient = null } = options;
+  await inTransaction(outerClient, async (client) => {
     const current = await lockAsset(client, id);
 
     if (current.status === 'retired') {
@@ -590,7 +592,7 @@ const returnAsset = async (id, note, actorUser = null) => {
     }
   });
 
-  return getAssetById(id);
+  return outerClient ? null : getAssetById(id);
 };
 
 const retireAsset = async (id, note, confirm, actorUser = null) => {
@@ -706,4 +708,5 @@ module.exports = {
   returnAsset,
   retireAsset,
   bulkAssignAssets,
+  lockAsset,
 };

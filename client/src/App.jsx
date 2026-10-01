@@ -18,6 +18,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Tickets = lazy(() => import('./pages/Tickets'));
 const DirectorDashboard = lazy(() => import('./pages/DirectorDashboard'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Offboarding = lazy(() => import('./pages/Offboarding'));
 const HrDashboard = lazy(() => import('./pages/HrDashboard'));
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -110,6 +111,10 @@ const App = () => {
 
                   <Route element={<ProtectedRoute requiredPermission="onboarding:read" />}>
                     <Route path="onboarding" element={<Onboarding />} />
+                  </Route>
+
+                  <Route element={<ProtectedRoute requiredPermission="offboarding:read" />}>
+                    <Route path="offboarding" element={<Offboarding />} />
                   </Route>
 
                   {/* Catch-all Route for 404s */}

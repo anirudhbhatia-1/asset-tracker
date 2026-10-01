@@ -48,6 +48,7 @@ app.use('/api/google', require('./routes/google'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/onboarding', require('./routes/onboarding'));
+app.use('/api/offboarding', require('./routes/offboarding'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/locations', require('./routes/locations'));
 app.use('/api/roles', require('./routes/roles'));

@@ -1,7 +1,7 @@
 # AssetTrack — IT Asset Management & Service Portal
 
 Internal web app for Thinkvibes: hardware inventory (company- and client-owned),
-assignment and audit history, IT/Hardware/HR support tickets, and HR onboarding.
+assignment and audit history, IT/Hardware/HR support tickets, and HR onboarding and offboarding.
 
 ## Stack
 
@@ -139,6 +139,15 @@ which setting is missing. The API also logs this at startup.
 - Costs are stored in paise (`cost_cents`) and shown in rupees.
 - Onboarding requests are linked to the new hire by email; fulfilled assets are
   assigned automatically once the employee record exists.
+- Offboarding (employee exit): HR starts an exit with a last working day; the
+  checklist lists every asset the employee holds and stays in sync with
+  assignments made or returned elsewhere. IT marks each item *returned* (back
+  to stock, or to the client; attached accessories come back with it) or
+  *missing* (the asset is retired), with the same rights as returning or
+  retiring from Inventory. Completing requires every item to be handled and,
+  in one step, can revoke the login and remove the employee from the
+  directory. One open exit per employee; the person leaving cannot change it.
+  Permissions: `offboarding:read`, `:create`, `:update`, `:collect`.
 
 ## Bulk data
 
@@ -165,6 +174,7 @@ All routes are under `/api` and, except auth/Google/health, require
 | Categories & locations | `GET/POST /categories`, `GET/PUT/DELETE /categories/:id`, `GET/POST /locations`, `PUT /locations/:id/addresses` |
 | Tickets | `GET/POST /tickets`, `GET/PATCH /tickets/:id`, `GET /tickets/:id/history`, `PATCH /tickets/:id/transfer`, `PATCH /tickets/:id/confirm-close`, `PATCH /tickets/:id/reopen` |
 | Onboarding | `GET/POST /onboarding`, `GET /onboarding/hr-metrics`, `GET/PUT /onboarding/:id`, `PUT /onboarding/:id/status`, `PATCH /onboarding/:id/items/:itemId/fulfill` |
+| Offboarding | `GET/POST /offboarding`, `GET/PUT /offboarding/:id`, `PATCH /offboarding/:id/items/:itemId`, `POST /offboarding/:id/complete`, `POST /offboarding/:id/cancel` |
 | Other | `GET /history`, `GET /notifications`, `GET /health` |
 
 Responses use `{ data, message }` (lists add `total`); errors use
