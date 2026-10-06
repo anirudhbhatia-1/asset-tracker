@@ -20,8 +20,8 @@ export default function BulkItemsView({ createOpen, onCreateOpen, onCreateClose,
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('assets:create');
   const canAssign = hasPermission('assets:assign');
-  const stock = useStock();
-  const { items, loading, error, fetchItems, createItem, assignStock } = stock;
+  const stock = useStock({ initialLoad: true });
+  const { items, loading, loaded, error, fetchItems, createItem, assignStock } = stock;
 
   const [detailsId, setDetailsId] = useState(null);
   const [assignItem, setAssignItem] = useState(null);
@@ -31,7 +31,7 @@ export default function BulkItemsView({ createOpen, onCreateOpen, onCreateClose,
   }, [fetchItems]);
 
   const visibleItems = useMemo(() => filterStockItems(items, search), [items, search]);
-  const noItemsYet = !loading && !error && items.length === 0;
+  const noItemsYet = loaded && !loading && !error && items.length === 0;
 
   return (
     <div className="space-y-4">
@@ -54,7 +54,7 @@ export default function BulkItemsView({ createOpen, onCreateOpen, onCreateClose,
         </div>
       )}
 
-      {loading && items.length === 0 ? (
+      {(!loaded || loading) && items.length === 0 && !error ? (
         <SkeletonTable rows={4} />
       ) : noItemsYet ? (
         <EmptyState

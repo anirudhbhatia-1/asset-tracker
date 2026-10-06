@@ -8,6 +8,7 @@ import { getEmployeeAssets } from '../../api/employeesApi';
 import { useAuth } from '../../context/AuthContext';
 import { useStock, useStockHoldings } from '../../hooks/useStock';
 import { formatDate } from '../../utils/formatters';
+import { getInitials } from '../../utils/initials';
 import { validateQuantity, parseQuantity, holdingLabel } from '../../utils/stock';
 import { workModeLabel } from '../../utils/workMode';
 import { Laptop, Calendar, MapPin, Mail, Building2, ShieldCheck, PackageX, ExternalLink, Package, Undo2, Home } from 'lucide-react';
@@ -139,14 +140,7 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
               {employee.avatarUrl ? (
                 <img src={employee.avatarUrl} alt={employee.name} className="w-full h-full rounded-xl object-cover" />
               ) : (
-                <span>
-                  {employee.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase()}
-                </span>
+                <span>{getInitials(employee.name)}</span>
               )}
             </div>
             <div>
@@ -293,7 +287,7 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
         {/* Footer */}
         <div className="pt-3 border-t border-border flex justify-end">
           <Button variant="secondary" onClick={onClose}>
-            Close Drawer
+            Close
           </Button>
         </div>
       </div>

@@ -22,6 +22,9 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   const [departments, setDepartments] = useState([]);
   const [loadingContext, setLoadingContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Field -> message, filled on submit so a missing field is named, not
+  // just a greyed-out button. Item errors are keyed `item-<index>`.
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (isOpen) {
@@ -55,6 +58,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
       setJoiningDate('');
       setNotes('');
       setItems([]);
+      setErrors({});
     }
   }, [isOpen]);
 
@@ -62,6 +66,18 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   const titleId = useId();
   // Traps Tab inside the dialog and closes it on Escape
   useFocusTrap(dialogRef, isOpen, onClose);
+
+  // The form renders after its dropdown data loads, so start on the name
+  // field once it exists (desktop only: on touch screens it would pop the
+  // keyboard over the dialog).
+  useEffect(() => {
+    if (!isOpen || loadingContext || !dialogRef.current) return;
+    const active = document.activeElement;
+    const onField = active && dialogRef.current.contains(active) && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName);
+    let coarse = false;
+    try { coarse = window.matchMedia?.('(pointer: coarse)').matches; } catch { coarse = false; }
+    if (!onField && !coarse) document.getElementById('onb-new-name')?.focus();
+  }, [isOpen, loadingContext]);
 
   if (!isOpen) return null;
 
@@ -71,16 +87,49 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
 
   const handleRemoveItem = (index) => {
     setItems(items.filter((_, i) => i !== index));
+    // Item errors are keyed by index, which just shifted.
+    setErrors(({ name, joiningDate: dateError }) => ({ ...(name && { name }), ...(dateError && { joiningDate: dateError }) }));
   };
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
     setItems(newItems);
+    clearError(`item-${index}`);
+  };
+
+  const clearError = (key) => {
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const validate = () => {
+    const next = {};
+    if (!newHireName.trim()) next.name = 'Enter the new hire\'s name.';
+    if (!joiningDate) next.joiningDate = 'Choose a joining date.';
+    items.forEach((item, idx) => {
+      if (!item.categoryId) next[`item-${idx}`] = 'Choose a category for this item.';
+      else if (!(parseInt(item.quantity, 10) >= 1)) next[`item-${idx}`] = 'Quantity must be at least 1.';
+    });
+    return next;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const found = validate();
+    setErrors(found);
+    const firstKey = Object.keys(found)[0];
+    if (firstKey) {
+      const targetId = firstKey === 'name' ? 'onb-new-name'
+        : firstKey === 'joiningDate' ? 'onb-new-joining'
+        : `onb-new-item-${firstKey.slice(5)}-category`;
+      document.getElementById(targetId)?.focus();
+      return;
+    }
     setSubmitting(true);
     
     // Clean up items
@@ -114,13 +163,13 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
       
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90dvh] animate-scaleUp">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
           <h2 id={titleId} className="text-lg font-semibold text-primary">New Onboarding Request</h2>
-          <button aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -131,7 +180,8 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
               <Loader2 className="w-8 h-8 text-accent animate-spin" />
             </div>
           ) : (
-            <form id="onboarding-form" onSubmit={handleSubmit} className="space-y-6">
+            <form id="onboarding-form" onSubmit={handleSubmit} noValidate className="space-y-6">
+              <p className="text-xs text-secondary -mb-2">Fields marked <span className="text-error">*</span> are required.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -141,9 +191,12 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                     type="text"
                     required
                     value={newHireName}
-                    onChange={(e) => setNewHireName(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                    onChange={(e) => { setNewHireName(e.target.value); clearError('name'); }}
+                    aria-invalid={errors.name ? true : undefined}
+                    aria-describedby={errors.name ? 'onb-new-name-error' : undefined}
+                    className={`w-full px-3 py-2 bg-base border ${errors.name ? 'border-error' : 'border-border'} rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent`}
                   />
+                  {errors.name && <p id="onb-new-name-error" role="alert" className="text-xs text-error">{errors.name}</p>}
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="onb-new-email" className="text-sm font-medium text-primary">Personal Email</label>
@@ -213,9 +266,12 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                     type="date"
                     required
                     value={joiningDate}
-                    onChange={(e) => setJoiningDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                    onChange={(e) => { setJoiningDate(e.target.value); clearError('joiningDate'); }}
+                    aria-invalid={errors.joiningDate ? true : undefined}
+                    aria-describedby={errors.joiningDate ? 'onb-new-joining-error' : undefined}
+                    className={`w-full px-3 py-2 bg-base border ${errors.joiningDate ? 'border-error' : 'border-border'} rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent`}
                   />
+                  {errors.joiningDate && <p id="onb-new-joining-error" role="alert" className="text-xs text-error">{errors.joiningDate}</p>}
                 </div>
               </div>
 
@@ -253,9 +309,13 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
 
                 <div className="space-y-3">
                   {items.map((item, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row gap-3 p-3 bg-base rounded-lg border border-border animate-in fade-in">
+                    <div key={idx} className={`p-3 bg-base rounded-lg border ${errors[`item-${idx}`] ? 'border-error' : 'border-border'} animate-fadeIn`}>
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1">
                         <select
+                          id={`onb-new-item-${idx}-category`}
+                          aria-label={`Item ${idx + 1} category (required)`}
+                          aria-invalid={errors[`item-${idx}`] ? true : undefined}
                           required
                           value={item.categoryId}
                           onChange={(e) => handleItemChange(idx, 'categoryId', e.target.value)}
@@ -277,6 +337,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                           type="number"
                           min="1"
                           required
+                          aria-label={`Item ${idx + 1} quantity`}
                           value={item.quantity}
                           onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
                           placeholder="Qty"
@@ -289,17 +350,22 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                           value={item.notes}
                           onChange={(e) => handleItemChange(idx, 'notes', e.target.value)}
                           placeholder="Notes (e.g. Mac/Windows)"
+                          aria-label={`Item ${idx + 1} notes`}
                           className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                         />
                       </div>
                       <button
                         type="button"
-                        aria-label="Remove item"
+                        aria-label={`Remove item ${idx + 1}`}
                         onClick={() => handleRemoveItem(idx)}
-                        className="p-2 text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
+                        className="p-2.5 sm:p-2 self-end sm:self-auto text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                    </div>
+                    {errors[`item-${idx}`] && (
+                      <p role="alert" className="text-xs text-error mt-2">{errors[`item-${idx}`]}</p>
+                    )}
                     </div>
                   ))}
                 </div>
@@ -320,7 +386,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
           <button
             form="onboarding-form"
             type="submit"
-            disabled={submitting || !newHireName.trim() || !joiningDate}
+            disabled={submitting}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

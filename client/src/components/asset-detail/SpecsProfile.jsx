@@ -91,7 +91,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
           />
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-xl font-bold text-primary tracking-tight truncate">{asset.name}</h2>
+              <h2 className="text-xl font-bold text-primary tracking-tight line-clamp-2 break-words min-w-0" title={asset.name}>{asset.name}</h2>
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-raised/80 text-secondary border border-border/70">
                 {asset.categoryName || 'Uncategorized'}
               </span>
@@ -115,7 +115,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
             <button
               type="button"
               onClick={() => setIsQrModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-raised hover:bg-raised/80 text-secondary hover:text-primary border border-border rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 text-xs font-medium bg-raised hover:bg-raised/80 text-secondary hover:text-primary border border-border rounded-lg transition-colors cursor-pointer"
               title="Generate & Print QR Asset Tag"
             >
               <QrCode className="w-3.5 h-3.5" />
@@ -126,7 +126,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-raised hover:bg-raised/80 text-accent border border-accent/20 rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 text-xs font-medium bg-raised hover:bg-raised/80 text-accent border border-accent/20 rounded-lg transition-colors cursor-pointer"
             >
               <Edit2 className="w-3.5 h-3.5" />
               <span>Edit Details</span>

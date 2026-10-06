@@ -1,5 +1,7 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { offboardingApi } from '../api/offboardingApi';
+import { getQueryData } from '../utils/queryCache';
+import { useLazyQuery, errorMessageOf } from './useQuery';
 import toast from 'react-hot-toast';
 
 const errorMessage = (err, fallback) => err?.response?.data?.message || fallback;
@@ -14,40 +16,39 @@ export const getExistingOffboardingId = (err) => {
   return id ? id : null;
 };
 
-export const useOffboarding = () => {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  // Only refresh the list after mutations when this hook has loaded it
-  // (the Employees page uses the hook just to start an exit).
-  const listLoadedRef = useRef(false);
+const EMPTY = [];
+export const OFFBOARDING_KEY = 'offboarding';
+const fetchAll = async () => {
+  const data = await offboardingApi.getAll();
+  return Array.isArray(data) ? data : [];
+};
+
+// `initialLoad`: the page loads the list on mount, so a revisit renders its
+// cached rows at once.
+export const useOffboarding = ({ initialLoad = false } = {}) => {
+  // Only reloaded after mutations once this hook has loaded the list (the
+  // Employees page uses the hook just to start an exit).
+  const list = useLazyQuery(initialLoad ? OFFBOARDING_KEY : null);
+  const { run, reload } = list;
 
   const fetchRequests = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const hadRows = getQueryData(OFFBOARDING_KEY) !== undefined;
     try {
-      const data = await offboardingApi.getAll();
-      setRequests(Array.isArray(data) ? data : []);
-      listLoadedRef.current = true;
-    } catch (err) {
-      setError(errorMessage(err, 'Failed to fetch offboarding requests'));
-      toast.error('Could not load offboarding requests');
-    } finally {
-      setLoading(false);
+      await run(OFFBOARDING_KEY, fetchAll);
+    } catch {
+      if (!hadRows) toast.error('Could not load offboarding requests');
     }
-  }, []);
+  }, [run]);
 
   // Mutations return the full request (with items); the list rows carry
   // counts and joined names, so reload the list quietly afterwards.
   const refreshRequests = useCallback(async () => {
-    if (!listLoadedRef.current) return;
     try {
-      const data = await offboardingApi.getAll();
-      setRequests(Array.isArray(data) ? data : []);
+      await reload();
     } catch {
       // Keep the current list; the next full load will catch up.
     }
-  }, []);
+  }, [reload]);
 
   const createRequest = useCallback(async (data) => {
     try {
@@ -124,9 +125,10 @@ export const useOffboarding = () => {
   }, []);
 
   return {
-    requests,
-    loading,
-    error,
+    requests: Array.isArray(list.data) ? list.data : EMPTY,
+    loading: list.loading,
+    refreshing: list.refreshing,
+    error: errorMessageOf(list.error, 'Failed to fetch offboarding requests', { withNetworkMessage: false }),
     fetchRequests,
     refreshRequests,
     createRequest,

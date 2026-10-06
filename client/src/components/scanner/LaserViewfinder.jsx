@@ -36,10 +36,10 @@ export default function LaserViewfinder({ onRetryCamera }) {
           <button
             type="button"
             onClick={onRetryCamera}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent text-on-accent text-xs font-semibold transition-colors shadow-md shadow-accent/20 cursor-pointer shrink-0"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 min-h-[40px] rounded-lg bg-accent hover:bg-accent text-on-accent text-xs font-semibold transition-colors shadow-md shadow-accent/20 cursor-pointer shrink-0"
           >
             <Camera className="w-3.5 h-3.5" />
-            <span>Enable Camera</span>
+            <span>Start camera</span>
           </button>
         )}
       </div>

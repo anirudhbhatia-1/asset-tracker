@@ -118,16 +118,16 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
   const labelClass = "text-xs font-semibold uppercase tracking-wider text-secondary flex items-center gap-1.5 mb-1.5";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-scaleUp max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-base/50 shrink-0">
           <div>
             <h2 id={titleId} className="text-base font-semibold text-primary">Edit Employee Details</h2>
             <p className="text-xs text-secondary mt-0.5">Changes are saved to the database immediately.</p>
           </div>
-          <button aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button type="button" aria-label="Close" onClick={onClose} className="p-3 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>

@@ -2,12 +2,21 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const ThemeContext = createContext();
 
+// Must match the inline script in index.html, which applies the saved theme
+// before first paint.
+const STORAGE_KEY = 'assettrack-theme';
+
+function readStoredTheme() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    // Default to light on first visit
-    const stored = localStorage.getItem('assettrack-theme');
-    return stored === 'dark' ? 'dark' : 'light';
-  });
+  // Default to light on first visit
+  const [theme, setTheme] = useState(readStoredTheme);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -16,7 +25,11 @@ export function ThemeProvider({ children }) {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('assettrack-theme', theme);
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch {
+      // Storage unavailable (private mode): theme still applies for this session.
+    }
   }, [theme]);
 
   const toggleTheme = () => {
@@ -30,6 +43,7 @@ export function ThemeProvider({ children }) {
   );
 }
 
+// oxlint-disable-next-line react/only-export-components -- hook lives beside its provider
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (context === undefined) {

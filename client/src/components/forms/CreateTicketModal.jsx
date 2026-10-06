@@ -19,6 +19,8 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
   const [categories, setCategories] = useState([]);
   const [loadingContext, setLoadingContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [titleError, setTitleError] = useState(null);
+  const titleInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +59,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
       setAssetId(initialAssetId);
       setCategoryId('');
       setTargetAdminType('it');
+      setTitleError(null);
     }
   }, [isOpen, user, initialType, initialAssetId]);
 
@@ -65,10 +68,27 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
   // Traps Tab inside the dialog and closes it on Escape
   useFocusTrap(dialogRef, isOpen, onClose);
 
+  // The form renders after its dropdown data loads, so the focus trap can
+  // only focus the Close button on open; move to the first field once it
+  // exists (desktop only: on touch screens it would pop the keyboard).
+  useEffect(() => {
+    if (!isOpen || loadingContext || !dialogRef.current) return;
+    const active = document.activeElement;
+    const onField = active && dialogRef.current.contains(active) && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName);
+    let coarse = false;
+    try { coarse = window.matchMedia?.('(pointer: coarse)').matches; } catch { coarse = false; }
+    if (!onField && !coarse) dialogRef.current.querySelector('select, input[type="text"]')?.focus();
+  }, [isOpen, loadingContext]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!title.trim()) {
+      setTitleError('Enter a title for the ticket.');
+      titleInputRef.current?.focus();
+      return;
+    }
     setSubmitting(true);
     
     const payload = {
@@ -91,24 +111,25 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
       
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-scaleUp flex flex-col max-h-[90dvh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
           <h2 id={titleId} className="text-lg font-semibold text-primary">Raise a Ticket</h2>
-          <button aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5 overflow-y-auto">
           {loadingContext ? (
             <div className="py-8 flex justify-center">
               <Loader2 className="w-8 h-8 text-accent animate-spin" />
             </div>
           ) : (
             <>
+              <p className="text-xs text-secondary">Fields marked <span className="text-error">*</span> are required.</p>
               <div className="space-y-2">
                 <span className="text-sm font-medium text-primary">Ticket Type</span>
                 <div className="flex gap-4">
@@ -138,7 +159,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               </div>
 
               {type === 'issue' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                <div className="space-y-2 animate-fadeIn">
                   <label htmlFor="ticket-new-asset" className="text-sm font-medium text-primary">Which device is having issues?</label>
                   <select
                     id="ticket-new-asset"
@@ -155,7 +176,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               )}
 
               {type === 'request' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                <div className="space-y-2 animate-fadeIn">
                   <label htmlFor="ticket-new-category" className="text-sm font-medium text-primary">What do you need?</label>
                   <select
                     id="ticket-new-category"
@@ -187,17 +208,26 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="ticket-new-title" className="text-sm font-medium text-primary">Title</label>
+                <label htmlFor="ticket-new-title" className="text-sm font-medium text-primary">Title <span className="text-error" aria-hidden="true">*</span></label>
                 <input
+                  ref={titleInputRef}
                   id="ticket-new-title"
                   type="text"
                   required
                   maxLength={150}
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (titleError && e.target.value.trim()) setTitleError(null);
+                  }}
+                  aria-invalid={titleError ? true : undefined}
+                  aria-describedby={titleError ? 'ticket-new-title-error' : undefined}
                   placeholder="E.g., Laptop screen flickering"
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                  className={`w-full px-3 py-2 bg-base border ${titleError ? 'border-error' : 'border-border'} rounded-lg text-primary text-sm placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent`}
                 />
+                {titleError && (
+                  <p id="ticket-new-title-error" role="alert" className="text-xs text-error">{titleError}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -222,7 +252,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !title.trim()}
+                  disabled={submitting}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

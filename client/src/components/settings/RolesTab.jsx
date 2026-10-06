@@ -143,7 +143,7 @@ export default function RolesTab() {
               <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-secondary">
                 <div className="flex items-center gap-1.5 font-medium">
                   <Users className="w-3.5 h-3.5 text-accent" />
-                  <span>{role.activeUserCount} active employee(s)</span>
+                  <span>{role.activeUserCount} active {Number(role.activeUserCount) === 1 ? 'employee' : 'employees'}</span>
                 </div>
                 <div>
                   {role.isDirector ? (

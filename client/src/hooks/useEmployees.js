@@ -1,55 +1,59 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, updateEmployeeDetails, grantEmployeeAccess, grantEmployeeGoogleAccess, resetEmployeePassword, revokeEmployeeAccess } from '../api/employeesApi';
+import { invalidateQueries, setQueryData } from '../utils/queryCache';
+import useQuery, { errorMessageOf } from './useQuery';
+import { listOf } from './useAssets';
 import toast from 'react-hot-toast';
 
+const EMPTY = [];
+export const EMPLOYEES_KEY = 'employees';
+export const fetchEmployeesList = () => getEmployees().then(listOf);
+
+// Saves answer with the bare employee row; merge what it has so the list is
+// right at once, then reload quietly for the joined fields (role name,
+// offboarding badge...).
+const mergeEmployee = (updated) => {
+  if (!updated?.id) return;
+  setQueryData(EMPLOYEES_KEY, (prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
+};
+const reloadEmployees = () => invalidateQueries(EMPLOYEES_KEY);
+
 export default function useEmployees() {
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchEmployeesData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await getEmployees();
-      setEmployees(res.data?.data || (Array.isArray(res.data) ? res.data : []));
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to load employees');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchEmployeesData();
-  }, [fetchEmployeesData]);
+  const { data, loading, refreshing, error, refetch } = useQuery(EMPLOYEES_KEY, fetchEmployeesList);
 
   const updateEmployee = useCallback(async (id, data) => {
     try {
-      await updateEmployeeDetails(id, data);
-      await fetchEmployeesData();
+      const res = await updateEmployeeDetails(id, data);
+      const updated = res?.data?.data;
+      if (updated?.id) {
+        mergeEmployee(updated);
+        reloadEmployees();
+      } else {
+        await reloadEmployees();
+      }
       toast.success('Employee details updated');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update employee');
       throw err;
     }
-  }, [fetchEmployeesData]);
+  }, []);
 
   const changeRoleInline = useCallback(async (employeeId, newRole) => {
     try {
       await updateEmployeeRole(employeeId, newRole);
-      await fetchEmployeesData();
+      await reloadEmployees();
       toast.success('Role updated successfully');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update role');
     }
-  }, [fetchEmployeesData]);
+  }, []);
 
   const addEmployee = async (data) => {
     try {
       const res = await createEmployee(data);
       const newEmp = res.data?.data || res.data;
-      setEmployees((prev) => [newEmp, ...prev]);
+      setQueryData(EMPLOYEES_KEY, (prev) => [newEmp, ...prev]);
+      reloadEmployees();
       toast.success('Employee profile created successfully');
       // e.g. the onboarding request could not be linked; the employee exists.
       const warnings = Array.isArray(res.data?.warnings) ? res.data.warnings : [];
@@ -65,7 +69,8 @@ export default function useEmployees() {
   const deleteEmployee = async (id) => {
     try {
       await deleteEmployeeApi(id);
-      setEmployees((prev) => prev.filter((e) => e.id !== id));
+      setQueryData(EMPLOYEES_KEY, (prev) => prev.filter((e) => e.id !== id));
+      reloadEmployees();
       toast.success('Employee profile deleted');
       return true;
     } catch (err) {
@@ -79,7 +84,7 @@ export default function useEmployees() {
   const changeRole = async (id, role, { quiet = false } = {}) => {
     try {
       const res = await updateEmployeeRole(id, role);
-      await fetchEmployeesData();
+      await reloadEmployees();
       if (!quiet) toast.success('Employee role updated');
       return res.data?.data || res.data;
     } catch (err) {
@@ -91,7 +96,7 @@ export default function useEmployees() {
   const grantAccess = async (id, role) => {
     try {
       const res = await grantEmployeeAccess(id, role);
-      await fetchEmployeesData();
+      await reloadEmployees();
       toast.success('Login access granted');
       return res.data; // Return the full response to access temporaryPassword
     } catch (err) {
@@ -117,9 +122,10 @@ export default function useEmployees() {
       const res = await revokeEmployeeAccess(id);
       const updated = res.data?.data;
       if (updated?.id) {
-        setEmployees((prev) => prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
+        mergeEmployee(updated);
+        reloadEmployees();
       } else {
-        await fetchEmployeesData();
+        await reloadEmployees();
       }
       toast.success('Login access revoked');
       return updated;
@@ -133,7 +139,7 @@ export default function useEmployees() {
   const grantGoogleAccess = async (id) => {
     try {
       const res = await grantEmployeeGoogleAccess(id);
-      await fetchEmployeesData();
+      await reloadEmployees();
       toast.success('Google login access granted');
       return res.data;
     } catch (err) {
@@ -143,10 +149,11 @@ export default function useEmployees() {
   };
 
   return {
-    employees: Array.isArray(employees) ? employees : [],
+    employees: Array.isArray(data) ? data : EMPTY,
     loading,
-    error,
-    refresh: fetchEmployeesData,
+    refreshing,
+    error: errorMessageOf(error, 'Failed to load employees'),
+    refresh: refetch,
     addEmployee,
     updateEmployee,
     changeRoleInline,

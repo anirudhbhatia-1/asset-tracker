@@ -9,7 +9,9 @@ import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
 import OnboardingDetailsModal from '../components/hr/OnboardingDetailsModal';
 import { onActivateKey } from '../utils/a11y';
 import PageHeader from '../components/ui/PageHeader';
-import { parseDateValue } from '../utils/dates';
+import { formatDate } from '../utils/formatters';
+import SegmentedControl from '../components/ui/SegmentedControl';
+import EmptyState from '../components/ui/EmptyState';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -28,7 +30,7 @@ const StatusBadge = ({ status }) => {
 
 const Onboarding = () => {
   const { hasPermission } = useAuth();
-  const { requests, loading, error, fetchRequests, createRequest, updateStatus, fulfillItem, getRequestDetails } = useOnboarding();
+  const { requests, loading, error, fetchRequests, createRequest, updateStatus, fulfillItem, getRequestDetails } = useOnboarding({ initialLoad: true });
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -116,21 +118,16 @@ const Onboarding = () => {
       />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
-          {['active', 'completed', 'all'].map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-                filter === f ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SegmentedControl
+        label="Request status"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: 'active', label: 'Active' },
+          { value: 'completed', label: 'Completed' },
+          { value: 'all', label: 'All' },
+        ]}
+      />
 
       {/* Error State */}
       {error && (
@@ -140,7 +137,17 @@ const Onboarding = () => {
         </div>
       )}
 
-      {/* Requests Table */}
+      {/* Requests Table (empty state sits outside the table so it isn't
+          clipped by the sideways-scrolling area on phones) */}
+      {!loading && filteredRequests.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No onboarding requests found"
+          description={filter === 'active'
+            ? 'No new hires are waiting on setup right now.'
+            : filter === 'completed' ? 'No completed or cancelled requests yet.' : 'No onboarding requests have been submitted yet.'}
+        />
+      ) : (
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
         {/* Scroll affordance */}
         <div className="relative">
@@ -170,12 +177,6 @@ const Onboarding = () => {
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>
                   </tr>
                 ))
-              ) : filteredRequests.length === 0 ? (
-                <tr>
-                  <td colSpan={hasPermission('onboarding:fulfill') ? 6 : 5} className="px-6 py-12 text-center text-secondary">
-                    No onboarding requests found.
-                  </td>
-                </tr>
               ) : (
                 filteredRequests.map((req) => (
                   <tr 
@@ -202,14 +203,14 @@ const Onboarding = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 font-medium text-primary">
-                      {parseDateValue(req.joining_date).toLocaleDateString()}
+                      {formatDate(req.joining_date)}
                     </td>
                     <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
                     {hasPermission('onboarding:fulfill') && (
                       <td className="px-6 py-4 text-secondary">{req.requested_by_email}</td>
                     )}
                     <td className="px-6 py-4 text-secondary">
-                      {new Date(req.created_at).toLocaleDateString()}
+                      {formatDate(req.created_at)}
                     </td>
                   </tr>
                 ))
@@ -219,6 +220,7 @@ const Onboarding = () => {
         </div>
         </div>
       </div>
+      )}
 
       <CreateOnboardingModal 
         isOpen={isCreateModalOpen} 

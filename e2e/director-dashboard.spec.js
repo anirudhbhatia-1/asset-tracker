@@ -15,12 +15,12 @@ test.describe('Director Dashboard flow', () => {
     await expect(page.getByText('System Director')).toBeVisible();
 
     // Verify view mode tabs
-    await expect(page.getByRole('button', { name: 'Executive Overview' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'IT Admin View' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'HR Partner View' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Executive Overview' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'IT Admin View' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'HR Partner View' })).toBeVisible();
 
     // Click HR Partner View tab
-    await page.getByRole('button', { name: 'HR Partner View' }).click();
+    await page.getByRole('tab', { name: 'HR Partner View' }).click();
     await expect(page.getByText('Pending Onboardings')).toBeVisible();
 
     // Click Role Matrix Builder link

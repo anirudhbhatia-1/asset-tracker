@@ -40,10 +40,11 @@ export function formatDate(dateInput, patternStr = 'MMM dd, yyyy') {
 }
 
 /**
- * Formats a date with time as absolute format (e.g. 27/07/2026, 3:42 PM).
+ * Formats a date with time, matching formatDate's month-name style
+ * (e.g. Jul 27, 2026, 3:42 PM) so dates read the same everywhere.
  */
 export function formatDateTime(dateInput) {
-  return formatDate(dateInput, 'dd/MM/yyyy, h:mm a');
+  return formatDate(dateInput, 'MMM dd, yyyy, h:mm a');
 }
 
 /**

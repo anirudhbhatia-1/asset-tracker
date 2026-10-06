@@ -44,7 +44,7 @@ export default function WebcamFeed({ videoRef, onStop }) {
             className="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-base/80 hover:bg-surface backdrop-blur-md border border-border/60 text-xs font-medium text-secondary hover:text-primary transition-colors cursor-pointer shadow-sm"
           >
             <Camera className="w-3.5 h-3.5 text-accent" />
-            <span>Switch to Viewfinder</span>
+            <span>Pause camera</span>
           </button>
         )}
       </div>

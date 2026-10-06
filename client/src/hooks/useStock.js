@@ -1,45 +1,46 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { queryKey } from '../utils/queryCache';
+import { useLazyQuery } from './useQuery';
 import { stockApi } from '../api/stockApi';
+
+const EMPTY = [];
 
 const errorMessage = (err, fallback) => err?.response?.data?.message || fallback;
 
 /**
  * Bulk items (counted, no serial numbers). The list is loaded on demand with
- * fetchItems(); mutations toast once here and resolve to the updated item
+ * fetchItems() (cached and refreshed quietly on revisits); mutations toast once here and resolve to the updated item
  * (with holders and history), so callers only handle inline validation.
  */
-export const useStock = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  // Only reload the list after a change when this hook has loaded it (the
-  // employee drawer uses the hook just to take items back).
-  const listLoadedRef = useRef(false);
+export const useStock = ({ initialLoad = false } = {}) => {
+  // Only reloaded after a change once this hook has loaded the list (the
+  // employee drawer uses the hook just to take items back). `initialLoad`:
+  // the view loads the unfiltered list on mount, so a revisit renders its
+  // cached rows at once.
+  const list = useLazyQuery(initialLoad ? queryKey('stock') : null, { keepPrevious: true });
+  const { run, reload } = list;
 
+  // Responses for filters no longer shown never replace the current rows
+  // (each filter set has its own cache entry).
   const fetchItems = useCallback(async (filters = {}) => {
-    setLoading(true);
-    setError(null);
     try {
-      const data = await stockApi.getAll(filters);
-      setItems(Array.isArray(data) ? data : []);
-      listLoadedRef.current = true;
-    } catch (err) {
-      setError(errorMessage(err, 'Failed to load bulk items'));
-    } finally {
-      setLoading(false);
+      await run(queryKey('stock', filters), async () => {
+        const data = await stockApi.getAll(filters);
+        return Array.isArray(data) ? data : [];
+      });
+    } catch {
+      // Kept on the cache entry and shown through `error`.
     }
-  }, []);
+  }, [run]);
 
   const refreshItems = useCallback(async () => {
-    if (!listLoadedRef.current) return;
     try {
-      const data = await stockApi.getAll();
-      setItems(Array.isArray(data) ? data : []);
+      await reload();
     } catch {
       // Keep the current list; the next full load will catch up.
     }
-  }, []);
+  }, [reload]);
 
   const mutate = useCallback(async (call, success, failure) => {
     try {
@@ -95,9 +96,13 @@ export const useStock = () => {
   ), [mutate]);
 
   return {
-    items,
-    loading,
-    error,
+    items: Array.isArray(list.data) ? list.data : EMPTY,
+    loading: list.hasRun && list.loading,
+    refreshing: list.refreshing,
+    // False until the first fetchItems() call settles, so a list view can show
+    // its skeleton (not an empty state) before anything has been loaded.
+    loaded: list.hasRun && (list.data !== undefined || Boolean(list.error)),
+    error: list.error ? errorMessage(list.error, 'Failed to load bulk items') : null,
     fetchItems,
     refreshItems,
     getItem,

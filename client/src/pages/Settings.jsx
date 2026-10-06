@@ -29,11 +29,11 @@ const Settings = () => {
   const defaultSettingsPath = visibleTabs[0]?.path || '/';
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-10">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <PageHeader
         icon={SettingsIcon}
         title="System Settings"
-        subtitle="Manage roles, permissions matrix, categories, locations, and application preferences."
+        subtitle="Manage roles and permissions, asset categories, and office locations."
       />
 
       {/* Tabs Navigation */}

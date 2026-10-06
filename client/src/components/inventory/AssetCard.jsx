@@ -4,6 +4,7 @@ import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import WarrantyBadge from '../ui/WarrantyBadge';
 import { ChevronRight, MapPin, Calendar, User } from 'lucide-react';
+import { formatDate } from '../../utils/formatters';
 
 export default function AssetCard({ asset }) {
   return (
@@ -42,8 +43,12 @@ export default function AssetCard({ asset }) {
 
         {/* Purchase Date */}
         <div className="flex items-center gap-1.5 text-xs text-secondary mt-2">
-          <Calendar className="w-3.5 h-3.5" />
-          <span>{asset.purchaseDate || 'No purchase date'}</span>
+          <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
+          {asset.purchaseDate ? (
+            <span>Purchased <time dateTime={asset.purchaseDate}>{formatDate(asset.purchaseDate)}</time></span>
+          ) : (
+            <span>No purchase date</span>
+          )}
         </div>
       </div>
 
@@ -55,10 +60,15 @@ export default function AssetCard({ asset }) {
             <span className="truncate">{asset.location || 'No location'}</span>
           </div>
           
-          {asset.status === 'in-use' && asset.assignee && (
+          {asset.status === 'in-use' && (asset.assignee?.name || asset.assigneeName) && (
             <div className="flex items-center gap-1.5 text-primary truncate">
               <User className="w-3.5 h-3.5 shrink-0 text-info-blue" />
-              <span className="truncate">{asset.assignee.name}</span>
+              <span className="truncate">{asset.assignee?.name || asset.assigneeName}</span>
+            </div>
+          )}
+          {asset.status === 'in-use' && asset.assignedDate && (
+            <div className="text-secondary truncate">
+              Assigned <time dateTime={asset.assignedDate}>{formatDate(asset.assignedDate)}</time>
             </div>
           )}
         </div>

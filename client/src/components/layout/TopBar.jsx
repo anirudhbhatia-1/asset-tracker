@@ -1,17 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Plus, Bell, Sun, Moon, X, LogOut, Menu, ChevronDown, Key, User } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from './ChangePasswordModal';
 import useNotifications from '../../hooks/useNotifications';
 import NotificationPanel from './NotificationPanel';
-import { withSearchParam } from '../../utils/searchParams';
 
 const TopBar = ({ toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -20,8 +18,11 @@ const TopBar = ({ toggleSidebar }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout, hasPermission } = useAuth();
   const { notifications, loading: notifLoading, hasUnread, refresh, markAsRead } = useNotifications();
-  // Search lands on the inventory, which needs assets:read.
-  const canSearchAssets = hasPermission('assets:read');
+  // Search lands on the inventory, which needs assets:read. The inventory
+  // has its own (debounced) search box, so this one steps aside there.
+  const canSearchAssets = hasPermission('assets:read') && location.pathname !== '/inventory';
+
+  const userMenuButtonRef = useRef(null);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -34,30 +35,31 @@ const TopBar = ({ toggleSidebar }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isUserMenuOpen]);
 
+  // Escape closes the user menu and returns focus to its button
   useEffect(() => {
-    if (location.pathname === '/inventory') {
-      setQuery(searchParams.get('q') || '');
-    } else {
-      setQuery('');
-    }
-  }, [location.pathname, searchParams]);
+    if (!isUserMenuOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsUserMenuOpen(false);
+        userMenuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isUserMenuOpen]);
 
-  const handleSearchChange = (e) => {
-    const val = e.target.value;
-    setQuery(val);
-    if (location.pathname === '/inventory') {
-      // Only q changes; the page's other filters stay in the URL. This box
-      // searches assets, so it switches Inventory back from Bulk items.
-      setSearchParams(prev => {
-        const next = withSearchParam(prev, 'q', val);
-        next.delete('view');
-        return next;
-      }, { replace: true });
-    }
-  };
+  // Start empty on every page (a search typed elsewhere doesn't linger).
+  useEffect(() => {
+    setQuery('');
+    setIsSearchExpanded(false);
+  }, [location.pathname]);
+
+  // Typing only updates the box; Enter opens the inventory with the search,
+  // so no request is sent per keystroke.
+  const handleSearchChange = (e) => setQuery(e.target.value);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && location.pathname !== '/inventory' && query.trim()) {
+    if (e.key === 'Enter' && query.trim()) {
       navigate(`/inventory?q=${encodeURIComponent(query.trim())}`);
       setIsSearchExpanded(false);
     }
@@ -84,8 +86,9 @@ const TopBar = ({ toggleSidebar }) => {
             />
           </div>
           <button 
+            type="button"
             onClick={() => setIsSearchExpanded(false)}
-            className="p-2 text-secondary hover:text-primary"
+            className="p-2.5 rounded-lg text-secondary hover:text-primary"
             aria-label="Close search"
           >
             <X className="w-5 h-5" />
@@ -96,13 +99,14 @@ const TopBar = ({ toggleSidebar }) => {
           {/* Page Title & Desktop Search */}
           <div className="flex items-center gap-3 sm:gap-6 flex-1 max-w-xl overflow-hidden">
             <button 
+              type="button"
               onClick={toggleSidebar} 
               className="p-2 -ml-2 rounded-lg text-secondary hover:bg-raised/50 hover:text-primary transition-colors hidden md:block"
               aria-label="Toggle sidebar"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="md:hidden w-8 h-8 flex items-center justify-center shrink-0">
+            <div className="md:hidden w-8 h-8 flex items-center justify-center shrink-0 dark:bg-white dark:rounded-lg dark:p-1">
               <img 
                 src="/logo.png" 
                 alt="Thinkvibes Logo" 
@@ -113,8 +117,9 @@ const TopBar = ({ toggleSidebar }) => {
             </div>
 
             
+            {/* Inline from lg; below that it's an icon that opens a full-width box. */}
             {canSearchAssets && (
-            <div className="relative w-full hidden md:block">
+            <div className="relative w-full hidden lg:block">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
               <input
                 type="text"
@@ -133,7 +138,8 @@ const TopBar = ({ toggleSidebar }) => {
             
             {canSearchAssets && (
             <button 
-              className="md:hidden p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50"
+              type="button"
+              className="lg:hidden p-2.5 rounded-lg text-secondary hover:text-primary hover:bg-raised/50"
               onClick={() => setIsSearchExpanded(true)}
               aria-label="Open search"
             >
@@ -145,7 +151,7 @@ const TopBar = ({ toggleSidebar }) => {
             {hasPermission('assets:create') && (
               <Link
                 to="/inventory/new"
-                className="bg-accent hover:bg-accent-hover text-on-accent p-2 md:px-4 md:py-2 rounded-xl font-medium shadow-sm shadow-accent/20 transition-all flex items-center justify-center gap-2 text-sm"
+                className="bg-accent hover:bg-accent-hover text-on-accent p-2.5 md:px-4 md:py-2 rounded-xl font-medium shadow-sm shadow-accent/20 transition-all flex items-center justify-center gap-2 text-sm"
                 aria-label="Add Asset"
               >
                 <Plus className="w-5 h-5 md:w-4 md:h-4" />
@@ -158,6 +164,7 @@ const TopBar = ({ toggleSidebar }) => {
             )}
 
             <button 
+              type="button"
               onClick={toggleTheme}
               className="hidden sm:flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors"
               title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -170,6 +177,10 @@ const TopBar = ({ toggleSidebar }) => {
             <div className="relative">
               <button
                 id="notification-bell"
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={isNotificationPanelOpen}
+                aria-controls={isNotificationPanelOpen ? 'notification-panel' : undefined}
                 onClick={() => {
                   const newState = !isNotificationPanelOpen;
                   setIsNotificationPanelOpen(newState);
@@ -178,12 +189,12 @@ const TopBar = ({ toggleSidebar }) => {
                     markAsRead();
                   }
                 }}
-                className="flex p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative"
-                aria-label="View notifications"
+                className="flex p-3 sm:p-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/50 transition-colors relative"
+                aria-label={hasUnread ? 'View notifications (new)' : 'View notifications'}
               >
                 <Bell className="w-4 h-4" />
                 {hasUnread && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent animate-pulse" />
+                  <span className="absolute top-2 right-2 sm:top-1.5 sm:right-1.5 w-2 h-2 rounded-full bg-accent animate-pulse" aria-hidden="true" />
                 )}
               </button>
               <NotificationPanel
@@ -198,13 +209,20 @@ const TopBar = ({ toggleSidebar }) => {
             {/* User Profile Dropdown */}
             <div id="user-menu-container" className="relative ml-1 sm:ml-2">
               <button 
+                ref={userMenuButtonRef}
+                type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 sm:gap-3 p-1.5 rounded-xl hover:bg-raised/50 transition-colors border border-transparent hover:border-border/60"
+                aria-haspopup="menu"
+                aria-expanded={isUserMenuOpen}
+                aria-controls={isUserMenuOpen ? 'user-menu' : undefined}
+                aria-label={`Account menu for ${user?.email || 'user'}`}
+                className="flex items-center gap-2 sm:gap-3 p-1.5 min-h-[44px] sm:min-h-0 rounded-xl hover:bg-raised/50 transition-colors border border-transparent hover:border-border/60"
               >
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-xs uppercase shrink-0 shadow-sm">
                   {user?.email?.[0] || 'U'}
                 </div>
-                <div className="hidden sm:block text-left min-w-0 max-w-[200px] lg:max-w-xs">
+                {/* Email and role from xl, so the search keeps its room on tablets. */}
+                <div className="hidden xl:block text-left min-w-0 max-w-xs">
                   <span className="block text-xs font-semibold text-primary leading-none truncate">
                     {user?.email || 'User'}
                   </span>
@@ -217,7 +235,7 @@ const TopBar = ({ toggleSidebar }) => {
 
               {/* Dropdown Menu */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-surface border border-border/80 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                <div id="user-menu" className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-surface border border-border/80 rounded-2xl shadow-xl overflow-hidden z-50 animate-fadeIn origin-top-right">
                   {/* Dropdown Header (Full Email & Role) */}
                   <div className="px-4 py-4 border-b border-border/60 bg-base/50">
                     <p className="text-sm font-bold text-primary truncate" title={user?.email}>
@@ -230,6 +248,7 @@ const TopBar = ({ toggleSidebar }) => {
 
                   <div className="p-2 space-y-1">
                     <button
+                      type="button"
                       onClick={() => {
                         setIsUserMenuOpen(false);
                         navigate('/profile');
@@ -241,6 +260,7 @@ const TopBar = ({ toggleSidebar }) => {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => {
                         setIsUserMenuOpen(false);
                         setIsChangePasswordModalOpen(true);
@@ -250,8 +270,27 @@ const TopBar = ({ toggleSidebar }) => {
                       <Key className="w-4 h-4" />
                       Change Password
                     </button>
+
+                    {/* Theme switch lives here too: the header toggle is hidden on phones. */}
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      role="switch"
+                      aria-checked={theme === 'dark'}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 transition-colors text-left"
+                    >
+                      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                      <span className="flex-1">Dark mode</span>
+                      <span
+                        aria-hidden="true"
+                        className={`relative inline-flex w-8 h-[18px] rounded-full transition-colors ${theme === 'dark' ? 'bg-accent' : 'bg-border'}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-surface shadow-sm transition-transform ${theme === 'dark' ? 'translate-x-3.5' : ''}`} />
+                      </span>
+                    </button>
                     
                     <button
+                      type="button"
                       onClick={logout}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-error hover:text-error hover:bg-error/10 transition-colors text-left"
                     >

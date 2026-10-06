@@ -1,46 +1,49 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { onboardingApi } from '../api/onboardingApi';
+import { getQueryData, setQueryData } from '../utils/queryCache';
+import { useLazyQuery, errorMessageOf } from './useQuery';
 import toast from 'react-hot-toast';
 
-export const useOnboarding = () => {
-  const [requests, setRequests] = useState([]);
-  const [hrMetrics, setHrMetrics] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const EMPTY = [];
+export const ONBOARDING_KEY = 'onboarding';
+const HR_METRICS_KEY = 'onboarding/hr-metrics';
+const fetchAll = () => onboardingApi.getAll();
+
+// `initialLoad`: the page loads the list on mount, so a revisit renders its
+// cached rows at once.
+export const useOnboarding = ({ initialLoad = false } = {}) => {
+  const list = useLazyQuery(initialLoad ? ONBOARDING_KEY : null);
+  const metrics = useLazyQuery(null);
+  const { run: runList, reload: reloadList } = list;
+  const { run: runMetrics } = metrics;
 
   const fetchRequests = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const hadRows = getQueryData(ONBOARDING_KEY) !== undefined;
     try {
-      const data = await onboardingApi.getAll();
-      setRequests(data);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch onboarding requests');
-      toast.error('Could not load onboarding requests');
-    } finally {
-      setLoading(false);
+      await runList(ONBOARDING_KEY, fetchAll);
+    } catch {
+      if (!hadRows) toast.error('Could not load onboarding requests');
     }
-  }, []);
+  }, [runList]);
 
   // Create/update/fulfil return a request without the list's joined fields
   // (items_summary, requested_by_email, linked_employee_name) — fulfil even
   // returns just the item — so reload the list quietly after those.
   const refreshRequests = useCallback(async () => {
     try {
-      setRequests(await onboardingApi.getAll());
+      await reloadList();
     } catch {
       // Keep the current list; the next full load will catch up.
     }
-  }, []);
+  }, [reloadList]);
 
   const fetchHrMetrics = useCallback(async () => {
     try {
-      const data = await onboardingApi.getHrMetrics();
-      setHrMetrics(data);
+      await runMetrics(HR_METRICS_KEY, () => onboardingApi.getHrMetrics());
     } catch (err) {
       console.error('Failed to load HR metrics', err);
     }
-  }, []);
+  }, [runMetrics]);
 
   const createRequest = async (data) => {
     try {
@@ -71,7 +74,7 @@ export const useOnboarding = () => {
   const updateStatus = async (id, status) => {
     try {
       const updatedReq = await onboardingApi.updateStatus(id, status);
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: updatedReq.status, updated_at: updatedReq.updated_at } : r));
+      setQueryData(ONBOARDING_KEY, prev => prev.map(r => r.id === id ? { ...r, status: updatedReq.status, updated_at: updatedReq.updated_at } : r));
       toast.success('Status updated');
       return updatedReq;
     } catch (err) {
@@ -106,10 +109,11 @@ export const useOnboarding = () => {
   }, []);
 
   return {
-    requests,
-    hrMetrics,
-    loading,
-    error,
+    requests: Array.isArray(list.data) ? list.data : EMPTY,
+    hrMetrics: metrics.data ?? null,
+    loading: list.loading,
+    refreshing: list.refreshing,
+    error: errorMessageOf(list.error, 'Failed to fetch onboarding requests', { withNetworkMessage: false }),
     fetchRequests,
     refreshRequests,
     fetchHrMetrics,

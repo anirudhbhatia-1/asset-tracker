@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { User, Mail, Building2, MapPin, UserPlus, Laptop } from 'lucide-react';
@@ -8,9 +8,14 @@ import { rolePayload } from '../../api/employeesApi';
 import { useAuth } from '../../context/AuthContext';
 import { WORK_MODES, DEFAULT_WORK_MODE } from '../../utils/workMode';
 
-const DEPARTMENTS = ['Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing', 'Sales'];
+const DEPARTMENTS = ['Engineering', 'Product', 'Design', 'Operations', 'HR', 'IT', 'Finance', 'Marketing', 'Sales'];
 
-export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
+// `departments`: names already used in the directory, offered alongside the defaults.
+export default function AddEmployeeModal({ isOpen, onClose, onAdd, departments = [] }) {
+  const departmentOptions = useMemo(
+    () => [...new Set([...DEPARTMENTS, ...departments.filter(Boolean)])].sort((a, b) => a.localeCompare(b)),
+    [departments],
+  );
   const { locations } = useLocations(isOpen);
   const { hasPermission } = useAuth();
   const canGrantAccess = hasPermission('employees:grant-access');
@@ -160,7 +165,8 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
               onChange={(e) => setDepartment(e.target.value)}
               className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
             >
-              {DEPARTMENTS.map((dep) => (
+              <option value="">Select department</option>
+              {departmentOptions.map((dep) => (
                 <option key={dep} value={dep}>
                   {dep}
                 </option>

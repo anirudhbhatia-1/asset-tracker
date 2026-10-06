@@ -28,10 +28,10 @@ export default function FilterToolbar({
         <button
           type="button"
           onClick={() => onSelectCategory('all')}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer ${
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 active:scale-[0.97] shrink-0 cursor-pointer ${
             selectedCategoryId === 'all'
               ? 'bg-accent text-on-accent shadow-sm ring-2 ring-accent/30 font-semibold'
-              : 'bg-surface text-secondary border border-border hover:border-border'
+              : 'bg-surface text-secondary border border-border hover:bg-raised/70 hover:text-primary active:bg-raised'
           }`}
         >
           All Categories
@@ -44,10 +44,10 @@ export default function FilterToolbar({
               key={cat.id}
               type="button"
               onClick={() => onSelectCategory(cat.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all shrink-0 inline-flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 active:scale-[0.97] shrink-0 inline-flex items-center gap-1.5 cursor-pointer ${
                 isActive
                   ? 'bg-accent text-on-accent shadow-sm ring-2 ring-accent/30 font-semibold'
-                  : 'bg-surface text-secondary border border-border hover:border-border'
+                  : 'bg-surface text-secondary border border-border hover:bg-raised/70 hover:text-primary active:bg-raised'
               }`}
             >
               <Badge badgeChar={cat.badgeChar || cat.name} color={cat.color} className="!w-4 !h-4 !text-[9px]" />

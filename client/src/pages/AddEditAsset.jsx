@@ -7,6 +7,7 @@ import AddAssetForm from '../components/forms/AddAssetForm';
 import { updateAsset as updateAssetApi } from '../api/assetsApi';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import PageHeader from '../components/ui/PageHeader';
+import SegmentedControl from '../components/ui/SegmentedControl';
 import { ArrowLeft, PlusCircle, Edit3, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -77,24 +78,16 @@ export default function AddEditAsset() {
       />
 
       {canBulkUpload && (
-        <div className="inline-flex bg-surface border border-border rounded-xl p-1" role="tablist">
-          {[
-            ['single', 'Single asset', PlusCircle],
-            ['bulk', 'Bulk upload (CSV)', FileSpreadsheet],
-          ].map(([value, label, Icon]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={mode === value}
-              onClick={() => setMode(value)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
-                mode === value ? 'bg-accent text-on-accent shadow-sm' : 'text-secondary hover:text-primary'
-              }`}
-            >
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
+        <div>
+          <SegmentedControl
+            label="How to add assets"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'single', label: 'Single asset', icon: PlusCircle },
+              { value: 'bulk', label: 'Bulk upload (CSV)', icon: FileSpreadsheet },
+            ]}
+          />
         </div>
       )}
 

@@ -15,13 +15,38 @@ import PageHeader from '../components/ui/PageHeader';
 import ImportResultsPanel from '../components/inventory/ImportResultsPanel';
 import BulkItemsView from '../components/stock/BulkItemsView';
 import Button from '../components/ui/Button';
-import { Plus, RefreshCw, List, LayoutGrid, Download, Upload, Loader2 } from 'lucide-react';
+import SegmentedControl from '../components/ui/SegmentedControl';
+import { Plus, RefreshCw, List, LayoutGrid, Download, Upload, Loader2, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { viewFromParams, withViewParam, countActiveFilters, initialViewMode } from '../utils/inventoryView';
 
 // Serialized assets (default) or bulk items kept as a count (?view=bulk).
 const INVENTORY_VIEWS = [
-  ['assets', 'Assets'],
-  ['bulk', 'Bulk items'],
+  { value: 'assets', label: 'Assets' },
+  { value: 'bulk', label: 'Bulk items' },
 ];
+
+const OWNERSHIP_OPTIONS = [
+  { value: 'company', label: 'Company assets' },
+  { value: 'client', label: 'Client assets' },
+  { value: 'all', label: 'All' },
+];
+
+const VIEW_MODE_KEY = 'inventoryViewMode';
+// Set once the user picks list/grid themselves; until then phones get cards.
+const VIEW_MODE_CHOSEN_KEY = 'inventoryViewModeChosen';
+
+const readStorage = (key) => {
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+const writeStorage = (key, value) => {
+  try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
+};
+const isPhoneWidth = () => {
+  try { return window.matchMedia('(max-width: 767px)').matches; } catch { return false; }
+};
+
+// Icon buttons in the header toolbar: 40px tap targets on phones.
+const TOOLBAR_TEXT_BUTTON = 'inline-flex items-center justify-center gap-2 min-w-10 min-h-10 md:min-w-0 md:min-h-0 p-2.5 md:px-2.5 md:py-1.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer';
 
 export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -45,42 +70,36 @@ export default function Inventory() {
   const [pendingImportFile, setPendingImportFile] = useState(null);
   const fileInputRef = useRef(null);
 
-  const inventoryView = searchParams.get('view') === 'bulk' ? 'bulk' : 'assets';
+  // Local state so the switch responds at once; the URL (?view=bulk) mirrors
+  // it and is read back on load and on back/forward.
+  const [inventoryView, setInventoryView] = useState(() => viewFromParams(searchParams));
   const [bulkCreateOpen, setBulkCreateOpen] = useState(false);
 
   const handleSelectView = (value) => {
-    const updated = new URLSearchParams(searchParams);
-    if (value === 'bulk') updated.set('view', 'bulk');
-    else updated.delete('view');
-    setSearchParams(updated, { replace: true });
+    setInventoryView(value);
+    setSearchParams((current) => withViewParam(current, value), { replace: true });
   };
+
+  // Filter toolbar disclosure on phones (always shown from md up).
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Bulk items are filtered by name on the page (kept out of the URL's `q`,
   // which drives the asset search).
   const [bulkSearch, setBulkSearch] = useState('');
 
-  const viewSwitch = (
-    <div className="inline-flex bg-surface border border-border rounded-xl p-1 self-start" role="tablist" aria-label="Inventory view">
-      {INVENTORY_VIEWS.map(([value, label]) => (
-        <button
-          key={value}
-          type="button"
-          role="tab"
-          aria-selected={inventoryView === value}
-          onClick={() => handleSelectView(value)}
-          className={`px-3.5 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
-            inventoryView === value ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-
-  const [viewMode, setViewMode] = useState(() => {
-    return localStorage.getItem('inventoryViewMode') || 'list';
+  const [viewMode, setViewModeState] = useState(() => {
+    const stored = readStorage(VIEW_MODE_KEY);
+    // A stored 'grid' predates the flag and could only have been picked by hand.
+    const userChosen = readStorage(VIEW_MODE_CHOSEN_KEY) === '1' || stored === 'grid';
+    return initialViewMode({ stored, userChosen, isPhone: isPhoneWidth() });
   });
+
+  // Only an explicit pick is remembered (so phones keep defaulting to cards).
+  const setViewMode = (mode) => {
+    setViewModeState(mode);
+    writeStorage(VIEW_MODE_KEY, mode);
+    writeStorage(VIEW_MODE_CHOSEN_KEY, '1');
+  };
 
   // Sync state when URL search params change (e.g. navigation from Dashboard or back button)
   useEffect(() => {
@@ -90,11 +109,8 @@ export default function Inventory() {
     setSelectedLocation(searchParams.get('location') || 'all');
     setSelectedWarranty(searchParams.get('warranty') || 'all');
     setOwnership(searchParams.get('ownership') || 'company');
+    setInventoryView(viewFromParams(searchParams));
   }, [searchParams]);
-
-  useEffect(() => {
-    localStorage.setItem('inventoryViewMode', viewMode);
-  }, [viewMode]);
 
   const updateFilterParams = useCallback((newParams) => {
     const updated = new URLSearchParams(searchParams);
@@ -153,7 +169,10 @@ export default function Inventory() {
     return obj;
   }, [searchQuery, selectedCategoryId, selectedStatus, selectedLocation, selectedWarranty, ownership]);
 
-  const { assets, loading: assetsLoading, error, refresh } = useAssets(filters);
+  const isBulk = inventoryView === 'bulk';
+  // Assets aren't loaded while Bulk items is shown; switching back renders
+  // the cached list at once and refreshes it.
+  const { assets, loading: assetsLoading, refreshing: assetsRefreshing, showingPrevious, error, refresh } = useAssets(filters, { enabled: !isBulk });
 
   const hasActiveFilters = Boolean(searchQuery) || selectedCategoryId !== 'all' || selectedStatus !== 'all'
     || selectedLocation !== 'all' || selectedWarranty !== 'all';
@@ -243,125 +262,109 @@ export default function Inventory() {
     setImportResult(null);
   };
 
-  if (inventoryView === 'bulk') {
-    return (
-      <div className="space-y-6 max-w-7xl mx-auto">
-        <PageHeader
-          title="Hardware Inventory"
-          subtitle="Items without serial numbers, like bags or cables, kept as a count."
-          actions={canCreateAssets && (
-            <Button onClick={() => setBulkCreateOpen(true)}>
-              <Plus className="w-4 h-4" />
-              <span>Add bulk item</span>
-            </Button>
-          )}
-        />
-        {viewSwitch}
-        <BulkItemsView
-          createOpen={bulkCreateOpen}
-          onCreateOpen={() => setBulkCreateOpen(true)}
-          onCreateClose={() => setBulkCreateOpen(false)}
-          search={bulkSearch}
-          onSearchChange={setBulkSearch}
-        />
-      </div>
-    );
-  }
+  const activeFilterCount = countActiveFilters({
+    categoryId: selectedCategoryId,
+    status: selectedStatus,
+    location: selectedLocation,
+    warranty: selectedWarranty,
+  });
 
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Page Header — "Add Asset" lives in the global TopBar */}
-      <PageHeader
-        title="Hardware Inventory"
-        subtitle="Browse, filter, search, and manage the lifecycle of all registered hardware devices."
-        actions={
-        /* Secondary actions grouped into one toolbar so the header doesn't wrap */
-        <div
-          role="toolbar"
-          aria-label="Inventory actions"
-          className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1 shadow-sm"
+  const assetActions = (
+    /* Secondary actions grouped into one toolbar so the header doesn't wrap */
+    <div
+      role="toolbar"
+      aria-label="Inventory actions"
+      className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1 shadow-sm"
+    >
+      <button
+        type="button"
+        onClick={() => setViewMode('list')}
+        aria-pressed={viewMode === 'list'}
+        className={`inline-flex items-center justify-center min-w-10 min-h-10 md:min-w-0 md:min-h-0 p-2.5 md:p-1.5 rounded-lg transition-colors cursor-pointer ${
+          viewMode === 'list' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
+        }`}
+        title="List View"
+        aria-label="List view"
+      >
+        <List className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setViewMode('grid')}
+        aria-pressed={viewMode === 'grid'}
+        className={`inline-flex items-center justify-center min-w-10 min-h-10 md:min-w-0 md:min-h-0 p-2.5 md:p-1.5 rounded-lg transition-colors cursor-pointer ${
+          viewMode === 'grid' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
+        }`}
+        title="Grid View"
+        aria-label="Grid view"
+      >
+        <LayoutGrid className="w-4 h-4" />
+      </button>
+
+      <span className="w-px h-5 bg-border mx-1" aria-hidden="true" />
+
+      <button
+        type="button"
+        onClick={refresh}
+        className={TOOLBAR_TEXT_BUTTON}
+        title="Refresh list"
+        aria-label="Refresh list"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 ${assetsLoading || assetsRefreshing ? 'animate-spin text-accent' : ''}`} />
+        <span className="hidden sm:inline">Refresh</span>
+      </button>
+
+      {canImportAssets && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            onClick={handleImportClick}
+            disabled={importing}
+            className={`${TOOLBAR_TEXT_BUTTON} disabled:opacity-50`}
+            title="Import Excel"
+            aria-label="Import Excel"
+          >
+            {importing
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+              : <Upload className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">
+              {importing ? (pendingImportFile ? 'Importing...' : 'Checking...') : 'Import Excel'}
+            </span>
+          </button>
+        </>
+      )}
+
+      {canExportAssets && (
+        <button
+          type="button"
+          onClick={handleExport}
+          className={TOOLBAR_TEXT_BUTTON}
+          title="Export Excel"
+          aria-label="Export Excel"
         >
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            aria-pressed={viewMode === 'list'}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-              viewMode === 'list' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
-            }`}
-            title="List View"
-            aria-label="List view"
-          >
-            <List className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('grid')}
-            aria-pressed={viewMode === 'grid'}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-              viewMode === 'grid' ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
-            }`}
-            title="Grid View"
-            aria-label="Grid view"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Export Excel</span>
+        </button>
+      )}
+    </div>
+  );
 
-          <span className="w-px h-5 bg-border mx-1" aria-hidden="true" />
+  const bulkActions = canCreateAssets && (
+    <Button onClick={() => setBulkCreateOpen(true)}>
+      <Plus className="w-4 h-4" />
+      <span>Add bulk item</span>
+    </Button>
+  );
 
-          <button
-            type="button"
-            onClick={refresh}
-            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer"
-            title="Refresh list"
-            aria-label="Refresh list"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${assetsLoading ? 'animate-spin text-accent' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-
-          {canImportAssets && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <button
-                type="button"
-                onClick={handleImportClick}
-                disabled={importing}
-                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer disabled:opacity-50"
-                title="Import Excel"
-                aria-label="Import Excel"
-              >
-                {importing
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
-                  : <Upload className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">
-                  {importing ? (pendingImportFile ? 'Importing...' : 'Checking...') : 'Import Excel'}
-                </span>
-              </button>
-            </>
-          )}
-
-          {canExportAssets && (
-            <button
-              type="button"
-              onClick={handleExport}
-              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer"
-              title="Export Excel"
-              aria-label="Export Excel"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export Excel</span>
-            </button>
-          )}
-        </div>
-        }
-      />
-
+  const assetsBody = (
+    <>
       {importResult && (
         <ImportResultsPanel
           result={importResult}
@@ -382,30 +385,15 @@ export default function Inventory() {
         </div>
       )}
 
-      {viewSwitch}
-
       {/* Ownership view */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-        <div className="inline-flex bg-surface border border-border rounded-xl p-1 self-start" role="tablist" aria-label="Asset ownership">
-          {[
-            ['company', 'Company assets'],
-            ['client', 'Client assets'],
-            ['all', 'All'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={ownership === value}
-              onClick={() => handleSelectOwnership(value)}
-              className={`px-3.5 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
-                ownership === value ? 'bg-accent text-on-accent shadow-sm' : 'text-secondary hover:text-primary'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Asset ownership"
+          options={OWNERSHIP_OPTIONS}
+          value={ownership}
+          onChange={handleSelectOwnership}
+          className="self-start"
+        />
         {ownership === 'client' && (
           <p className="text-xs text-secondary">
             Owned by clients: kept for records only and not counted in company totals.
@@ -416,17 +404,31 @@ export default function Inventory() {
       {/* Search Bar & Filter Toolbar */}
       <div className="space-y-3">
         <SearchBar initialValue={searchQuery} onSearch={handleSearchChange} />
-        <FilterToolbar
-          categories={categories}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={handleSelectCategory}
-          selectedStatus={selectedStatus}
-          onSelectStatus={handleSelectStatus}
-          selectedLocation={selectedLocation}
-          onSelectLocation={handleSelectLocation}
-          selectedWarranty={selectedWarranty}
-          onSelectWarranty={handleSelectWarranty}
-        />
+        {/* On phones the filters sit behind a disclosure button. */}
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          aria-controls="inventory-filters"
+          className="md:hidden inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-medium bg-surface border border-border text-primary cursor-pointer"
+        >
+          <SlidersHorizontal className="w-4 h-4 text-secondary" aria-hidden="true" />
+          <span>Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}</span>
+          <ChevronDown className={`w-4 h-4 text-secondary transition-transform ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
+        <div id="inventory-filters" className={filtersOpen ? 'block' : 'hidden md:block'}>
+          <FilterToolbar
+            categories={categories}
+            selectedCategoryId={selectedCategoryId}
+            onSelectCategory={handleSelectCategory}
+            selectedStatus={selectedStatus}
+            onSelectStatus={handleSelectStatus}
+            selectedLocation={selectedLocation}
+            onSelectLocation={handleSelectLocation}
+            selectedWarranty={selectedWarranty}
+            onSelectWarranty={handleSelectWarranty}
+          />
+        </div>
         <ActiveFilters
           searchQuery={searchQuery}
           selectedCategoryId={selectedCategoryId}
@@ -470,15 +472,50 @@ export default function Inventory() {
         <AssetTable
           assets={assets}
           loading={assetsLoading || categoriesLoading}
+          refreshing={showingPrevious}
           onClearFilters={handleClearFilters}
         />
       ) : (
         <AssetGrid
           assets={assets}
           loading={assetsLoading || categoriesLoading}
+          refreshing={showingPrevious}
           onClearFilters={handleClearFilters}
         />
       )}
+    </>
+  );
+
+  // One header and switch for both views; only the body below is swapped.
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Page Header — "Add Asset" lives in the global TopBar */}
+      <PageHeader
+        title="Hardware Inventory"
+        subtitle={isBulk
+          ? 'Items without serial numbers, like bags or cables, kept as a count.'
+          : 'Browse, filter, search, and manage the lifecycle of all registered hardware devices.'}
+        actions={isBulk ? bulkActions : assetActions}
+      />
+
+      <div>
+        <SegmentedControl
+          label="Inventory view"
+          options={INVENTORY_VIEWS}
+          value={inventoryView}
+          onChange={handleSelectView}
+        />
+      </div>
+
+      {isBulk ? (
+        <BulkItemsView
+          createOpen={bulkCreateOpen}
+          onCreateOpen={() => setBulkCreateOpen(true)}
+          onCreateClose={() => setBulkCreateOpen(false)}
+          search={bulkSearch}
+          onSearchChange={setBulkSearch}
+        />
+      ) : assetsBody}
     </div>
   );
 }

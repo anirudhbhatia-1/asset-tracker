@@ -101,29 +101,30 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-sm bg-surface border border-border rounded-2xl shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-sm bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-scaleUp flex flex-col max-h-[90dvh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-base/50">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-base/50 shrink-0">
           <div>
             <h2 id={titleId} className="text-base font-semibold text-primary">Asset QR Tag</h2>
             <p className="text-xs text-secondary mt-0.5">Scan to identify this asset</p>
           </div>
           <button
+            type="button"
             aria-label="Close"
             onClick={onClose}
-            className="p-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors"
+            className="p-3 sm:p-2 -mr-1 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* QR Code Display */}
-        <div className="p-6 flex flex-col items-center gap-4" ref={printRef}>
+        <div className="p-6 flex flex-col items-center gap-4 overflow-y-auto" ref={printRef}>
           {/* Printable Tag Area */}
           <div className="border-2 border-dashed border-border rounded-xl p-5 flex flex-col items-center gap-3 w-full bg-white">
-            <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-secondary">
+            <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-gray-500">
               Thinkvibes Asset Tag
             </p>
             <QRCodeSVG
@@ -152,7 +153,7 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center gap-3 px-5 py-4 border-t border-border bg-base/50">
+        <div className="flex items-center gap-3 px-5 py-4 border-t border-border bg-base/50 shrink-0">
           <button
             type="button"
             onClick={onClose}

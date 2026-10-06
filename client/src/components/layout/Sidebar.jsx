@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { prefetchRoute } from '../../utils/routePrefetch';
 import { 
   LayoutDashboard, 
   Package, 
@@ -25,6 +26,13 @@ const allNavItems = [
   // Settings only appears for people who can manage something there.
   { name: 'Settings', path: '/settings', icon: Settings, permissionKeys: ['roles:read', 'categories:manage', 'locations:manage'] },
 ];
+
+// Start downloading a page's code as soon as the user points at, focuses or
+// touches its link.
+const prefetchHandlers = (path) => {
+  const prefetch = () => prefetchRoute(path);
+  return { onMouseEnter: prefetch, onFocus: prefetch, onTouchStart: prefetch };
+};
 
 const Sidebar = ({ isOpen = true }) => {
   const { hasPermission } = useAuth();
@@ -64,25 +72,21 @@ const Sidebar = ({ isOpen = true }) => {
 
   return (
     <>
-      {/* Container is bottom tab bar on mobile, left sidebar on md+ */}
-      <aside className={`
-        fixed z-50 flex bg-surface/95 backdrop-blur-xl
-        
-        /* Mobile: Bottom Tab Bar */
-        bottom-0 left-0 right-0 w-full flex-row items-center justify-around
-        h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)]
-        border-t border-border
-        
-        /* Tablet/Desktop: Left Sidebar */
-        md:top-0 md:bottom-auto md:left-0 md:h-screen ${isOpen ? 'md:w-64' : 'md:w-20'}
-        md:flex-col md:border-t-0 md:border-r md:border-border/80 md:justify-start md:pb-0
-        transition-all duration-300 ease-in-out select-none
-      `}>
+      {/* Mobile: bottom tab bar. md+: left sidebar. */}
+      <aside
+        aria-label="Main navigation"
+        className={`fixed z-50 flex bg-surface/95 backdrop-blur-xl select-none transition-all duration-300 ease-in-out
+          bottom-0 left-0 right-0 w-full flex-row items-stretch
+          h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] border-t border-border
+          md:top-0 md:bottom-auto md:right-auto md:h-screen ${isOpen ? 'md:w-64' : 'md:w-20'}
+          md:flex-col md:border-t-0 md:border-r md:border-border/80 md:pb-0`}
+      >
         
         {/* Brand Header (Hidden on Mobile, visible on md+) */}
         <div className={`hidden md:flex h-[4.5rem] px-4 items-center border-b border-border/80 shrink-0 ${isOpen ? 'justify-start lg:px-6' : 'justify-center'}`}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 flex items-center justify-center shrink-0">
+            {/* Light chip in dark mode keeps the logo's dark lettering legible. */}
+            <div className="w-8 h-8 flex items-center justify-center shrink-0 dark:bg-white dark:rounded-lg dark:p-1">
               <img 
                 src="/logo.png" 
                 alt="Thinkvibes Logo" 
@@ -116,15 +120,17 @@ const Sidebar = ({ isOpen = true }) => {
                 key={item.name}
                 to={item.path}
                 end={item.path === '/'}
+                {...prefetchHandlers(item.path)}
                 className={({ isActive }) =>
                   `relative flex flex-col md:flex-row items-center ${isOpen ? 'md:justify-start' : 'md:justify-center'} gap-1 md:gap-3
-                   w-full px-2 md:px-3 py-2 md:py-2.5 rounded-lg text-[10px] md:text-sm transition-all duration-150 group
+                   w-full px-2 md:px-3 py-2 md:py-2.5 rounded-lg text-[10px] md:text-sm transition-all duration-150 group active:scale-[0.97]
                    ${isMobileHidden ? 'hidden md:flex' : 'flex'}
                    ${isActive
                       ? 'md:bg-accent/10 text-accent font-semibold md:shadow-[inset_3px_0_0_var(--theme-accent)]'
-                      : 'text-secondary hover:bg-raised/70 hover:text-primary'
+                      : 'text-secondary hover:bg-raised/70 hover:text-primary active:bg-raised'
                   }`
                 }
+                aria-label={item.name}
                 title={!isOpen ? item.name : undefined}
               >
                 {({ isActive }) => (
@@ -147,7 +153,7 @@ const Sidebar = ({ isOpen = true }) => {
                 aria-expanded={moreOpen}
                 aria-haspopup="true"
                 aria-controls="mobile-more-menu"
-                className={`flex flex-col items-center gap-1 w-full px-2 py-2 rounded-lg text-[10px] transition-all duration-150 cursor-pointer ${
+                className={`flex flex-col items-center gap-1 w-full px-2 py-2 rounded-lg text-[10px] transition-all duration-150 active:scale-[0.97] cursor-pointer ${
                   moreActive || moreOpen ? 'text-accent font-semibold' : 'text-secondary hover:text-primary'
                 }`}
               >
@@ -157,7 +163,7 @@ const Sidebar = ({ isOpen = true }) => {
               {moreOpen && (
                 <div
                   id="mobile-more-menu"
-                  className="absolute bottom-full right-1 mb-3 min-w-44 rounded-xl border border-border bg-surface shadow-xl py-1.5"
+                  className="absolute bottom-full right-1 mb-3 min-w-44 rounded-xl border border-border bg-surface shadow-xl py-1.5 animate-popIn"
                 >
                   {overflowItems.map((item) => {
                     const Icon = item.icon;
@@ -166,9 +172,10 @@ const Sidebar = ({ isOpen = true }) => {
                         key={item.name}
                         to={item.path}
                         onClick={() => setMoreOpen(false)}
+                        {...prefetchHandlers(item.path)}
                         className={({ isActive }) =>
                           `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                            isActive ? 'text-accent font-semibold bg-accent/10' : 'text-primary hover:bg-raised/70'
+                            isActive ? 'text-accent font-semibold bg-accent/10' : 'text-primary hover:bg-raised/70 active:bg-raised'
                           }`
                         }
                       >
@@ -183,18 +190,6 @@ const Sidebar = ({ isOpen = true }) => {
           )}
         </nav>
 
-        {/* Sidebar Footer — System Status */}
-        {isOpen && (
-          <div className="hidden md:block p-4 m-3 rounded-xl bg-raised/75 border border-border/80 shrink-0">
-            <div className="flex items-center justify-between text-secondary font-medium text-xs mb-2">
-              <span>System Status</span>
-              <span className="flex items-center gap-1 text-success text-[11px]">
-                <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                Online
-              </span>
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );

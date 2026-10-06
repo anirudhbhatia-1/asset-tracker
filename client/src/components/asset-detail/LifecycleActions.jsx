@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import AssignmentModal from '../forms/AssignmentModal';
+import StatusPill from '../ui/StatusPill';
 import { UserPlus, CornerDownLeft, Archive, Trash2, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 export default function LifecycleActions({ asset, canAssign = false, canDelete = false, onAssign, onReturn, onRetire, onDelete }) {
@@ -65,9 +66,9 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
 
   return (
     <div className="bg-surface rounded-xl border border-border/80 p-6 shadow-sm space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-border/60">
+      <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60">
         <h3 className="text-base font-semibold text-primary">Lifecycle & Operational Controls</h3>
-        <span className="text-xs text-secondary font-mono">Status: {asset.status?.toUpperCase()}</span>
+        <StatusPill status={asset.status} />
       </div>
 
       {isRetired && (
@@ -132,17 +133,20 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           </Button>
         )}
 
-        {/* Delete Asset Button (Always available to Admin) */}
+        {/* Delete Asset Button (Always available to Admin). Quieter outline
+            style, pushed to the far end, so it isn't mistaken for Retire. */}
         {canDelete && (
-          <Button
-            variant="danger"
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="flex-1 sm:flex-initial ml-auto"
-            title="Permanently remove asset record"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete</span>
-          </Button>
+          <div className="w-full sm:w-auto sm:ml-auto pt-3 sm:pt-0 sm:pl-3 border-t sm:border-t-0 sm:border-l border-border/60">
+            <Button
+              variant="danger-outline"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="w-full sm:w-auto"
+              title="Permanently remove asset record"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete permanently</span>
+            </Button>
+          </div>
         )}
       </div>
 

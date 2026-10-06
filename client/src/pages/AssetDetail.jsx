@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
+import { getReferrer } from '../utils/navHistory';
 import useAsset from '../hooks/useAsset';
 import { useAuth } from '../context/AuthContext';
 import SpecsProfile from '../components/asset-detail/SpecsProfile';
@@ -13,6 +14,16 @@ import { getChildAssets, getAssetTickets } from '../api/assetsApi';
 
 export default function AssetDetail() {
   const { id } = useParams();
+  const location = useLocation();
+  // "Back to Hardware Inventory" returns to the inventory with the filters
+  // the user had (passed as state.from by a link, or the page they came
+  // from); otherwise the plain inventory.
+  const [inventoryBackTo] = useState(() => {
+    const from = location.state?.from;
+    if (typeof from === 'string' && from.startsWith('/inventory') && !/^\/inventory\/./.test(from)) return from;
+    const referrer = getReferrer(location);
+    return referrer?.pathname === '/inventory' ? `/inventory${referrer.search}` : '/inventory';
+  });
   const {
     asset,
     loading,
@@ -72,12 +83,13 @@ export default function AssetDetail() {
     return (
       <div className="space-y-6 max-w-7xl mx-auto animate-pulse">
         <div className="h-4 w-32 bg-surface rounded" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        {/* Same columns as the loaded page so nothing jumps when data arrives. */}
+        <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] lg:grid-cols-3 gap-6">
+          <div className="md:col-span-1 lg:col-span-2 space-y-6">
             <div className="h-72 bg-surface rounded-xl border border-border/60" />
             <div className="h-40 bg-surface rounded-xl border border-border/60" />
           </div>
-          <div className="lg:col-span-1">
+          <div className="md:col-span-1 lg:col-span-1">
             <div className="h-96 bg-surface rounded-xl border border-border/60" />
           </div>
         </div>
@@ -105,8 +117,8 @@ export default function AssetDetail() {
       <div className="flex items-center justify-between gap-4">
         {!isReadOnly ? (
           <Link
-            to="/inventory"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-secondary hover:text-accent transition-colors"
+            to={inventoryBackTo}
+            className="inline-flex items-center gap-2 min-h-[40px] text-xs font-semibold text-secondary hover:text-accent transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Hardware Inventory</span>
@@ -114,7 +126,7 @@ export default function AssetDetail() {
         ) : (
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-secondary hover:text-accent transition-colors"
+            className="inline-flex items-center gap-2 min-h-[40px] text-xs font-semibold text-secondary hover:text-accent transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Dashboard</span>

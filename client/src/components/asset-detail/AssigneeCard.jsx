@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { User, Mail, Building2, Calendar } from 'lucide-react';
+import { formatDate } from '../../utils/formatters';
 
 export default function AssigneeCard({ asset }) {
   if (!asset || asset.status !== 'in-use' || !asset.assignedTo) {
@@ -60,9 +61,9 @@ export default function AssigneeCard({ asset }) {
               </span>
             )}
             {asset.assignedDate && (
-              <span className="inline-flex items-center gap-1.5 bg-base/60 px-2.5 py-1 rounded-lg border border-border/60 font-mono">
+              <span className="inline-flex items-center gap-1.5 bg-base/60 px-2.5 py-1 rounded-lg border border-border/60">
                 <Calendar className="w-3.5 h-3.5 text-info-blue shrink-0" />
-                <span>Since: {asset.assignedDate}</span>
+                <span>Since {formatDate(asset.assignedDate)}</span>
               </span>
             )}
           </div>

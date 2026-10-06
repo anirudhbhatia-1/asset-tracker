@@ -1,34 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
+const prefersReducedMotion = () => {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+};
 
 export default function MetricCard({ title, subtitle, count = 0, icon: Icon, delta, deltaPositive = true, colorClass = 'text-accent bg-accent/10 border-accent/20', onClick }) {
-  const [displayCount, setDisplayCount] = useState(0);
+  const target = Number(count) || 0;
+  // Starts at the real value (no count-up from 0 on every visit); only a
+  // later change animates, from the value shown before.
+  const [displayCount, setDisplayCount] = useState(target);
+  const shownRef = useRef(target);
 
   useEffect(() => {
-    const end = Number(count) || 0;
-    if (end === 0) {
-      setDisplayCount(0);
-      return;
+    const from = shownRef.current;
+    if (from === target) return undefined;
+    if (prefersReducedMotion() || document.hidden) {
+      shownRef.current = target;
+      setDisplayCount(target);
+      return undefined;
     }
     const duration = 600;
     const startTime = performance.now();
+    let frame;
 
     const animate = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      const progress = Math.min((currentTime - startTime) / duration, 1);
       // easeOutQuart
       const easeProgress = 1 - Math.pow(1 - progress, 4);
-      const current = Math.floor(easeProgress * end);
+      const current = progress < 1 ? Math.round(from + (target - from) * easeProgress) : target;
+      shownRef.current = current;
       setDisplayCount(current);
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setDisplayCount(end);
-      }
+      if (progress < 1) frame = requestAnimationFrame(animate);
     };
 
-    requestAnimationFrame(animate);
-  }, [count]);
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
 
   const Wrapper = onClick ? 'button' : 'div';
   return (

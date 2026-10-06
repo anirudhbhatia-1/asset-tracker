@@ -1,31 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getAssets } from '../api/assetsApi';
+import { queryKey } from '../utils/queryCache';
+import useQuery, { errorMessageOf } from './useQuery';
 
-export default function useAssets(filters = {}) {
-  const [assets, setAssets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const EMPTY = [];
 
-  // Serialize filters safely for dependency checking
-  const filtersKey = JSON.stringify(filters);
+export const listOf = (res) => res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
 
-  const fetchAssetsData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Parsed back from the key so the callback only changes with the filters' values.
-      const res = await getAssets(JSON.parse(filtersKey));
-      setAssets(res.data?.data || (Array.isArray(res.data) ? res.data : []));
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to load assets');
-    } finally {
-      setLoading(false);
-    }
-  }, [filtersKey]);
+export const assetsQueryKey = (filters = {}) => queryKey('assets', filters);
+export const fetchAssetsList = (filters = {}) => getAssets(filters).then(listOf);
 
-  useEffect(() => {
-    fetchAssetsData();
-  }, [fetchAssetsData]);
+/**
+ * Assets matching `filters`, from the shared cache when loaded before.
+ * Changing filters keeps the current rows on screen (`showingPrevious`)
+ * until the new ones arrive; responses for filters no longer shown are
+ * ignored. `enabled: false` skips loading (e.g. while another view shows).
+ */
+export default function useAssets(filters = {}, { enabled = true } = {}) {
+  const key = assetsQueryKey(filters);
+  // Parsed back from the key so the fetcher only changes with the filters' values.
+  const fetcher = useCallback(() => fetchAssetsList(Object.fromEntries(new URLSearchParams(key.split('?')[1] || ''))), [key]);
+  const { data, loading, refreshing, isPlaceholder, error, refetch } = useQuery(key, fetcher, { enabled, keepPrevious: true });
 
-  return { assets: Array.isArray(assets) ? assets : [], loading, error, refresh: fetchAssetsData };
+  return {
+    assets: Array.isArray(data) ? data : EMPTY,
+    loading,
+    refreshing,
+    // Rows of the previous filters, shown until the new ones arrive.
+    showingPrevious: isPlaceholder,
+    error: errorMessageOf(error, 'Failed to load assets'),
+    refresh: refetch,
+  };
 }

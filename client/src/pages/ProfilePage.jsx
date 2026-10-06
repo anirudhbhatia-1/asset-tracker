@@ -3,13 +3,18 @@ import { useAuth } from '../context/AuthContext';
 import { getMyProfile, getEmployeeAssets, updateMyProfile } from '../api/employeesApi';
 import {
   User, Mail, Building2, MapPin, ShieldCheck, Laptop,
-  Calendar, PackageX, Loader2, Pencil, Check, X, Home
+  Calendar, PackageX, Loader2, Pencil, Check, X, Home, Package
 } from 'lucide-react';
 import StatusPill from '../components/ui/StatusPill';
 import Badge from '../components/ui/Badge';
 import PageHeader from '../components/ui/PageHeader';
 import toast from 'react-hot-toast';
 import { workModeLabel } from '../utils/workMode';
+import { formatDate } from '../utils/formatters';
+import { getInitials } from '../utils/initials';
+import { holdingLabel } from '../utils/stock';
+import { useStockHoldings } from '../hooks/useStock';
+import { roleLabel } from '../utils/roleLabel';
 
 const roleColors = {
   admin:    'bg-accent/10 text-accent border-accent/20',
@@ -28,6 +33,9 @@ export default function ProfilePage() {
   const [editingName, setEditingName]   = useState(false);
   const [nameValue, setNameValue]       = useState('');
   const [savingName, setSavingName]     = useState(false);
+
+  // Bulk items (bags, cables…) held by the signed-in user, as on the dashboard.
+  const { holdings: bulkHoldings } = useStockHoldings(user?.id ? 'me' : null);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -110,7 +118,8 @@ export default function ProfilePage() {
     );
   }
 
-  const avatarChar = profile?.name?.[0] || profile?.email?.[0] || 'U';
+  const avatarChar = getInitials(profile?.name, profile?.email?.[0]?.toUpperCase() || 'U');
+  const displayRole = roleLabel(profile, null);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -124,11 +133,11 @@ export default function ProfilePage() {
         <div className="px-6 pb-6">
           {/* Avatar + Role Badge */}
           <div className="-mt-10 mb-4 flex items-end justify-between">
-            <div className="w-20 h-20 rounded-2xl bg-accent/10 border-4 border-surface flex items-center justify-center text-accent text-3xl font-bold uppercase shadow-md">
+            <div className="w-20 h-20 rounded-2xl bg-accent/10 border-4 border-surface flex items-center justify-center text-accent text-2xl font-bold uppercase shadow-md" aria-hidden="true">
               {avatarChar}
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold border capitalize ${roleColors[profile?.role] || roleColors.employee}`}>
-              {profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Employee'}
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${roleColors[profile?.role] || roleColors.employee}`}>
+              {displayRole || 'Employee'}
             </span>
           </div>
 
@@ -183,7 +192,7 @@ export default function ProfilePage() {
                       type="button"
                       aria-label="Edit name"
                       onClick={handleStartEditName}
-                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded-md text-secondary hover:text-accent hover:bg-accent/10 transition-all cursor-pointer"
+                      className="opacity-60 group-hover:opacity-100 hover:opacity-100 focus-visible:opacity-100 p-2 -m-1 rounded-md text-secondary hover:text-accent hover:bg-accent/10 transition-all cursor-pointer"
                       title="Edit name"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -211,25 +220,19 @@ export default function ProfilePage() {
             <InfoRow
               icon={ShieldCheck}
               label="Role"
-              value={profile?.role
-                ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1)
-                : '—'}
+              value={displayRole || '—'}
             />
             <InfoRow
               icon={Calendar}
               label="Member Since"
-              value={profile?.createdAt
-                ? new Date(profile.createdAt).toLocaleDateString('en-IN', {
-                    day: 'numeric', month: 'long', year: 'numeric',
-                  })
-                : '—'}
+              value={profile?.createdAt ? formatDate(profile.createdAt) : '—'}
             />
           </div>
 
           {/* Hint text */}
           <p className="text-xs text-secondary mt-4 flex items-center gap-1.5">
-            <Pencil className="w-3 h-3" />
-            Hover over your name to edit it. Other details can be changed by an Admin.
+            <Pencil className="w-3 h-3" aria-hidden="true" />
+            Click the pencil to edit your name. Other details can be changed by an Admin.
           </p>
         </div>
       </div>
@@ -269,8 +272,8 @@ export default function ProfilePage() {
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <StatusPill status={asset.status} />
                     {asset.assignedDate && (
-                      <span className="text-[11px] font-mono text-secondary flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {asset.assignedDate}
+                      <span className="text-[11px] text-secondary flex items-center gap-1">
+                        <Calendar className="w-3 h-3" aria-hidden="true" /> Assigned {formatDate(asset.assignedDate)}
                       </span>
                     )}
                   </div>
@@ -280,6 +283,27 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Bulk items held (shown only when there are some, as on the dashboard) */}
+      {bulkHoldings.length > 0 && (
+        <section aria-labelledby="profile-bulk-items-title" className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-border bg-base/50 flex items-center gap-2">
+            <Package className="w-4 h-4 text-accent" aria-hidden="true" />
+            <h2 id="profile-bulk-items-title" className="text-sm font-semibold text-primary uppercase tracking-wider">Other items</h2>
+            <span className="ml-auto text-xs text-secondary">{bulkHoldings.length} item{bulkHoldings.length !== 1 ? 's' : ''}</span>
+          </div>
+          <ul className="p-4 space-y-2">
+            {bulkHoldings.map((holding) => (
+              <li key={holding.stockItemId} className="bg-base/80 px-3.5 py-2.5 rounded-xl border border-border/80 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <span className="text-sm font-semibold text-primary break-words">{holdingLabel(holding)}</span>
+                {holding.firstAssignedAt && (
+                  <span className="text-[11px] text-secondary">Since {formatDate(holding.firstAssignedAt)}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

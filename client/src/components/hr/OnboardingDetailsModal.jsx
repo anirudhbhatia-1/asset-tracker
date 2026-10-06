@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getAvailableAssets } from '../../api/assetsApi';
 import useFocusTrap from '../../hooks/useFocusTrap';
 import { getFulfilmentCandidates, getOnboardingStatusOptions, ONBOARDING_STATUS_LABELS } from '../../utils/onboardingStatus';
-import { parseDateValue } from '../../utils/dates';
+import { formatDate } from '../../utils/formatters';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -131,10 +131,10 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
   if (!isOpen || !request) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
       
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90dvh] animate-scaleUp">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
@@ -142,7 +142,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
             <h2 id={titleId} className="text-lg font-semibold text-primary">Onboarding #{request.id}</h2>
             <StatusBadge status={fullData?.status || request.status} />
           </div>
-          <button aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -173,7 +173,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                 </div>
                 <div>
                   <div className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Joining Date</div>
-                  <div className="text-sm text-primary font-medium">{parseDateValue(fullData.joining_date).toLocaleDateString()}</div>
+                  <div className="text-sm text-primary font-medium">{formatDate(fullData.joining_date)}</div>
                 </div>
               </div>
 

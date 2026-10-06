@@ -64,7 +64,7 @@ export default function Scanner() {
   }, [showAsset]);
 
   // Hold camera decoding while a lookup runs, a result or scan error is on
-  // the card or a dialog is open; Reset Card clears it and resumes decoding.
+  // the card or a dialog is open; Clear empties it and resumes decoding.
   // Manual lookups still work while paused.
   const scanPaused = loading || !!scanResult || !!scanError || isAssignOpen || isReturnOpen;
 
@@ -156,18 +156,18 @@ export default function Scanner() {
             <button
               type="button"
               onClick={stopScanner}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer"
             >
-              <span>Pause Webcam</span>
+              <span>Pause camera</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={startScanner}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-on-accent transition-colors shadow-md shadow-accent/20 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-on-accent transition-colors shadow-md shadow-accent/20 cursor-pointer"
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>Enable Webcam Stream</span>
+              <span>Start camera</span>
             </button>
           )}
 
@@ -175,11 +175,11 @@ export default function Scanner() {
             type="button"
             onClick={resetScan}
             disabled={!scanResult && !scanError}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors disabled:opacity-40 cursor-pointer"
-            title="Reset current scan reading"
+            className="inline-flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors disabled:opacity-40 cursor-pointer"
+            title="Clear the current scan result"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-accent' : ''}`} />
-            <span>Reset Card</span>
+            <span>Clear</span>
           </button>
         </>}
       />

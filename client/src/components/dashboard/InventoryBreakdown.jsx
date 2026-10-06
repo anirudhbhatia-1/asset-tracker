@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCard } from '../ui/Skeleton';
-import { PieChart, Tag, MapPin, Activity, ShieldCheck, ArrowRight } from 'lucide-react';
+import SegmentedControl from '../ui/SegmentedControl';
+import { resolveColor } from '../../utils/color';
+import { PieChart, ArrowRight } from 'lucide-react';
 
 export default function InventoryBreakdown({ 
   breakdown = [], 
@@ -46,6 +48,8 @@ export default function InventoryBreakdown({
 
     return {
       ...item,
+      // Category colours can be names ("Emerald") that SVG can't paint.
+      color: resolveColor(item.color, '#64748B'),
       strokeDasharray,
       strokeDashoffset,
     };
@@ -65,40 +69,30 @@ export default function InventoryBreakdown({
   return (
     <div className="bg-surface rounded-2xl border border-border/80 shadow-sm overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="px-3 py-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-base font-bold text-primary flex items-center gap-2">
           <PieChart className="w-4.5 h-4.5 text-accent" />
           <span>Inventory Overview</span>
         </h2>
         
         {/* Toggle Category/Location/Status/Warranty */}
-        <div className="flex bg-base border border-border rounded-lg p-0.5 overflow-x-auto scrollbar-none max-w-full">
-          {[
-            { id: 'category', label: 'Category', icon: Tag },
-            { id: 'location', label: 'Location', icon: MapPin },
-            { id: 'status', label: 'Status', icon: Activity },
-            { id: 'warranty', label: 'Warranty', icon: ShieldCheck },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setHoveredIndex(null);
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                  isActive ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'
-                }`}
-              >
-                <Icon className="w-3 h-3" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          label="Group inventory by"
+          size="sm"
+          className="self-start sm:self-auto"
+          value={activeTab}
+          onChange={(tab) => {
+            setActiveTab(tab);
+            setHoveredIndex(null);
+          }}
+          // No icons: all four labels then fit a phone screen without scrolling.
+          options={[
+            { value: 'category', label: 'Category' },
+            { value: 'location', label: 'Location' },
+            { value: 'status', label: 'Status' },
+            { value: 'warranty', label: 'Warranty' },
+          ]}
+        />
       </div>
 
       <div className="p-5 flex-1 flex flex-col">
@@ -146,7 +140,7 @@ export default function InventoryBreakdown({
                 {/* Donut Center Display & Hover Tooltip */}
                 {hoveredItem ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-3 text-center transition-all duration-200">
-                    <span className="text-[11px] font-semibold text-secondary uppercase tracking-wider truncate max-w-[130px]" title={hoveredItem.name}>
+                    <span className="text-xs font-semibold text-primary truncate max-w-[130px]" title={hoveredItem.name}>
                       {hoveredItem.name}
                     </span>
                     <span className="text-2xl font-extrabold text-primary my-0.5">
@@ -190,7 +184,7 @@ export default function InventoryBreakdown({
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <div 
-                        className="w-3 h-3 rounded-full shadow-sm shrink-0 transition-transform group-hover:scale-125" 
+                        className="w-3 h-3 rounded-full shadow-sm shrink-0 ring-1 ring-black/10 dark:ring-white/20 transition-transform group-hover:scale-125" 
                         style={{ backgroundColor: segment.color }}
                       />
                       <span className="text-sm font-medium text-primary group-hover:text-accent transition-colors truncate">

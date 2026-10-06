@@ -7,6 +7,7 @@ import Button from '../ui/Button';
 import OffboardingStatusBadge from './OffboardingStatusBadge';
 import OffboardingChecklist from './OffboardingChecklist';
 import { formatDate, formatDateTime } from '../../utils/formatters';
+import { describeChecklistProgress } from '../../utils/offboardingProgress';
 import { toDateInputValue } from '../../utils/dates';
 import {
   OFFBOARDING_REASONS,
@@ -224,10 +225,10 @@ const OffboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, 
   const missingIsClient = missingItem?.assetType === 'client';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
 
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90dvh] animate-scaleUp">
 
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border bg-base/50 shrink-0">
@@ -237,7 +238,7 @@ const OffboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, 
             </h2>
             {data.status && <OffboardingStatusBadge status={data.status} />}
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors shrink-0">
+          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -376,7 +377,7 @@ const OffboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, 
                   <h3 className="text-sm font-semibold text-primary">Assets to collect</h3>
                   {progress.total > 0 && (
                     <div className="flex items-center gap-2 text-xs text-secondary">
-                      <span>{progress.collected} of {progress.total} collected</span>
+                      <span>{describeChecklistProgress(progress)}</span>
                       <div className="w-24 h-1.5 rounded-full bg-raised overflow-hidden" aria-hidden="true">
                         <div className="h-full bg-success rounded-full transition-all" style={{ width: `${progress.percent}%` }} />
                       </div>

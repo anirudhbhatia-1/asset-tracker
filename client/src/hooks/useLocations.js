@@ -1,35 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
 import { getLocations } from '../api/locationsApi';
+import useQuery from './useQuery';
+import { LOOKUP_STALE_TIME } from './useCategories';
 import toast from 'react-hot-toast';
 
-export default function useLocations(enabled = true) {
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
+const EMPTY = [];
+export const LOCATIONS_KEY = 'locations';
 
-  const fetchLocations = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getLocations();
-      setLocations(res.data?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch locations:', err);
-      // Don't toast on a plain permission denial — it's an expected state, not an error.
-      if (err.response?.status !== 403) {
-        toast.error('Failed to load locations');
-      }
-    } finally {
-      setLoading(false);
+// One request (and at most one toast) however many components ask at once.
+const fetchLocationsList = async () => {
+  try {
+    const res = await getLocations();
+    return res.data?.data || [];
+  } catch (err) {
+    console.error('Failed to fetch locations:', err);
+    // Don't toast on a plain permission denial — it's an expected state, not an error.
+    if (err.response?.status !== 403) {
+      toast.error('Failed to load locations');
     }
-  }, []);
+    throw err;
+  }
+};
 
-  useEffect(() => {
-    if (!enabled) return;
-    fetchLocations();
-  }, [enabled, fetchLocations]);
+export default function useLocations(enabled = true) {
+  const { data, loading, refetch } = useQuery(LOCATIONS_KEY, fetchLocationsList, { enabled, staleTime: LOOKUP_STALE_TIME });
 
   return {
-    locations,
+    locations: Array.isArray(data) ? data : EMPTY,
     loading,
-    refresh: fetchLocations,
+    refresh: refetch,
   };
 }

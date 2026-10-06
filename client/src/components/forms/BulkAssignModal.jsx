@@ -111,9 +111,9 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
   if (!isOpen || !employee) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl flex flex-col max-h-[85dvh] overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
@@ -123,7 +123,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
               Select available assets to assign to <span className="font-medium text-primary">{employee.name}</span>
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
+          <button type="button" onClick={onClose} aria-label="Close" className="p-3 sm:p-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>

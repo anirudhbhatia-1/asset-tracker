@@ -2,7 +2,8 @@ import React from 'react';
 
 /**
  * Shared page title block: the page's single <h1>, an optional subtitle and a
- * right-aligned action area that stacks under the title on small screens.
+ * right-aligned action area that stacks under the title below lg (1024px), so
+ * long titles don't wrap beside a toolbar on tablets and small laptops.
  *
  * - `icon`     lucide icon component shown before the title (decorative)
  * - `leading`  element rendered before the title block (e.g. a back link)
@@ -10,7 +11,7 @@ import React from 'react';
  */
 export default function PageHeader({ icon: Icon, title, subtitle, actions, leading, children, className = '' }) {
   return (
-    <header className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${className}`}>
+    <header className={`flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${className}`}>
       <div className="flex items-center gap-4 min-w-0">
         {leading}
         <div className="min-w-0">
@@ -24,7 +25,7 @@ export default function PageHeader({ icon: Icon, title, subtitle, actions, leadi
       </div>
 
       {actions && (
-        <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto shrink-0">
+        <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto shrink-0">
           {actions}
         </div>
       )}

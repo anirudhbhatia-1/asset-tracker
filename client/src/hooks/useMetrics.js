@@ -1,11 +1,16 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getAssets } from '../api/assetsApi';
-import { getCategories } from '../api/categoriesApi';
-import { getEmployees } from '../api/employeesApi';
+import { useCallback, useMemo } from 'react';
 import { getWarrantyStatus } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import useQuery, { errorMessageOf } from './useQuery';
+import { assetsQueryKey, fetchAssetsList } from './useAssets';
+import { CATEGORIES_KEY, fetchCategoriesList, LOOKUP_STALE_TIME } from './useCategories';
+import { EMPLOYEES_KEY, fetchEmployeesList } from './useEmployees';
 
-const EMPTY_LIST_RESPONSE = { data: { data: [] } };
+const EMPTY = [];
+// Client-owned assets are tracked separately and never count as company
+// inventory. Same cache entry as Inventory's default (company) view.
+const COMPANY_FILTERS = { assetType: 'company' };
+const fetchCompanyAssets = () => fetchAssetsList(COMPANY_FILTERS);
 
 export default function useMetrics() {
   const { hasPermission } = useAuth();
@@ -13,40 +18,35 @@ export default function useMetrics() {
   // employee directory must still get its dashboard, just without that data.
   const canReadCategories = hasPermission('categories:read');
   const canReadEmployees = hasPermission('employees:read');
-  const [data, setData] = useState({
-    assets: [],
-    categories: [],
-    employees: [],
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const fetchMetrics = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [assetsRes, categoriesRes, employeesRes] = await Promise.all([
-        // Client-owned assets are tracked separately and never count as company inventory.
-        getAssets({ assetType: 'company' }),
-        canReadCategories ? getCategories() : EMPTY_LIST_RESPONSE,
-        canReadEmployees ? getEmployees() : EMPTY_LIST_RESPONSE,
-      ]);
+  // Shared with Inventory, the directory and forms, so whichever page loads
+  // a list first makes it instant for the others.
+  const assetsQuery = useQuery(assetsQueryKey(COMPANY_FILTERS), fetchCompanyAssets);
+  const categoriesQuery = useQuery(canReadCategories ? CATEGORIES_KEY : null, fetchCategoriesList, { staleTime: LOOKUP_STALE_TIME });
+  const employeesQuery = useQuery(canReadEmployees ? EMPLOYEES_KEY : null, fetchEmployeesList);
 
-      setData({
-        assets: assetsRes.data?.data || (Array.isArray(assetsRes.data) ? assetsRes.data : []),
-        categories: categoriesRes.data?.data || (Array.isArray(categoriesRes.data) ? categoriesRes.data : []),
-        employees: employeesRes.data?.data || (Array.isArray(employeesRes.data) ? employeesRes.data : []),
-      });
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to fetch dashboard metrics');
-    } finally {
-      setLoading(false);
-    }
-  }, [canReadCategories, canReadEmployees]);
+  const data = {
+    assets: assetsQuery.data || EMPTY,
+    categories: (canReadCategories && categoriesQuery.data) || EMPTY,
+    employees: (canReadEmployees && employeesQuery.data) || EMPTY,
+  };
 
-  useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
+  const loading = assetsQuery.loading
+    || (canReadCategories && categoriesQuery.loading)
+    || (canReadEmployees && employeesQuery.loading);
+  const failed = assetsQuery.error
+    || (canReadCategories && categoriesQuery.error)
+    || (canReadEmployees && employeesQuery.error)
+    || null;
+
+  const { refetch: refetchAssets } = assetsQuery;
+  const { refetch: refetchCategories } = categoriesQuery;
+  const { refetch: refetchEmployees } = employeesQuery;
+  const fetchMetrics = useCallback(() => Promise.all([
+    refetchAssets(),
+    canReadCategories ? refetchCategories() : null,
+    canReadEmployees ? refetchEmployees() : null,
+  ]), [refetchAssets, refetchCategories, refetchEmployees, canReadCategories, canReadEmployees]);
 
   const metrics = useMemo(() => {
     const assets = Array.isArray(data.assets) ? data.assets : [];
@@ -240,8 +240,9 @@ export default function useMetrics() {
     lowStockCategories,
     categories: Array.isArray(data.categories) ? data.categories : [],
     employees: Array.isArray(data.employees) ? data.employees : [],
-    loading,
-    error,
+    loading: Boolean(loading),
+    refreshing: assetsQuery.refreshing || categoriesQuery.refreshing || employeesQuery.refreshing,
+    error: errorMessageOf(failed, 'Failed to fetch dashboard metrics'),
     refresh: fetchMetrics,
   };
 }

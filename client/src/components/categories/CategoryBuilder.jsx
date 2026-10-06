@@ -60,10 +60,10 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-      <div className="absolute inset-0 bg-base/80 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
       
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative bg-base border border-border/80 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative bg-base border border-border/80 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] sm:max-h-[85dvh]">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 id={titleId} className="text-xl font-bold text-primary">
@@ -72,7 +72,7 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-secondary hover:text-primary hover:bg-surface transition-colors"
+            className="p-2.5 sm:p-2 rounded-xl text-secondary hover:text-primary hover:bg-surface transition-colors"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />

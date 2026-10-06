@@ -4,13 +4,15 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import OfflineBanner from './OfflineBanner';
 
-const WIDE_QUERY = '(min-width: 1024px)';
+// The full 256px sidebar only auto-opens from xl (1280px); between 768 and
+// 1279px it starts as the 80px icon rail so tables keep their width.
+const WIDE_QUERY = '(min-width: 1280px)';
 const isWideScreen = () => typeof window === 'undefined' || window.matchMedia(WIDE_QUERY).matches;
 
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(isWideScreen);
 
-  // Open on wide screens, collapsed below 1024px — but only when the width
+  // Open on wide screens, collapsed below 1280px — but only when the width
   // crosses that breakpoint, so ordinary resizes keep a manual toggle.
   useEffect(() => {
     const media = window.matchMedia(WIDE_QUERY);

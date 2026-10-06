@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Key } from 'lucide-react';
 import api from '../../api/axiosInstance';
+import { getInitials } from '../../utils/initials';
+import { roleLabel } from '../../utils/roleLabel';
 
 const roleStyles = {
   director: 'bg-info-purple/10 text-info-purple border-info-purple/30',
@@ -79,7 +81,7 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-raised/80 border border-border/60 flex items-center justify-center text-xs font-bold text-primary uppercase shrink-0">
-                        {emp.name?.substring(0, 2) || 'U'}
+                        {getInitials(emp.name)}
                       </div>
                       <span className="font-medium text-primary truncate max-w-[140px]">{emp.name}</span>
                     </div>
@@ -89,7 +91,7 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
                   <td className="px-5 py-3">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize ${roleStyles[emp.role] || 'bg-base text-secondary border-border'}`}>
                       <Key className="w-2.5 h-2.5" />
-                      {emp.customRoleName || emp.roleName || emp.role}
+                      {emp.customRoleName || roleLabel(emp)}
                     </span>
                   </td>
                   <td className="px-5 py-3">

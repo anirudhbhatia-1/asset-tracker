@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* `dark:` utilities follow the app theme (the `dark` class on <html>), not the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --color-base: var(--theme-base);
@@ -40,6 +43,9 @@
     --theme-danger: #C32841;
     --theme-info-blue: #0B5BEF;
     --theme-info-purple: #6F4FD6;
+    /* Native controls (date pickers, scrollbars, checkboxes) follow the theme. */
+    color-scheme: light;
+    accent-color: var(--theme-accent);
   }
   
   :root.dark {
@@ -59,6 +65,7 @@
     --theme-danger: #F06C80;
     --theme-info-blue: #62A0FF;
     --theme-info-purple: #A88BFF;
+    color-scheme: dark;
   }
 
   body {
@@ -77,11 +84,16 @@
     outline-offset: 2px;
   }
 
-  /* Readable placeholders (Tailwind's default is 50% of the text colour). */
+  /* Placeholders read as hints, visibly lighter than typed values. */
   ::placeholder {
     color: var(--theme-text-secondary);
-    opacity: 1;
+    opacity: 0.7;
   }
+}
+
+/* Reserve the scrollbar's space so pages don't shift sideways when one appears. */
+html {
+  scrollbar-gutter: stable;
 }
 
 /* Custom scrollbar */
@@ -118,6 +130,36 @@
   animation: scaleUp 200ms ease-out forwards;
 }
 
+/* Dialog exit: played for ~150ms before the modal unmounts. */
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes scaleDown {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+.animate-fadeOut {
+  animation: fadeOut 150ms ease-in forwards;
+}
+
+.animate-scaleDown {
+  animation: scaleDown 150ms ease-in forwards;
+}
+
+/* Small popovers (e.g. the mobile "More" menu) rising into place. */
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-popIn {
+  animation: popIn 140ms ease-out forwards;
+  transform-origin: bottom right;
+}
+
 @keyframes scanline {
   0% { top: 0%; opacity: 0.8; }
   50% { top: 96%; opacity: 1; }
@@ -126,4 +168,29 @@
 
 .animate-scanline {
   animation: scanline 2.5s ease-in-out infinite;
+}
+
+/* Sideways-scrolling rows (tabs, chips) without a visible scrollbar. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Honour the OS "reduce motion" setting: near-instant transitions and no
+   looping animations (the scan line stops; spinners show a still icon). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-scanline {
+    animation: none !important;
+  }
 }

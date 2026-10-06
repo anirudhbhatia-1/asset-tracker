@@ -4,8 +4,9 @@ import EmptyState from '../ui/EmptyState';
 import { SkeletonCard } from '../ui/Skeleton';
 import { PackageSearch } from 'lucide-react';
 
-export default function AssetGrid({ assets, loading, onClearFilters }) {
-  if (loading) {
+export default function AssetGrid({ assets, loading, refreshing = false, onClearFilters }) {
+  // The skeleton is only for the first load; a reload keeps the cards.
+  if (loading && (!assets || assets.length === 0)) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {[...Array(8)].map((_, i) => (
@@ -30,7 +31,10 @@ export default function AssetGrid({ assets, loading, onClearFilters }) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    <div
+      aria-busy={refreshing || undefined}
+      className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 transition-opacity ${refreshing ? 'opacity-60' : ''}`}
+    >
       {assets.map((asset) => (
         <AssetCard key={asset.id} asset={asset} />
       ))}

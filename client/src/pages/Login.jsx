@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import api from '../api/axiosInstance';
 import { getGoogleButtonWidth, getGoogleLoginError, isGoogleLoginConfigured } from '../utils/googleAuth';
@@ -11,6 +10,7 @@ import { getPostLoginPath } from '../utils/redirect';
 const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [googleError, setGoogleError] = useState(null);
   // Sign-in failures are shown inline (role="alert") next to the form.
@@ -56,7 +56,6 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
       const res = await api.post('/google/login', { credential }, { skipAuthRedirect: true });
       const { token, user } = res.data.data;
       loginWithToken(token, user);
-      toast.success('Logged in with Google');
       navigate(from, { replace: true });
     } catch (err) {
       setGoogleError(getGoogleLoginError(err.response?.status, err.response?.data?.message));
@@ -72,7 +71,8 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
       
       <div className="relative z-10 w-full max-w-md p-6 sm:p-8 bg-surface/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-20 h-20 flex items-center justify-center mb-4">
+          {/* Light chip behind the logo in dark mode keeps its dark lettering legible. */}
+          <div className="w-20 h-20 flex items-center justify-center mb-4 dark:bg-white dark:rounded-2xl dark:p-2 dark:shadow-sm">
             <img 
               src="/logo.png" 
               alt="Thinkvibes Logo" 
@@ -96,7 +96,8 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@company.com"
+                placeholder="you@company.com"
+                autoComplete="username"
                 className="w-full pl-10 pr-4 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition-all duration-200"
                 required
               />
@@ -109,15 +110,24 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
               <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={formError ? true : undefined}
                 aria-describedby={formError ? 'login-error' : undefined}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition-all duration-200"
+                className="w-full pl-10 pr-12 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition-all duration-200"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-controls="password"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 inline-flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-raised transition-colors cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
           {formError && (

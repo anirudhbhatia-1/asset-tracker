@@ -16,26 +16,27 @@ export default function CategoryCard({ category, onEdit, onDelete, canManage = t
               color={category.color} 
               className="!w-10 !h-10 !text-sm"
             />
-            <div>
-              <h4 className="text-lg font-bold text-primary">{category.name}</h4>
-              <p className="text-xs text-secondary font-mono mt-0.5">ID: {category.id}</p>
+            <div className="min-w-0">
+              <h4 className="text-lg font-bold text-primary break-words">{category.name}</h4>
             </div>
           </div>
           {canManage && (
             <div className="flex items-center gap-1">
               <button
-                aria-label="Edit Category"
+                type="button"
+                aria-label={`Edit category ${category.name}`}
                 onClick={() => onEdit(category)}
-                className="p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-raised transition-colors"
-                title="Edit Category"
+                className="p-2.5 sm:p-1.5 rounded-lg text-secondary hover:text-accent hover:bg-raised transition-colors cursor-pointer"
+                title="Edit category"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
               <button
-                aria-label="Delete Category"
+                type="button"
+                aria-label={`Delete category ${category.name}`}
                 onClick={() => onDelete(category)}
-                className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised transition-colors"
-                title="Delete Category"
+                className="p-2.5 sm:p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-raised transition-colors cursor-pointer"
+                title="Delete category"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/library';
 
 // `paused`: keep the camera running but ignore decodes (e.g. while a result
 // card or a dialog is showing), so a tag left in view doesn't fire again.
@@ -143,8 +142,12 @@ export default function useScanner({ onDecode, autoStart = true, paused = false 
       };
     }
 
-    // Fallback: ZXing Javascript Library
-    if (!readerRef.current) {
+    // Fallback: ZXing Javascript Library, downloaded only now that a camera
+    // is running without a native detector (it's large, and manual serial
+    // lookup never needs it).
+    let cancelled = false;
+    import('@zxing/library').then(({ BrowserMultiFormatReader, DecodeHintType, BarcodeFormat }) => {
+      if (cancelled || readerRef.current) return;
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.AZTEC,
@@ -178,9 +181,12 @@ export default function useScanner({ onDecode, autoStart = true, paused = false 
       } catch (err) {
         console.warn('Error initializing ZXing fallback:', err);
       }
-    }
+    }).catch((err) => {
+      console.warn('Could not load the barcode reader:', err);
+    });
 
     return () => {
+      cancelled = true;
       if (readerRef.current) {
         try {
           readerRef.current.reset();

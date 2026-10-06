@@ -43,8 +43,17 @@ describe('formatters Unit Tests', () => {
   describe('formatDateTime', () => {
     it('should format date with hours and minutes', () => {
       const formatted = formatDateTime('2026-07-22 14:30:00');
-      expect(formatted).toContain('22/07/2026');
-      expect(formatted).toContain('2:30 PM');
+      expect(formatted).toBe('Jul 22, 2026, 2:30 PM');
+    });
+
+    it('uses the same month-name style as formatDate', () => {
+      const d = new Date(2026, 0, 5, 9, 7);
+      expect(formatDateTime(d)).toBe(`${formatDate(d)}, 9:07 AM`);
+    });
+
+    it('falls back like formatDate for missing or bad input', () => {
+      expect(formatDateTime(null)).toBe('N/A');
+      expect(formatDateTime('nope')).toBe('Invalid Date');
     });
   });
 

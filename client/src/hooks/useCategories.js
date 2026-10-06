@@ -1,34 +1,24 @@
-import { useState, useEffect, useCallback } from 'react';
 import { getCategories, createCategory, deleteCategoryApi } from '../api/categoriesApi';
+import { invalidateQueries } from '../utils/queryCache';
+import useQuery, { errorMessageOf } from './useQuery';
+import { listOf } from './useAssets';
 import toast from 'react-hot-toast';
 
+const EMPTY = [];
+export const CATEGORIES_KEY = 'categories';
+export const fetchCategoriesList = () => getCategories().then(listOf);
+// Shared by Inventory, the dashboard and several forms: loaded once and
+// reused; any change to categories reloads it (see utils/queryCache).
+export const LOOKUP_STALE_TIME = 5 * 60 * 1000;
+
 export default function useCategories() {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchCategoriesData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await getCategories();
-      setCategories(res.data?.data || (Array.isArray(res.data) ? res.data : []));
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to load categories');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCategoriesData();
-  }, [fetchCategoriesData]);
+  const { data, loading, refreshing, error, refetch } = useQuery(CATEGORIES_KEY, fetchCategoriesList, { staleTime: LOOKUP_STALE_TIME });
 
   const addCategory = async (payload) => {
     try {
       const res = await createCategory(payload);
       toast.success(`Category "${payload.name}" created successfully`);
-      await fetchCategoriesData();
+      await invalidateQueries(CATEGORIES_KEY);
       return { success: true, data: res.data };
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Failed to create category';
@@ -41,7 +31,7 @@ export default function useCategories() {
     try {
       await deleteCategoryApi(id);
       toast.success(`Category "${name}" deleted`);
-      await fetchCategoriesData();
+      await invalidateQueries(CATEGORIES_KEY);
       return { success: true };
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Cannot delete category in use';
@@ -50,11 +40,12 @@ export default function useCategories() {
     }
   };
 
-  return { 
-    categories: Array.isArray(categories) ? categories : [], 
-    loading, 
-    error, 
-    refresh: fetchCategoriesData,
+  return {
+    categories: Array.isArray(data) ? data : EMPTY,
+    loading,
+    refreshing,
+    error: errorMessageOf(error, 'Failed to load categories'),
+    refresh: refetch,
     addCategory,
     removeCategory
   };

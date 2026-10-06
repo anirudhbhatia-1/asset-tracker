@@ -11,6 +11,9 @@ import OffboardingStatusBadge from '../components/offboarding/OffboardingStatusB
 import { onActivateKey } from '../utils/a11y';
 import PageHeader from '../components/ui/PageHeader';
 import { formatDate } from '../utils/formatters';
+import { describeChecklistProgress } from '../utils/offboardingProgress';
+import SegmentedControl from '../components/ui/SegmentedControl';
+import EmptyState from '../components/ui/EmptyState';
 import {
   OFFBOARDING_FILTERS,
   matchesOffboardingFilter,
@@ -40,14 +43,14 @@ const AssetProgressCell = ({ request }) => {
   if (progress.total === 0) return <span className="text-secondary">No assets</span>;
   return (
     <div className="min-w-[8rem]">
-      <div className="text-primary text-xs mb-1">{progress.collected} of {progress.total} collected</div>
+      <div className="text-primary text-xs mb-1">{describeChecklistProgress(progress)}</div>
       <div
         className="w-full h-1.5 rounded-full bg-raised overflow-hidden"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={progress.total}
         aria-valuenow={progress.collected}
-        aria-label={`${progress.collected} of ${progress.total} assets collected`}
+        aria-label={`Assets: ${describeChecklistProgress(progress)}`}
       >
         <div className={`h-full rounded-full ${progress.pending === 0 ? 'bg-success' : 'bg-accent'}`} style={{ width: `${progress.percent}%` }} />
       </div>
@@ -60,7 +63,7 @@ const Offboarding = () => {
   const {
     requests, loading, error, fetchRequests, createRequest, updateRequest,
     resolveItem, completeRequest, cancelRequest, getRequestDetails,
-  } = useOffboarding();
+  } = useOffboarding({ initialLoad: true });
 
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -154,23 +157,7 @@ const Offboarding = () => {
       />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap items-center gap-2 bg-base p-1.5 rounded-lg border border-border" role="group" aria-label="Filter by status">
-          {OFFBOARDING_FILTERS.map(f => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setFilter(f.value)}
-              aria-pressed={filter === f.value}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                filter === f.value ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SegmentedControl label="Filter by status" value={filter} onChange={setFilter} options={OFFBOARDING_FILTERS} />
 
       {/* Error State */}
       {error && (
@@ -180,7 +167,17 @@ const Offboarding = () => {
         </div>
       )}
 
-      {/* Requests Table */}
+      {/* Requests Table (empty state sits outside the table so it isn't
+          clipped by the sideways-scrolling area on phones) */}
+      {!(loading && requests.length === 0) && filteredRequests.length === 0 ? (
+        <EmptyState
+          icon={UserMinus}
+          title={filter === 'open' ? 'No one is leaving right now' : 'No offboarding requests found'}
+          description={filter === 'open' ? 'Open exits will appear here until their assets are collected.' : 'Nothing matches this filter.'}
+          actionText={hasPermission('offboarding:create') ? 'Start Offboarding' : undefined}
+          onAction={hasPermission('offboarding:create') ? () => setIsStartModalOpen(true) : undefined}
+        />
+      ) : (
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
         {/* Scroll affordance */}
         <div className="relative">
@@ -208,12 +205,6 @@ const Offboarding = () => {
                       <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-16"></div></td>
                     </tr>
                   ))
-                ) : filteredRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-secondary whitespace-normal">
-                      {filter === 'open' ? 'No employees are leaving right now.' : 'No offboarding requests found.'}
-                    </td>
-                  </tr>
                 ) : (
                   filteredRequests.map((req) => (
                     <tr
@@ -245,6 +236,7 @@ const Offboarding = () => {
           </div>
         </div>
       </div>
+      )}
 
       <StartOffboardingModal
         isOpen={isStartModalOpen}

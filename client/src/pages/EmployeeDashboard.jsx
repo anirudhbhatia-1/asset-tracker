@@ -209,7 +209,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                              </span>
                            </div>
                            <div className="text-sm font-bold text-primary truncate">{ticket.title}</div>
-                           <div className="text-xs text-secondary mt-0.5">{new Date(ticket.created_at).toLocaleDateString()}</div>
+                           <div className="text-xs text-secondary mt-0.5">{formatDate(ticket.created_at)}</div>
                          </div>
                          <div className="shrink-0">
                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wider ${ticket.status === 'open' ? 'bg-error/10 text-error border-error/20' : ticket.status === 'in_progress' ? 'bg-warning/10 text-warning border-warning/20' : ticket.status === 'resolved' ? 'bg-success/10 text-success border-success/20' : ticket.status === 'closed' ? 'bg-secondary/10 text-secondary border-secondary/20' : 'bg-raised text-secondary border-border'}`}>

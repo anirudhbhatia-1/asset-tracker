@@ -35,6 +35,13 @@ export default function Dashboard({ embedded = false }) {
 
   const activePercentage = metrics.total ? Math.round((metrics.inUse / metrics.total) * 100) : 0;
 
+  // Five cards: 3 + 2 on tablets, one row on wide screens, and on phones the
+  // odd last card spans both columns instead of sitting alone. Four cards
+  // (no tickets access): 2 + 2, then one row.
+  const kpiGridClass = canReadTickets
+    ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1'
+    : 'grid-cols-2 xl:grid-cols-4';
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header — the global TopBar owns the primary "Add Asset" action */}
@@ -71,14 +78,14 @@ export default function Dashboard({ embedded = false }) {
       )}
 
       {/* 1. TIER 1 — KPI Cards (Top Row) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className={`grid ${kpiGridClass} gap-4`}>
         {metricsLoading || ticketsLoading ? (
           <>
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
-            <SkeletonCard />
+            {canReadTickets && <SkeletonCard />}
           </>
         ) : (
           <>
@@ -173,8 +180,8 @@ export default function Dashboard({ embedded = false }) {
         </div>
         )}
 
-        {/* Widget B: Low Stock Alert */}
-        <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+        {/* Widget B: Low Stock Alert (full width when it's the only widget) */}
+        <div className={`bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col ${canReadTickets ? '' : 'lg:col-span-2'}`}>
           <div className="p-4 border-b border-border flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-warning" />
             <h2 className="text-sm font-semibold text-primary">Low Stock Alert</h2>

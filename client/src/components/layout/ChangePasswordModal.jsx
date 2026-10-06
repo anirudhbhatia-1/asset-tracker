@@ -77,9 +77,9 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={handleClose}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} 
-        className="bg-surface w-full max-w-md rounded-2xl shadow-xl border border-border/80 flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-4 duration-300"
+        className="bg-surface w-full max-w-md rounded-2xl shadow-xl border border-border/80 flex flex-col max-h-[90dvh] animate-scaleUp"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -89,10 +89,10 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
             {required ? 'Set a New Password' : 'Change Password'}
           </h2>
           {!required && (
-            <button
+            <button type="button"
               aria-label="Close"
               onClick={handleClose}
-              className="p-2 -mr-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
+              className="p-2.5 sm:p-2 -mr-2 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>

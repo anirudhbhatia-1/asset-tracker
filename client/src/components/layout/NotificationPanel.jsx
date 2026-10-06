@@ -29,6 +29,18 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen, onClose]);
 
+  // Escape closes the panel and puts focus back on the bell
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      onClose();
+      document.getElementById('notification-bell')?.focus();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Clicking an item counts as reading it (same localStorage marker as
   // opening the panel), then follows its deep link and closes the panel.
   const handleItemClick = (n) => {
@@ -42,7 +54,10 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
   return (
     <div
       ref={panelRef}
-      className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-surface border border-border/80 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right"
+      id="notification-panel"
+      role="dialog"
+      aria-label="Notifications"
+      className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-surface border border-border/80 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn origin-top-right"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-base/50">
@@ -56,16 +71,20 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
           )}
         </div>
         <button
-          aria-label="Close"
-          onClick={onClose}
-          className="p-1 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
+          type="button"
+          aria-label="Close notifications"
+          onClick={() => {
+            onClose();
+            document.getElementById('notification-bell')?.focus();
+          }}
+          className="p-2.5 sm:p-1 -mr-1.5 sm:mr-0 rounded-lg text-secondary hover:text-primary hover:bg-raised/60 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Body */}
-      <div className="max-h-[400px] overflow-y-auto divide-y divide-border/40">
+      <div className="max-h-[min(400px,calc(100dvh-10rem))] overflow-y-auto divide-y divide-border/40">
         {loading ? (
           <div className="p-4 space-y-3 animate-pulse">
             {[1, 2, 3].map((i) => (

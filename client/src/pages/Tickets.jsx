@@ -12,6 +12,8 @@ import StatusBadge, { TicketAgeBadge } from '../components/tickets/TicketStatusB
 import { formatDate } from '../utils/formatters';
 import { onActivateKey } from '../utils/a11y';
 import PageHeader from '../components/ui/PageHeader';
+import SegmentedControl from '../components/ui/SegmentedControl';
+import EmptyState from '../components/ui/EmptyState';
 
 const ADMIN_TYPE_LABELS = { it: 'IT', hardware: 'Hardware', hr: 'HR' };
 
@@ -20,6 +22,11 @@ const FILTERS = [
   { value: 'active', label: 'Active' },
   { value: 'resolved', label: 'Resolved/Closed' },
 ];
+
+// The first load (My Queue / own tickets); a revisit renders its cached rows at once.
+const INITIAL_FILTERS = { scope: undefined };
+// Lower-priority columns, shown from xl so the table fits beside the sidebar.
+const FROM_XL = 'hidden xl:table-cell';
 
 const Tickets = () => {
   const { user, hasPermission } = useAuth();
@@ -32,9 +39,9 @@ const Tickets = () => {
   const showQueueToggle = isAdminOrHr && !isDirector;
   const canRaiseTicket = hasPermission('tickets:create');
   const {
-    tickets, loading, error, fetchTickets, createTicket, updateTicket,
+    tickets, loading, isPlaceholder, error, fetchTickets, createTicket, updateTicket,
     transferTicket, confirmCloseTicket, reopenTicket,
-  } = useTickets();
+  } = useTickets(INITIAL_FILTERS);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -108,7 +115,7 @@ const Tickets = () => {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       
       {/* Header Area */}
       <PageHeader
@@ -129,41 +136,22 @@ const Tickets = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
-          {FILTERS.map(f => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-                filter === f.value ? 'bg-surface text-primary shadow-sm border border-border' : 'text-secondary hover:text-primary hover:bg-raised/50'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl label="Ticket status" value={filter} onChange={setFilter} options={FILTERS} />
 
         {showQueueToggle && (
-          <div className="flex items-center gap-2 bg-base p-1.5 rounded-lg border border-border">
-            <span className="px-2 text-xs font-medium uppercase tracking-wider text-secondary">View:</span>
-            {[
-              // No admin type means no queue is assigned; don't guess one.
-              { value: 'my_queue', label: user?.adminType ? `My Queue (${ADMIN_TYPE_LABELS[user.adminType] || user.adminType})` : 'My Queue' },
-              { value: 'all', label: 'All Tickets' },
-              ...(isHr ? [{ value: 'my_tickets', label: 'My Raised Tickets' }] : []),
-            ].map(scope => (
-              <button
-                key={scope.value}
-                onClick={() => setQueueScope(scope.value)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-                  queueScope === scope.value
-                    ? 'bg-surface text-primary shadow-sm border border-border'
-                    : 'text-secondary hover:text-primary hover:bg-raised/50'
-                }`}
-              >
-                {scope.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 min-w-0 max-w-full">
+            <span className="text-xs font-medium uppercase tracking-wider text-secondary shrink-0" aria-hidden="true">View:</span>
+            <SegmentedControl
+              label="Ticket queue"
+              value={queueScope}
+              onChange={setQueueScope}
+              options={[
+                // No admin type means no queue is assigned; don't guess one.
+                { value: 'my_queue', label: user?.adminType ? `My Queue (${ADMIN_TYPE_LABELS[user.adminType] || user.adminType})` : 'My Queue' },
+                { value: 'all', label: 'All Tickets' },
+                ...(isHr ? [{ value: 'my_tickets', label: 'My Raised Tickets' }] : []),
+              ]}
+            />
           </div>
         )}
       </div>
@@ -176,21 +164,69 @@ const Tickets = () => {
         </div>
       )}
 
-      {/* Tickets Table */}
-      <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-        {/* Scroll affordance */}
-        <div className="relative">
-          <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none z-10 md:hidden" />
-        <div className="overflow-x-auto pb-1">
-          <table aria-label="Support tickets" className="w-full text-left text-sm whitespace-nowrap">
+      {/* Tickets (the empty state sits outside the table so it isn't
+          clipped by the sideways-scrolling area). Skeleton rows only on the
+          first load; switching views or reloading keeps the rows. */}
+      {!loading && filteredTickets.length === 0 ? (
+        <EmptyState
+          icon={TicketIcon}
+          title="No tickets found"
+          description={filter === 'all'
+            ? (canRaiseTicket ? 'Nothing here yet. Raise a ticket to report an issue or request hardware.' : 'There are no tickets in this view.')
+            : 'No tickets match this filter.'}
+          actionText={canRaiseTicket ? 'Raise Ticket' : undefined}
+          onAction={canRaiseTicket ? () => setIsCreateModalOpen(true) : undefined}
+        />
+      ) : (
+      <>
+      {/* Phones: one card per ticket */}
+      <ul aria-label="Support tickets" aria-busy={loading || undefined} className="md:hidden space-y-3">
+        {loading ? [1, 2, 3].map((i) => (
+          <li key={i} className="bg-surface border border-border rounded-xl p-4 animate-pulse space-y-2">
+            <div className="h-4 bg-raised rounded w-48" />
+            <div className="h-3 bg-raised rounded w-32" />
+          </li>
+        )) : filteredTickets.map((ticket) => (
+          <li
+            key={ticket.id}
+            onClick={() => setSelectedTicket(ticket)}
+            tabIndex={0}
+            onKeyDown={onActivateKey(() => setSelectedTicket(ticket))}
+            className="bg-surface border border-border rounded-xl shadow-sm p-4 space-y-2 cursor-pointer hover:border-accent/50 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-primary truncate">{ticket.title}</div>
+                <div className="text-xs text-secondary truncate mt-0.5">{ticket.description || 'No description'}</div>
+              </div>
+              <span className="font-mono text-xs text-secondary shrink-0">#{ticket.id}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StatusBadge status={ticket.status} />
+              <TicketAgeBadge ticket={ticket} />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-secondary">
+              <span className="capitalize">{ticket.type}</span>
+              {isAdminOrHr && queueScope !== 'my_tickets' && (
+                <span>{ticket.employee_name || `Employee #${ticket.employee_id}`}</span>
+              )}
+              <span>{formatDate(ticket.created_at)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden md:block bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
+        <div className={`overflow-x-auto pb-1 transition-opacity ${isPlaceholder ? 'opacity-60' : ''}`}>
+          <table aria-label="Support tickets" aria-busy={loading || isPlaceholder || undefined} className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-base border-b border-border text-secondary">
               <tr>
                 <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">ID</th>
                 <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Title</th>
-                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Type</th>
+                <th scope="col" className={`${FROM_XL} px-6 py-4 font-medium uppercase tracking-wider text-xs`}>Type</th>
                 <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
                 {isAdminOrHr && queueScope !== 'my_tickets' && <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Employee</th>}
-                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Date</th>
+                <th scope="col" className={`${FROM_XL} px-6 py-4 font-medium uppercase tracking-wider text-xs`}>Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -200,32 +236,16 @@ const Tickets = () => {
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-8"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-48"></div></td>
-                    <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-16"></div></td>
+                    <td className={`${FROM_XL} px-6 py-4`}><div className="h-4 bg-raised rounded w-16"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-20"></div></td>
                     {isAdminOrHr && queueScope !== 'my_tickets' && <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>}
-                    <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>
+                    <td className={`${FROM_XL} px-6 py-4`}><div className="h-4 bg-raised rounded w-24"></div></td>
                   </tr>
                 ))
-              ) : filteredTickets.length === 0 ? (
-                <tr>
-                  <td colSpan={isAdminOrHr && queueScope !== 'my_tickets' ? 6 : 5} className="px-6 py-12 text-center text-secondary">
-                    <p>No tickets found.</p>
-                    {canRaiseTicket && (
-                      <button
-                        type="button"
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-on-accent rounded-lg text-sm font-medium shadow-sm transition-all cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Raise Ticket
-                      </button>
-                    )}
-                  </td>
-                </tr>
               ) : (
                 filteredTickets.map((ticket) => (
-                  <tr 
-                    key={ticket.id} 
+                  <tr
+                    key={ticket.id}
                     onClick={() => setSelectedTicket(ticket)}
                     tabIndex={0}
                     onKeyDown={onActivateKey(() => setSelectedTicket(ticket))}
@@ -238,7 +258,7 @@ const Tickets = () => {
                       <div className="font-medium text-primary max-w-xs truncate">{ticket.title}</div>
                       <div className="text-xs text-secondary truncate max-w-xs mt-0.5">{ticket.description || 'No description'}</div>
                     </td>
-                    <td className="px-6 py-4 capitalize text-secondary">{ticket.type}</td>
+                    <td className={`${FROM_XL} px-6 py-4 capitalize text-secondary`}>{ticket.type}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5">
                         <StatusBadge status={ticket.status} />
@@ -250,7 +270,7 @@ const Tickets = () => {
                         {ticket.employee_name || `Employee #${ticket.employee_id}`}
                       </td>
                     )}
-                    <td className="px-6 py-4 text-secondary">
+                    <td className={`${FROM_XL} px-6 py-4 text-secondary`}>
                       {formatDate(ticket.created_at)}
                     </td>
                   </tr>
@@ -259,8 +279,9 @@ const Tickets = () => {
             </tbody>
           </table>
         </div>
-        </div>
       </div>
+      </>
+      )}
 
       <CreateTicketModal 
         isOpen={isCreateModalOpen} 

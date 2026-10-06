@@ -91,6 +91,25 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [isSubScannerModalOpen, setIsSubScannerModalOpen] = useState(false);
   const [subScanChecking, setSubScanChecking] = useState(false);
 
+  // Unsaved-changes check for Cancel: compare every editable value with the
+  // values the form opened with.
+  const formSnapshot = JSON.stringify({
+    name, categoryId, model, assetType, location, address, costString, purchaseDate,
+    warrantyExpiryDate, serialNumber, notes, brand, vendor, processor, ram, storage,
+    screenSize, graphicsCard, os, msOffice, antiVirus, warrantyPlan, warrantyUpgrade,
+    hardwareType, color, clientName, receivedOn, assignImmediately, selectedEmployeeId,
+    assignedDate, assignNote, subAssets,
+  });
+  const [initialSnapshot] = useState(formSnapshot);
+  const isDirty = formSnapshot !== initialSnapshot;
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const leaveForm = () => navigate('/inventory');
+  const handleCancel = () => {
+    if (isDirty) setDiscardOpen(true);
+    else leaveForm();
+  };
+
   const handleScanDecode = useCallback(async (serialText) => {
     setScanChecking(true);
     setExistingAssetMatch(null);
@@ -217,13 +236,32 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
+  };
+
+  // Field ids in on-screen order, used to focus the first invalid one.
+  const FIELD_IDS = [
+    ['name', 'assetName'],
+    ['categoryId', 'categoryId'],
+    ['location', 'location'],
+    ['serialNumber', 'serialNumber'],
+    ['selectedEmployeeId', 'employeeSearch'],
+  ];
+
+  const focusFirstInvalid = (fieldErrors) => {
+    const match = FIELD_IDS.find(([key]) => fieldErrors[key]);
+    const el = match && document.getElementById(match[1]);
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) {
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
       toast.error('Please fix validation errors beneath required fields');
+      focusFirstInvalid(validationErrors);
       return;
     }
 
@@ -652,7 +690,6 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 className="w-full rounded-xl bg-base border border-border pl-8 pr-4 py-2.5 text-sm font-mono text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
-            <span className="text-[11px] text-secondary mt-1 block">Stored precisely as paise in database</span>
           </div>
 
           {/* Purchase Date */}
@@ -1087,9 +1124,10 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
         </div>
       </Modal>
 
-      {/* Sticky save bar — the form's only submit control. Sits above the
-          fixed mobile tab bar (4rem + safe area) and at the viewport bottom on md+. */}
-      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 z-20 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 px-6 sm:px-8 py-3 sm:py-4 bg-surface/95 backdrop-blur-md border-t border-border rounded-b-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Save bar — the form's only submit control. Sticky at the viewport
+          bottom on md+; on phones it sits at the end of the form so it never
+          covers inputs (the page already leaves room for the tab bar). */}
+      <div className="md:sticky md:bottom-0 z-20 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 px-6 sm:px-8 py-3 sm:py-4 bg-surface/95 backdrop-blur-md border-t border-border rounded-b-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className={`text-xs flex items-center gap-1.5 ${errorCount ? 'text-danger' : 'text-secondary'}`} aria-live="polite">
           {errorCount ? (
             <>
@@ -1104,7 +1142,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate('/inventory')}
+            onClick={handleCancel}
             disabled={submitting}
           >
             Cancel
@@ -1120,6 +1158,23 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
           </Button>
         </div>
       </div>
+      <Modal isOpen={discardOpen} onClose={() => setDiscardOpen(false)} title="Discard changes?" maxWidth="max-w-md">
+        <div className="space-y-5">
+          <p className="text-sm text-secondary">
+            {isEdit
+              ? 'Your edits to this asset have not been saved and will be lost.'
+              : 'The details you entered have not been saved and will be lost.'}
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setDiscardOpen(false)}>
+              Keep editing
+            </Button>
+            <Button type="button" variant="danger" onClick={() => { setDiscardOpen(false); leaveForm(); }}>
+              Discard
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </form>
   );
 }

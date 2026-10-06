@@ -1,11 +1,12 @@
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 import MainLayout from './components/layout/MainLayout';
+import { recordLocation } from './utils/navHistory';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -22,6 +23,45 @@ const Offboarding = lazy(() => import('./pages/Offboarding'));
 const HrDashboard = lazy(() => import('./pages/HrDashboard'));
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+// Feeds utils/navHistory so pages can link back to where the user came from.
+const LocationTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    recordLocation(location);
+  }, [location]);
+  return null;
+};
+
+const PHONE_QUERY = '(max-width: 639px)';
+
+// Toasts sit below the top bar on phones (the bottom has the tab bar) and in
+// the bottom-right corner on larger screens, so they never cover the
+// notification bell or the user menu.
+const AppToaster = () => {
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHONE_QUERY).matches);
+  useEffect(() => {
+    const media = window.matchMedia(PHONE_QUERY);
+    const handleChange = (e) => setIsPhone(e.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, []);
+
+  return (
+    <Toaster
+      position={isPhone ? 'top-center' : 'bottom-right'}
+      containerStyle={isPhone ? { top: 'calc(4.5rem + 8px)' } : undefined}
+      toastOptions={{
+        style: {
+          background: 'var(--theme-surface)',
+          color: 'var(--theme-text-primary)',
+          border: '1px solid var(--theme-border)',
+        },
+      }}
+    />
+  );
+};
 
 const RoleBasedDashboard = () => {
   const { user, hasPermission } = useAuth();
@@ -46,17 +86,8 @@ const App = () => {
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <Toaster
-            position="top-right"
-            containerClassName="mt-16 sm:mt-0"
-            toastOptions={{
-              style: {
-                background: 'var(--theme-surface)',
-                color: 'var(--theme-text-primary)',
-                border: '1px solid var(--theme-border)',
-              },
-            }}
-          />
+          <LocationTracker />
+          <AppToaster />
           <Suspense fallback={
             <div className="flex h-screen w-full items-center justify-center bg-base">
               <div className="flex flex-col items-center gap-4">
@@ -117,8 +148,9 @@ const App = () => {
                     <Route path="offboarding" element={<Offboarding />} />
                   </Route>
 
-                  {/* Catch-all Route for 404s */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  {/* Catch-all Route for 404s (signed-out users are sent to
+                      /login by the ProtectedRoute above before reaching it) */}
+                  <Route path="*" element={<NotFound />} />
                 </Route>
               </Route>
             </Routes>

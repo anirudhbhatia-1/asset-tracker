@@ -10,6 +10,8 @@ import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
 import EditOnboardingModal from '../components/forms/EditOnboardingModal';
 import OnboardingDetailsModal from '../components/hr/OnboardingDetailsModal';
 import { parseDateValue } from '../utils/dates';
+import { formatDate } from '../utils/formatters';
+import SegmentedControl from '../components/ui/SegmentedControl';
 
 const OnboardingStatusBadge = ({ status }) => {
   const styles = {
@@ -121,23 +123,22 @@ export default function HrDashboard({ embedded = false }) {
             </h2>
             {canCreateOnboarding && (
               <button
+                type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-on-accent text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 bg-accent text-on-accent text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> New Hire
               </button>
             )}
           </div>
-          <div className="px-4 pt-3 flex gap-2">
-            {['All', 'Pending', 'Completed'].map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === f ? 'bg-primary text-surface border-primary' : 'bg-base text-secondary border-border hover:border-primary/30'}`}
-              >
-                {f}
-              </button>
-            ))}
+          <div className="px-4 pt-3">
+            <SegmentedControl
+              label="Filter my onboarding requests"
+              size="sm"
+              value={filter}
+              onChange={setFilter}
+              options={['All', 'Pending', 'Completed'].map((f) => ({ value: f, label: f }))}
+            />
           </div>
           <div className="p-4 flex-1 max-h-[500px] overflow-y-auto">
              {requestsLoading ? (
@@ -146,7 +147,9 @@ export default function HrDashboard({ embedded = false }) {
                </div>
              ) : recentRequests.length === 0 ? (
                <div className="py-10 bg-base/40 rounded-xl border border-border/40 text-center space-y-2">
-                 <p className="text-sm font-medium text-secondary">No Active Onboarding Requests</p>
+                 <p className="text-sm font-medium text-secondary">
+                   {filter === 'Pending' ? 'No pending onboarding requests' : filter === 'Completed' ? 'No completed onboarding requests' : 'No onboarding requests yet'}
+                 </p>
                </div>
              ) : (
                <div className="space-y-3">
@@ -155,7 +158,7 @@ export default function HrDashboard({ embedded = false }) {
                        <div className="flex justify-between items-start">
                          <div className="min-w-0">
                            <div className="text-sm font-bold text-primary truncate">{req.new_hire_name}</div>
-                           <div className="text-xs text-secondary mt-0.5">Joining: {parseDateValue(req.joining_date).toLocaleDateString()}</div>
+                           <div className="text-xs text-secondary mt-0.5">Joining: {formatDate(req.joining_date)}</div>
                          </div>
                          <OnboardingStatusBadge status={req.status} />
                        </div>
@@ -231,8 +234,8 @@ export default function HrDashboard({ embedded = false }) {
                      <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">
                        <StatusPill status={asset.status} />
                        {asset.assignedDate && (
-                         <span className="text-[11px] font-mono text-secondary flex items-center gap-1">
-                           <Calendar className="w-3 h-3" /> {asset.assignedDate}
+                         <span className="text-[11px] text-secondary flex items-center gap-1">
+                           <Calendar className="w-3 h-3" aria-hidden="true" /> {formatDate(asset.assignedDate)}
                          </span>
                        )}
                      </div>

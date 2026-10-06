@@ -3,7 +3,7 @@ import Spinner from './Spinner';
 
 export default function Button({
   children,
-  variant = 'primary', // 'primary' | 'secondary' | 'danger' | 'ghost'
+  variant = 'primary', // 'primary' | 'secondary' | 'danger' | 'danger-outline' | 'ghost'
   size = 'md', // 'sm' | 'md' | 'lg'
   disabled = false,
   loading = false,
@@ -21,15 +21,18 @@ export default function Button({
   };
 
   const variantClasses = {
-    primary: 'bg-accent hover:bg-accent active:bg-accent-hover text-on-accent shadow-sm',
+    primary: 'bg-accent hover:bg-accent-hover active:bg-accent-hover text-on-accent shadow-sm',
     secondary: 'bg-surface hover:bg-raised active:bg-base text-primary border border-border hover:border-border shadow-sm',
     danger: 'bg-danger hover:bg-danger/90 active:bg-danger text-on-accent shadow-sm',
+    // Quieter destructive action (e.g. permanent delete next to a primary danger action).
+    'danger-outline': 'bg-transparent hover:bg-danger/10 active:bg-danger/15 text-danger border border-danger/40',
     ghost: 'bg-transparent hover:bg-surface/80 active:bg-surface text-secondary hover:text-primary',
   };
 
+  // Slight press-in on click/tap; skipped when the button can't be used.
   const disabledClasses = (disabled || loading)
     ? 'opacity-40 cursor-not-allowed pointer-events-none'
-    : '';
+    : 'active:scale-[0.98]';
 
   return (
     <button
