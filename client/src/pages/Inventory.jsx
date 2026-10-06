@@ -13,7 +13,15 @@ import AssetGrid from '../components/inventory/AssetGrid';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
 import ImportResultsPanel from '../components/inventory/ImportResultsPanel';
+import BulkItemsView from '../components/stock/BulkItemsView';
+import Button from '../components/ui/Button';
 import { Plus, RefreshCw, List, LayoutGrid, Download, Upload, Loader2 } from 'lucide-react';
+
+// Serialized assets (default) or bulk items kept as a count (?view=bulk).
+const INVENTORY_VIEWS = [
+  ['assets', 'Assets'],
+  ['bulk', 'Bulk items'],
+];
 
 export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,6 +44,39 @@ export default function Inventory() {
   // The checked (dry-run) file waiting for the user to confirm the import.
   const [pendingImportFile, setPendingImportFile] = useState(null);
   const fileInputRef = useRef(null);
+
+  const inventoryView = searchParams.get('view') === 'bulk' ? 'bulk' : 'assets';
+  const [bulkCreateOpen, setBulkCreateOpen] = useState(false);
+
+  const handleSelectView = (value) => {
+    const updated = new URLSearchParams(searchParams);
+    if (value === 'bulk') updated.set('view', 'bulk');
+    else updated.delete('view');
+    setSearchParams(updated, { replace: true });
+  };
+
+  // Bulk items are filtered by name on the page (kept out of the URL's `q`,
+  // which drives the asset search).
+  const [bulkSearch, setBulkSearch] = useState('');
+
+  const viewSwitch = (
+    <div className="inline-flex bg-surface border border-border rounded-xl p-1 self-start" role="tablist" aria-label="Inventory view">
+      {INVENTORY_VIEWS.map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          role="tab"
+          aria-selected={inventoryView === value}
+          onClick={() => handleSelectView(value)}
+          className={`px-3.5 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
+            inventoryView === value ? 'bg-raised text-primary shadow-sm' : 'text-secondary hover:text-primary'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('inventoryViewMode') || 'list';
@@ -202,6 +243,31 @@ export default function Inventory() {
     setImportResult(null);
   };
 
+  if (inventoryView === 'bulk') {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <PageHeader
+          title="Hardware Inventory"
+          subtitle="Items without serial numbers, like bags or cables, kept as a count."
+          actions={canCreateAssets && (
+            <Button onClick={() => setBulkCreateOpen(true)}>
+              <Plus className="w-4 h-4" />
+              <span>Add bulk item</span>
+            </Button>
+          )}
+        />
+        {viewSwitch}
+        <BulkItemsView
+          createOpen={bulkCreateOpen}
+          onCreateOpen={() => setBulkCreateOpen(true)}
+          onCreateClose={() => setBulkCreateOpen(false)}
+          search={bulkSearch}
+          onSearchChange={setBulkSearch}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Page Header — "Add Asset" lives in the global TopBar */}
@@ -315,6 +381,8 @@ export default function Inventory() {
           </button>
         </div>
       )}
+
+      {viewSwitch}
 
       {/* Ownership view */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">

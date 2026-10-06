@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import useCategories from '../../hooks/useCategories';
 import useEmployees from '../../hooks/useEmployees';
 import { createAsset, assignAssetApi } from '../../api/assetsApi';
@@ -8,6 +8,7 @@ import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import useScanner from '../../hooks/useScanner';
 import useLocations from '../../hooks/useLocations';
+import { useAuth } from '../../context/AuthContext';
 import WebcamFeed from '../scanner/WebcamFeed';
 import LaserViewfinder from '../scanner/LaserViewfinder';
 import SerialSimulator from '../scanner/SerialSimulator';
@@ -21,6 +22,9 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const { categories, loading: categoriesLoading } = useCategories();
   const { employees, loading: employeesLoading } = useEmployees();
   const { locations } = useLocations();
+  const { hasPermission } = useAuth();
+  // Hint for counted items (bags, cables) that have no serial number.
+  const showBulkItemHint = !isEdit && hasPermission('assets:create');
 
   // Form fields
   const [name, setName] = useState(initialData?.name || '');
@@ -580,6 +584,15 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 <span className="sr-only sm:not-sr-only sm:ml-1.5">Auto</span>
               </Button>
             </div>
+            {showBulkItemHint && (
+              <p className="text-xs text-secondary mt-1.5">
+                No serial number?{' '}
+                {/* New tab, so a half-filled form here isn't lost. */}
+                <Link to="/inventory?view=bulk" target="_blank" rel="noopener noreferrer" className="text-accent font-medium hover:underline">
+                  Add it as a bulk item instead
+                </Link>
+              </p>
+            )}
             {errors.serialNumber && (
               <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />

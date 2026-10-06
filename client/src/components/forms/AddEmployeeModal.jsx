@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { User, Mail, Building2, MapPin, UserPlus } from 'lucide-react';
+import { User, Mail, Building2, MapPin, UserPlus, Laptop } from 'lucide-react';
 import useLocations from '../../hooks/useLocations';
 import useRoles, { defaultRoleValue } from '../../hooks/useRoles';
 import { rolePayload } from '../../api/employeesApi';
 import { useAuth } from '../../context/AuthContext';
+import { WORK_MODES, DEFAULT_WORK_MODE } from '../../utils/workMode';
 
 const DEPARTMENTS = ['Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing', 'Sales'];
 
@@ -19,6 +20,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
   const [department, setDepartment] = useState('');
   const [location, setLocation] = useState('');
   const [address, setAddress] = useState('');
+  const [workMode, setWorkMode] = useState(DEFAULT_WORK_MODE);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   
@@ -33,6 +35,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
       setDepartment('');
       setLocation('');
       setAddress('');
+      setWorkMode(DEFAULT_WORK_MODE);
       setError('');
       setGrantAccess(false);
       setTemporaryPassword('');
@@ -60,6 +63,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
         department,
         location,
         address,
+        workMode,
         grantAccess,
         ...(grantAccess ? rolePayload(role) : {}),
       });
@@ -211,6 +215,24 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd }) {
             </div>
           );
         })()}
+
+        {/* Work mode */}
+        <div>
+          <label htmlFor="add-emp-work-mode" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <Laptop className="w-3.5 h-3.5 text-accent" />
+            <span>Work mode</span>
+          </label>
+          <select
+            id="add-emp-work-mode"
+            value={workMode}
+            onChange={(e) => setWorkMode(e.target.value)}
+            className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+          >
+            {WORK_MODES.map((mode) => (
+              <option key={mode.value} value={mode.value}>{mode.label}</option>
+            ))}
+          </select>
+        </div>
 
         {/* Grant Login Access Toggle */}
         {canGrantAccess && (

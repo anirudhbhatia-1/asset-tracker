@@ -104,6 +104,14 @@ const deleteCategory = async (id) => {
     err.statusCode = 409;
     throw err;
   }
+  const stockRes = await pool.query(
+    'SELECT COUNT(*) AS count FROM stock_items WHERE category_id = $1 AND deleted_at IS NULL', [id]
+  );
+  if (Number(stockRes.rows[0].count) > 0) {
+    const err = new Error(`Cannot delete category: used by ${stockRes.rows[0].count} bulk item(s)`);
+    err.statusCode = 409;
+    throw err;
+  }
 
   await pool.query('DELETE FROM categories WHERE id = $1', [id]);
   return { id: Number(id), deleted: true };

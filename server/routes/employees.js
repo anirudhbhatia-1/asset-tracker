@@ -16,6 +16,9 @@ router.use(validateSession);
 // GET /api/employees — list all employees
 router.get('/', requirePermission('employees:read'), async (req, res, next) => {
   try {
+    if (req.query.workMode !== undefined && !['office', 'hybrid', 'remote'].includes(req.query.workMode)) {
+      return res.status(400).json({ error: true, message: 'workMode must be office, hybrid or remote', code: 400 });
+    }
     const employees = await employeeService.getEmployees(req.query);
     res.status(200).json({
       data: employees,
@@ -124,6 +127,7 @@ router.post('/', [
   body('location').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
   body('address').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 500 }),
   body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL({ protocols: ['http', 'https'], require_protocol: true }).withMessage('Must be a valid URL'),
+  body('workMode').optional({ nullable: true, checkFalsy: true }).isString().bail().isIn(['office', 'hybrid', 'remote']).withMessage('Work mode must be office, hybrid or remote'),
   body('grantAccess').optional().isBoolean(),
   body('role').optional().isString().trim(),
   body('roleId').optional().isInt({ min: 1 }),
@@ -286,6 +290,7 @@ router.patch('/:id', [
   body('location').optional().trim(),
   body('address').optional().trim(),
   body('avatarUrl').optional({ nullable: true, checkFalsy: true }).isURL({ protocols: ['http', 'https'], require_protocol: true }),
+  body('workMode').optional({ nullable: true, checkFalsy: true }).isString().bail().isIn(['office', 'hybrid', 'remote']).withMessage('Work mode must be office, hybrid or remote'),
   validateRequest,
 ], async (req, res, next) => {
   try {

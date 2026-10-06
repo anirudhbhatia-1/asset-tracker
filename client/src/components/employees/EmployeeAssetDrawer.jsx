@@ -5,9 +5,92 @@ import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import Button from '../ui/Button';
 import { getEmployeeAssets } from '../../api/employeesApi';
-import { Laptop, Calendar, MapPin, Mail, Building2, ShieldCheck, PackageX, ExternalLink } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useStock, useStockHoldings } from '../../hooks/useStock';
+import { formatDate } from '../../utils/formatters';
+import { validateQuantity, parseQuantity, holdingLabel } from '../../utils/stock';
+import { workModeLabel } from '../../utils/workMode';
+import { Laptop, Calendar, MapPin, Mail, Building2, ShieldCheck, PackageX, ExternalLink, Package, Undo2, Home } from 'lucide-react';
+
+/** One bulk item the employee holds, with an inline "Return" form. */
+function HoldingRow({ holding, employeeName, canReturn, onReturn }) {
+  const [open, setOpen] = useState(false);
+  const [quantity, setQuantity] = useState('1');
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const idBase = `drawer-return-${holding.stockItemId}`;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const qtyError = validateQuantity(quantity, { min: 1, max: holding.quantity });
+    setError(qtyError);
+    if (qtyError) return;
+    setSubmitting(true);
+    try {
+      await onReturn(holding.stockItemId, parseQuantity(quantity));
+      setOpen(false);
+    } catch {
+      // The hook already showed the error toast.
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <li className="bg-base/80 p-3 rounded-xl border border-border/80">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-primary break-words">{holdingLabel(holding)}</p>
+          <p className="text-[11px] text-secondary">
+            {[holding.categoryName, holding.location].filter(Boolean).join(' · ')}
+            {holding.firstAssignedAt && `${holding.categoryName || holding.location ? ' · ' : ''}since ${formatDate(holding.firstAssignedAt)}`}
+          </p>
+        </div>
+        {canReturn && !open && (
+          <Button size="sm" variant="secondary" onClick={() => { setQuantity('1'); setError(null); setOpen(true); }}>
+            <Undo2 className="w-3.5 h-3.5" />
+            <span>Return</span>
+          </Button>
+        )}
+      </div>
+      {open && (
+        <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="w-28">
+            <label htmlFor={`${idBase}-qty`} className="block text-[11px] font-semibold text-secondary uppercase tracking-wider mb-1">
+              Quantity
+            </label>
+            <input
+              id={`${idBase}-qty`}
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max={holding.quantity}
+              step="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${idBase}-error` : undefined}
+              className="w-full rounded-lg bg-surface border border-border px-2.5 py-1.5 text-sm font-mono text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
+          <Button size="sm" type="submit" loading={submitting}>Return to stock</Button>
+          {error
+            ? <p id={`${idBase}-error`} role="alert" className="w-full text-xs text-danger">{error}</p>
+            : <p className="w-full text-xs text-secondary">{employeeName} has {holding.quantity}. Returned units go back on the shelf.</p>}
+        </form>
+      )}
+    </li>
+  );
+}
 
 export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
+  const { hasPermission } = useAuth();
+  const canReturnStock = hasPermission('assets:assign');
+  const { returnStock } = useStock();
+  const {
+    holdings, loading: holdingsLoading, error: holdingsError, refresh: refreshHoldings,
+  } = useStockHoldings(employee?.id, isOpen);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,6 +118,11 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
   if (!employee) return null;
 
   const safeAssets = Array.isArray(assets) ? assets : [];
+
+  const handleReturnStock = async (stockItemId, quantity) => {
+    await returnStock(stockItemId, { employeeId: employee.id, quantity });
+    await refreshHoldings();
+  };
 
   return (
     <Modal
@@ -88,12 +176,18 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
             </div>
           </div>
 
-          {employee.location && (
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 text-xs text-secondary bg-surface px-3 py-1.5 rounded-lg border border-border">
-              <MapPin className="w-3.5 h-3.5 text-accent" />
-              <span>{employee.location}</span>
+              <Home className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
+              <span>Work mode: <strong className="text-primary font-semibold">{workModeLabel(employee.workMode)}</strong></span>
             </div>
-          )}
+            {employee.location && (
+              <div className="flex items-center gap-1.5 text-xs text-secondary bg-surface px-3 py-1.5 rounded-lg border border-border">
+                <MapPin className="w-3.5 h-3.5 text-accent" />
+                <span>{employee.location}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Assigned Devices Section */}
@@ -164,6 +258,35 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Bulk items (counted, no serial numbers) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+            <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider flex items-center gap-2">
+              <Package className="w-4 h-4 text-accent" />
+              <span>Bulk items ({holdings.length})</span>
+            </h4>
+          </div>
+          {holdingsLoading && holdings.length === 0 ? (
+            <div className="h-12 bg-base rounded-xl border border-border/60 animate-pulse" />
+          ) : holdingsError ? (
+            <p className="text-xs text-secondary">{holdingsError}</p>
+          ) : holdings.length === 0 ? (
+            <p className="text-xs text-secondary">No bulk items, like bags or cables, given to this employee.</p>
+          ) : (
+            <ul className="space-y-2">
+              {holdings.map((holding) => (
+                <HoldingRow
+                  key={holding.stockItemId}
+                  holding={holding}
+                  employeeName={employee.name}
+                  canReturn={canReturnStock}
+                  onReturn={handleReturnStock}
+                />
+              ))}
+            </ul>
           )}
         </div>
 

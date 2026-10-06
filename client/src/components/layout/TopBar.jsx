@@ -46,8 +46,13 @@ const TopBar = ({ toggleSidebar }) => {
     const val = e.target.value;
     setQuery(val);
     if (location.pathname === '/inventory') {
-      // Only q changes; the page's other filters stay in the URL.
-      setSearchParams(prev => withSearchParam(prev, 'q', val), { replace: true });
+      // Only q changes; the page's other filters stay in the URL. This box
+      // searches assets, so it switches Inventory back from Bulk items.
+      setSearchParams(prev => {
+        const next = withSearchParam(prev, 'q', val);
+        next.delete('view');
+        return next;
+      }, { replace: true });
     }
   };
 

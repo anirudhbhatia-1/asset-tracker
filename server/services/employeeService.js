@@ -16,6 +16,7 @@ const mapEmployee = (row) => {
     department: row.department || null,
     location: row.location || null,
     address: row.address || null,
+    workMode: row.work_mode || 'office',
     googleId: row.google_id || null,
     avatarUrl: row.avatar_url || null,
     isGoogleSynced: Boolean(row.is_google_synced),
@@ -74,6 +75,11 @@ const getEmployees = async (filters = {}) => {
     conditions.push(`e.department = $${params.length}`);
   }
 
+  if (filters.workMode) {
+    params.push(filters.workMode);
+    conditions.push(`e.work_mode = $${params.length}`);
+  }
+
   if (filters.q) {
     const likeQuery = `%${filters.q}%`;
     params.push(likeQuery);
@@ -84,7 +90,7 @@ const getEmployees = async (filters = {}) => {
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `
-    SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.google_id,
+    SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.work_mode, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role, e.role_id, e.admin_type, e.password_hash,
            r.name as role_name, r.name as custom_role_name,
@@ -104,7 +110,7 @@ const getEmployees = async (filters = {}) => {
 
 const getEmployeeById = async (id) => {
   const result = await pool.query(`
-    SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.google_id,
+    SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.work_mode, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role, e.role_id, e.admin_type, e.password_hash,
            r.name as role_name, r.name as custom_role_name,
@@ -172,6 +178,7 @@ const validateCorporateEmail = (email) => {
 // googleId is deliberately not accepted from callers.
 const createEmployee = async (data) => {
   const { name, department, location, address, avatarUrl } = data;
+  const workMode = data.workMode || 'office';
   const email = String(data.email).trim().toLowerCase();
 
   const existing = await pool.query('SELECT id FROM employees WHERE LOWER(email) = $1', [email]);
@@ -182,10 +189,10 @@ const createEmployee = async (data) => {
   }
 
   const result = await pool.query(`
-    INSERT INTO employees (name, email, department, location, address, avatar_url, is_google_synced, role, role_id, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, 0, NULL, NULL, NOW())
+    INSERT INTO employees (name, email, department, location, address, avatar_url, work_mode, is_google_synced, role, role_id, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 0, NULL, NULL, NOW())
     RETURNING id
-  `, [name, email, department ?? null, location ?? null, address ?? null, avatarUrl ?? null]);
+  `, [name, email, department ?? null, location ?? null, address ?? null, avatarUrl ?? null, workMode]);
 
   return getEmployeeById(result.rows[0].id);
 };
@@ -286,10 +293,10 @@ const createEmployeeWithAccess = async (data, actingUser) => {
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
   const result = await pool.query(`
-    INSERT INTO employees (name, email, department, location, address, google_id, avatar_url, is_google_synced, password_hash, role, role_id, admin_type, must_change_password, created_at)
-    VALUES ($1, $2, $3, $4, $5, NULL, NULL, 0, $6, $7, $8, $9, true, NOW())
+    INSERT INTO employees (name, email, department, location, address, work_mode, google_id, avatar_url, is_google_synced, password_hash, role, role_id, admin_type, must_change_password, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, 0, $7, $8, $9, $10, true, NOW())
     RETURNING id
-  `, [name, email, department ?? null, location ?? null, address ?? null, passwordHash, targetRole.baseRole, targetRole.id, targetRole.adminType]);
+  `, [name, email, department ?? null, location ?? null, address ?? null, data.workMode || 'office', passwordHash, targetRole.baseRole, targetRole.id, targetRole.adminType]);
 
   const employee = await getEmployeeById(result.rows[0].id);
   return { employee, temporaryPassword };
@@ -314,7 +321,7 @@ const updateEmployee = async (id, data, actingUser) => {
   }
   
   // Explicitly strip role and role_id from routine profile update payload handling (Risk Audit #13)
-  const { name, department, location, address, avatarUrl } = data;
+  const { name, department, location, address, avatarUrl, workMode } = data;
   const email = data.email ? String(data.email).trim().toLowerCase() : undefined;
 
   const isEmailChange = Boolean(email) && email !== current.email.toLowerCase();
@@ -345,7 +352,8 @@ const updateEmployee = async (id, data, actingUser) => {
           department = $3,
           location = $4,
           address = $5,
-          avatar_url = $6
+          avatar_url = $6,
+          work_mode = $8
       WHERE id = $7
     `, [
       name !== undefined ? name : current.name,
@@ -354,7 +362,8 @@ const updateEmployee = async (id, data, actingUser) => {
       location !== undefined ? location : current.location,
       address !== undefined ? address : current.address,
       avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
-      id
+      id,
+      workMode || current.workMode,
     ]);
 
     if (isEmailChange) {

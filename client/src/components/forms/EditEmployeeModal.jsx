@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useId } from 'react';
-import { X, Loader2, Building2, MapPin, ShieldCheck, User } from 'lucide-react';
+import { X, Loader2, Building2, MapPin, ShieldCheck, User, Laptop } from 'lucide-react';
 import { getLocations } from '../../api/locationsApi';
 import { getEmployees } from '../../api/employeesApi';
 import { useAuth } from '../../context/AuthContext';
 import useRoles, { findRoleValue } from '../../hooks/useRoles';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { WORK_MODES, normalizeWorkMode } from '../../utils/workMode';
 
 export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, onChangeRole }) {
   const { hasPermission } = useAuth();
@@ -15,6 +16,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
   const [department, setDepartment] = useState('');
   const [location, setLocation] = useState('');
   const [address, setAddress] = useState('');
+  const [workMode, setWorkMode] = useState(normalizeWorkMode());
   const [role, setRole] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,6 +32,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
       setDepartment(employee.department || '');
       setLocation(employee.location || '');
       setAddress(employee.address || '');
+      setWorkMode(normalizeWorkMode(employee.workMode));
     }
   }, [employee]);
 
@@ -93,6 +96,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
         department: department.trim() || null,
         location: location.trim() || null,
         address: address.trim() || null,
+        workMode,
       };
 
       // The profile PATCH ignores role; change it separately, and only when
@@ -242,6 +246,23 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
                   )}
                 </div>
               )}
+
+              {/* Work mode */}
+              <div>
+                <label htmlFor="edit-emp-work-mode" className={labelClass}>
+                  <Laptop className="w-3.5 h-3.5" /> Work mode
+                </label>
+                <select
+                  id="edit-emp-work-mode"
+                  value={workMode}
+                  onChange={e => setWorkMode(e.target.value)}
+                  className={inputClass}
+                >
+                  {WORK_MODES.map(mode => (
+                    <option key={mode.value} value={mode.value}>{mode.label}</option>
+                  ))}
+                </select>
+              </div>
 
               {/* Role — only shown if the employee already has a login account */}
               {employee.hasLogin && canEditRole && (

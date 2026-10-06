@@ -15,11 +15,25 @@ import RoleManagementPanel from '../components/dashboard/RoleManagementPanel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
-import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX, UserMinus, LogOut } from 'lucide-react';
+import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX, UserMinus, LogOut, Home, Shuffle, MapPin } from 'lucide-react';
 import { onActivateKey } from '../utils/a11y';
+import { WORK_MODES, matchesWorkModeFilter } from '../utils/workMode';
 
 const DEPARTMENT_FILTERS = ['All', 'Engineering', 'Product', 'Design', 'Operations', 'HR', 'Finance', 'Marketing'];
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
+const WORK_MODE_FILTERS = [{ value: 'all', label: 'All' }, ...WORK_MODES];
+
+// Remote and Hybrid get a small badge next to the name; Office has none.
+function WorkModeBadge({ mode }) {
+  if (mode !== 'remote' && mode !== 'hybrid') return null;
+  const Icon = mode === 'remote' ? Home : Shuffle;
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-info-blue bg-info-blue/10 border border-info-blue/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+      <Icon className="w-3 h-3" aria-hidden="true" />
+      {mode === 'remote' ? 'Remote' : 'Hybrid'}
+    </span>
+  );
+}
 
 export default function Employees() {
   const { user, hasPermission } = useAuth();
@@ -37,6 +51,7 @@ export default function Employees() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [selectedAccess, setSelectedAccess] = useState('All');
+  const [selectedWorkMode, setSelectedWorkMode] = useState('all');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -65,6 +80,9 @@ export default function Employees() {
       if (selectedAccess === 'With Access' && !emp.hasLogin) return false;
       if (selectedAccess === 'No Access' && emp.hasLogin) return false;
 
+      // Work mode filter
+      if (!matchesWorkModeFilter(emp, selectedWorkMode)) return false;
+
       // Search term
       if (!searchTerm.trim()) return true;
       const q = searchTerm.toLowerCase();
@@ -75,7 +93,7 @@ export default function Employees() {
         (emp.location && emp.location.toLowerCase().includes(q))
       );
     });
-  }, [safeEmployees, searchTerm, selectedDepartment, selectedAccess]);
+  }, [safeEmployees, searchTerm, selectedDepartment, selectedAccess, selectedWorkMode]);
 
   const handleRowClick = (emp) => {
     if (!canEdit) return;
@@ -173,7 +191,7 @@ export default function Employees() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 sm:items-center pt-2">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 sm:items-center pt-2">
           {/* Department Filter */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pr-6 max-w-full">
             <span className="text-xs font-semibold text-secondary uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
@@ -221,6 +239,31 @@ export default function Employees() {
               );
             })}
           </div>
+
+          {/* Work Mode Filter */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none max-w-full">
+            <span className="text-xs font-semibold text-secondary uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
+              <MapPin className="w-3 h-3" /> Work mode:
+            </span>
+            {WORK_MODE_FILTERS.map((mode) => {
+              const isSelected = selectedWorkMode === mode.value;
+              return (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => setSelectedWorkMode(mode.value)}
+                  aria-pressed={isSelected}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
+                    isSelected
+                      ? 'bg-accent text-on-accent border-accent shadow-sm shadow-accent/20'
+                      : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -236,16 +279,17 @@ export default function Employees() {
           icon={Users}
           title="No Employee Profiles Found"
           description={
-            searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All'
+            searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All' || selectedWorkMode !== 'all'
               ? 'No staff members match your current filters.'
               : 'The company directory is currently empty.'
           }
-          actionText={searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All' ? 'Reset Filters' : (canCreate ? 'Add First Employee' : undefined)}
+          actionText={searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All' || selectedWorkMode !== 'all' ? 'Reset Filters' : (canCreate ? 'Add First Employee' : undefined)}
           onAction={() => {
-            if (searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All') {
+            if (searchTerm || selectedDepartment !== 'All' || selectedAccess !== 'All' || selectedWorkMode !== 'all') {
               setSearchTerm('');
               setSelectedDepartment('All');
               setSelectedAccess('All');
+              setSelectedWorkMode('all');
             } else {
               setIsAddModalOpen(true);
             }
@@ -280,6 +324,7 @@ export default function Employees() {
                         <div>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="font-medium text-primary">{emp.name}</span>
+                            <WorkModeBadge mode={emp.workMode} />
                             {emp.offboarding && (canReadOffboarding ? (
                               <Link
                                 to={`/offboarding?request=${emp.offboarding.id}`}

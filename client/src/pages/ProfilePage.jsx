@@ -3,12 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import { getMyProfile, getEmployeeAssets, updateMyProfile } from '../api/employeesApi';
 import {
   User, Mail, Building2, MapPin, ShieldCheck, Laptop,
-  Calendar, PackageX, Loader2, Pencil, Check, X
+  Calendar, PackageX, Loader2, Pencil, Check, X, Home
 } from 'lucide-react';
 import StatusPill from '../components/ui/StatusPill';
 import Badge from '../components/ui/Badge';
 import PageHeader from '../components/ui/PageHeader';
 import toast from 'react-hot-toast';
+import { workModeLabel } from '../utils/workMode';
 
 const roleColors = {
   admin:    'bg-accent/10 text-accent border-accent/20',
@@ -201,6 +202,11 @@ export default function ProfilePage() {
               value={profile?.address
                 ? `${profile.location} (${profile.address})`
                 : (profile?.location || '—')}
+            />
+            <InfoRow
+              icon={Home}
+              label="Work mode"
+              value={profile ? workModeLabel(profile.workMode) : '—'}
             />
             <InfoRow
               icon={ShieldCheck}

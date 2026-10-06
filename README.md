@@ -148,6 +148,15 @@ which setting is missing. The API also logs this at startup.
   in one step, can revoke the login and remove the employee from the
   directory. One open exit per employee; the person leaving cannot change it.
   Permissions: `offboarding:read`, `:create`, `:update`, `:collect`.
+- Employees have a work mode — `office` (default), `hybrid` or `remote` —
+  set by HR/Admin and filterable on the Employees page.
+- Bulk items without serial numbers (bags, cables, mouse pads) are kept as a
+  count in `stock_items`; `stock_holdings` records who has how many, and in
+  stock = total − handed out. Assign / return / write off (lost or broken,
+  the total drops) are logged in `stock_history`. They use the asset
+  permissions (`assets:read/create/update/assign/delete`), are separate from
+  serialized asset totals, and are not on the offboarding checklist. An item
+  can be removed only when nobody holds any.
 
 ## Bulk data
 
@@ -174,6 +183,7 @@ All routes are under `/api` and, except auth/Google/health, require
 | Categories & locations | `GET/POST /categories`, `GET/PUT/DELETE /categories/:id`, `GET/POST /locations`, `PUT /locations/:id/addresses` |
 | Tickets | `GET/POST /tickets`, `GET/PATCH /tickets/:id`, `GET /tickets/:id/history`, `PATCH /tickets/:id/transfer`, `PATCH /tickets/:id/confirm-close`, `PATCH /tickets/:id/reopen` |
 | Onboarding | `GET/POST /onboarding`, `GET /onboarding/hr-metrics`, `GET/PUT /onboarding/:id`, `PUT /onboarding/:id/status`, `PATCH /onboarding/:id/items/:itemId/fulfill` |
+| Bulk items | `GET/POST /stock`, `GET/PATCH/DELETE /stock/:id`, `POST /stock/:id/adjust`, `POST /stock/:id/assign`, `POST /stock/:id/return`, `POST /stock/:id/write-off`, `GET /stock/mine`, `GET /stock/holdings/:employeeId` |
 | Offboarding | `GET/POST /offboarding`, `GET/PUT /offboarding/:id`, `PATCH /offboarding/:id/items/:itemId`, `POST /offboarding/:id/complete`, `POST /offboarding/:id/cancel` |
 | Other | `GET /history`, `GET /notifications`, `GET /health` |
 
