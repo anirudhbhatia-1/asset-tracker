@@ -76,7 +76,10 @@ export default function useFocusTrap(ref, isActive, onEscape) {
       if (trapStack[trapStack.length - 1] !== token) return;
 
       if (e.key === 'Escape' && onEscapeRef.current) {
-        e.stopPropagation();
+        // Only the topmost dialog closes: listening in the capture phase and
+        // stopping the event here keeps document-level Escape listeners
+        // behind it (TopBar popovers, an outer dialog) from firing too.
+        e.stopImmediatePropagation();
         onEscapeRef.current();
         return;
       }
@@ -117,10 +120,13 @@ export default function useFocusTrap(ref, isActive, onEscape) {
       container.focus();
     }
 
-    document.addEventListener('keydown', handleKeyDown);
+    // Capture phase, so the innermost trap wins over bubble-phase document
+    // listeners (a popover's Escape handler) and over traps opened earlier:
+    // an earlier trap's listener runs first but returns at the stack check.
+    document.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
       const i = trapStack.indexOf(token);
       if (i !== -1) trapStack.splice(i, 1);
       unlockBodyScroll();

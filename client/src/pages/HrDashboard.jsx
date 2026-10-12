@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getEmployeeAssets } from '../api/employeesApi';
 import { useOnboarding } from '../hooks/useOnboarding';
+import AttentionPanel from '../components/dashboard/AttentionPanel';
 import Badge from '../components/ui/Badge';
 import StatusPill from '../components/ui/StatusPill';
 import { Laptop, Users, Calendar, Plus, PackageX, Target } from 'lucide-react';
@@ -81,6 +82,8 @@ export default function HrDashboard({ embedded = false }) {
           </p>
         </div>
       )}
+
+      {!embedded && <AttentionPanel />}
 
       {/* HR Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

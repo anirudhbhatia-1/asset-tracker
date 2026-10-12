@@ -2,7 +2,7 @@
 
 > **Historical document.** This describes the original plan and parts of it no longer match
 > the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
-> configuration and API are documented in [README.md](README.md).
+> configuration and API are documented in [README.md](../README.md).
 
 > Welcome! If you've never written a single line of code before, this guide is written specifically for you. By the time you finish reading it, you'll understand exactly how this application works, why it was built the way it was, and what every single piece of code is doing. Let's take it one step at a time.
 

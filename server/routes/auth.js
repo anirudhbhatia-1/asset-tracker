@@ -20,15 +20,30 @@ const createPasswordLoginLimiter = (overrides = {}) => rateLimit({
 });
 const passwordLoginLimiter = createPasswordLoginLimiter();
 
+// Every refused password sign-in (401 or 423) takes at least this long,
+// measured from the start of the handler, so the response time doesn't tell
+// apart unknown emails, older cheaper hashes and locked accounts.
+// Successful sign-ins are not delayed.
+const FAILED_LOGIN_MIN_MS = Number(process.env.LOGIN_FAILURE_MIN_MS) || 350;
+const PADDED_STATUSES = new Set([401, 423]);
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+const padFailure = async (startedAt, minMs = FAILED_LOGIN_MIN_MS) => {
+  const remaining = minMs - (Date.now() - startedAt);
+  if (remaining > 0) await sleep(remaining);
+};
+
 router.post('/login', passwordLoginLimiter, [
-  body('email').isEmail().withMessage('Valid email is required'),
-  body('password').notEmpty().withMessage('Password is required'),
+  body('email').isString().bail().isEmail().withMessage('Valid email is required'),
+  // Must be text: an object or array here would reach bcrypt and crash.
+  body('password').isString().withMessage('Password is required').bail().notEmpty().withMessage('Password is required'),
   validateRequest
 ], async (req, res, next) => {
+  const startedAt = Date.now();
   try {
-    const result = await authService.login(req.body.email, req.body.password);
+    const result = await authService.login(req.body.email, req.body.password, { ip: req.ip });
     res.status(200).json({ data: result, message: 'Logged in successfully' });
   } catch (err) {
+    if (PADDED_STATUSES.has(err.statusCode)) await padFailure(startedAt);
     next(err);
   }
 });
@@ -59,12 +74,15 @@ const changePasswordLimiter = createPasswordLoginLimiter({
 router.patch('/change-password', [
   changePasswordLimiter,
   validateSession,
-  body('currentPassword').notEmpty().withMessage('Current password is required'),
-  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters long'),
+  body('currentPassword').isString().withMessage('Current password is required').bail().notEmpty().withMessage('Current password is required'),
+  // Length, common-password and personal-information rules live in
+  // services/passwordPolicy.js, applied by the service.
+  body('newPassword').isString().withMessage('New password is required').bail()
+    .notEmpty().withMessage('New password is required'),
   validateRequest
 ], async (req, res, next) => {
   try {
-    await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
+    await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword, { ip: req.ip });
     res.status(200).json({ message: 'Password changed successfully' });
   } catch (err) {
     next(err);
@@ -73,3 +91,4 @@ router.patch('/change-password', [
 
 module.exports = router;
 module.exports.createPasswordLoginLimiter = createPasswordLoginLimiter;
+module.exports.FAILED_LOGIN_MIN_MS = FAILED_LOGIN_MIN_MS;

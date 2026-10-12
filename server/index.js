@@ -1,9 +1,16 @@
 require('./loadEnv');
+const { initSentry, flushSentry } = require('./sentry');
+
+initSentry();
+
 const express = require('express');
 const cors = require('cors');
-const morgan = require('morgan');
+const pinoHttp = require('pino-http');
 const db = require('./db');
+const logger = require('./logger');
+const buildInfo = require('./buildInfo');
 const errorHandler = require('./middleware/errorHandler');
+const { securityHeaders, createApiLimiter, createApiIpLimiter } = require('./middleware/security');
 const { getGoogleAuthConfigProblem, normalizeAllowedDomain } = require('./services/googleService');
 
 const app = express();
@@ -21,20 +28,37 @@ if (Number.isInteger(trustProxyHops) && trustProxyHops > 0 && trustProxyHops <= 
 }
 
 // Middlewares
+app.use(securityHeaders());
 app.use(cors({
   origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   credentials: true,
 }));
+app.use(pinoHttp({
+  logger,
+  // Health checks from monitors would drown out everything else.
+  autoLogging: { ignore: (req) => req.url === '/api/health' },
+  customLogLevel: (req, res, err) => {
+    if (err || res.statusCode >= 500) return 'error';
+    if (res.statusCode >= 400) return 'warn';
+    return 'info';
+  },
+  serializers: {
+    req: logger.serializeRequest,
+    res: (res) => ({ statusCode: res.statusCode }),
+  },
+}));
 app.use(express.json());
-app.use(morgan('dev'));
+// Per-IP ceiling first (fake tokens can't dodge it), then per session.
+app.use('/api', createApiIpLimiter(), createApiLimiter());
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
+  const info = { version: buildInfo.version, commit: buildInfo.commit, startedAt: buildInfo.startedAt };
   try {
-    await db.query('SELECT 1');
-    res.status(200).json({ status: 'ok', version: '1.0.0', database: 'connected' });
+    await db.pingDatabase();
+    res.status(200).json({ status: 'ok', ...info, database: 'connected' });
   } catch (err) {
-    res.status(503).json({ status: 'error', version: '1.0.0', database: 'unavailable' });
+    res.status(503).json({ status: 'error', ...info, database: 'unavailable' });
   }
 });
 
@@ -53,6 +77,9 @@ app.use('/api/stock', require('./routes/stock'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/locations', require('./routes/locations'));
 app.use('/api/roles', require('./routes/roles'));
+app.use('/api/audit', require('./routes/audit'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api/dashboard', require('./routes/dashboard'));
 
 // 404 Handler for unmatched routes
 app.use((req, res, next) => {
@@ -71,38 +98,62 @@ if (require.main === module) {
   server = app.listen(PORT, HOST, (err) => {
     // Express 5 reports listen failures (e.g. port in use) here, not as a throw.
     if (err) {
-      console.error(err.code === 'EADDRINUSE'
+      logger.fatal(err.code === 'EADDRINUSE'
         ? `Port ${PORT} is already in use. Is another copy of the API running? Stop it, or set PORT to a free port.`
         : `Could not start the API: ${err.message}`);
       process.exit(1);
     }
-    console.log(`Server listening on port ${PORT}`);
+    logger.info(`Server listening on port ${PORT} (version ${buildInfo.version}, commit ${buildInfo.commit})`);
     const googleProblem = getGoogleAuthConfigProblem();
     if (googleProblem) {
-      console.warn(`Google sign-in is DISABLED: ${googleProblem}`);
+      logger.warn(`Google sign-in is DISABLED: ${googleProblem}`);
     } else {
       const domain = normalizeAllowedDomain(process.env.GOOGLE_ALLOWED_DOMAIN);
-      console.log(`Google sign-in enabled${domain ? ` for @${domain} accounts` : ' for any verified Google account'}`);
+      logger.info(`Google sign-in enabled${domain ? ` for @${domain} accounts` : ' for any verified Google account'}`);
     }
   });
 }
 
-module.exports = app;
+// Graceful shutdown: stop accepting connections, let in-flight requests
+// finish, close the database pool, then exit. A hung shutdown is cut off
+// after SHUTDOWN_TIMEOUT_MS.
+const SHUTDOWN_TIMEOUT_MS = 10000;
+let shuttingDown = false;
 
-// Graceful Shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  if (server) {
-    server.close(() => {
-      console.log('HTTP server closed');
-      db.pool.end(() => {
-        console.log('Postgres pool closed');
-        process.exit(0);
-      });
+const shutdown = (signal, { exit = process.exit, httpServer = server, pool = db.pool } = {}) => {
+  if (shuttingDown) return Promise.resolve();
+  shuttingDown = true;
+  logger.info(`${signal} received: shutting down`);
+
+  const forceTimer = setTimeout(() => {
+    logger.error(`Shutdown took longer than ${SHUTDOWN_TIMEOUT_MS / 1000}s; forcing exit`);
+    exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  forceTimer.unref();
+
+  const closeServer = () => new Promise((resolve) => {
+    if (!httpServer) return resolve();
+    httpServer.close(() => resolve());
+    // Idle keep-alive sockets would otherwise hold close() open.
+    if (typeof httpServer.closeIdleConnections === 'function') httpServer.closeIdleConnections();
+  });
+
+  return closeServer()
+    .then(() => { logger.info('HTTP server closed'); return pool.end(); })
+    .then(() => { logger.info('Postgres pool closed'); return flushSentry(); })
+    .then(() => { clearTimeout(forceTimer); exit(0); })
+    .catch((err) => {
+      logger.error({ err }, 'Error during shutdown');
+      clearTimeout(forceTimer);
+      exit(1);
     });
-  } else {
-    db.pool.end(() => {
-      process.exit(0);
-    });
-  }
-});
+};
+
+if (require.main === module) {
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+module.exports = app;
+module.exports.shutdown = shutdown;
+module.exports.resetShutdownForTests = () => { shuttingDown = false; };

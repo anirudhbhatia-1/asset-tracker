@@ -6,6 +6,7 @@ import axiosInstance, {
   PASSWORD_CHANGE_REQUIRED_EVENT,
   shouldRedirectForUnauthorized,
 } from './axiosInstance';
+import { RECENT_STORAGE_KEY } from '../utils/searchPalette';
 
 describe('unauthorized response handling', () => {
   it('does not reload the login page for expected login failures', () => {
@@ -18,6 +19,42 @@ describe('unauthorized response handling', () => {
   it('redirects expired authenticated sessions', () => {
     expect(shouldRedirectForUnauthorized({ response: { status: 401 }, config: {} })).toBe(true);
     expect(shouldRedirectForUnauthorized({ response: { status: 403 }, config: {} })).toBe(false);
+  });
+});
+
+describe('unauthorized sign-out path', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('clears the session and the palette recents, then redirects to login', async () => {
+    const session = { token: 't', user: '{"id":7}' };
+    const removedLocal = [];
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key) => session[key] ?? null,
+      setItem: (key, value) => { session[key] = value; },
+      removeItem: (key) => { delete session[key]; },
+    });
+    vi.stubGlobal('window', {
+      localStorage: { removeItem: (key) => removedLocal.push(key) },
+      location: { href: '/inventory' },
+      dispatchEvent: () => true,
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(axiosInstance.get('/assets', {
+      adapter: async (config) => Promise.reject(Object.assign(new Error('Unauthorized'), {
+        config,
+        response: { status: 401, data: {}, config },
+      })),
+    })).rejects.toThrow('Unauthorized');
+
+    expect(session.token).toBeUndefined();
+    expect(session.user).toBeUndefined();
+    // Same forgetting as AuthContext's sign-out.
+    expect(removedLocal).toContain(RECENT_STORAGE_KEY);
+    expect(window.location.href).toBe('/login');
   });
 });
 

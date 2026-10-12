@@ -334,6 +334,7 @@ export default function StockDetailsModal({ isOpen, itemId, onClose, actions }) 
             <SummaryTile label="Total" value={item.totalQuantity} />
             <SummaryTile label="Warn at" value={item.lowStockThreshold ?? '—'} />
             <SummaryTile label="Cost / unit" value={item.costCents == null ? '—' : formatCurrency(item.costCents / 100)} />
+            <SummaryTile label="Purchased" value={item.purchaseDate ? formatDate(item.purchaseDate) : '—'} />
             <SummaryTile label="Holders" value={item.holdersCount ?? holders.length} />
           </dl>
 

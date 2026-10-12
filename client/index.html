@@ -7,13 +7,8 @@
     <title>AssetTrack — IT Asset Management</title>
     <!-- Apply the saved theme before CSS paints, so dark mode never flashes light.
          Keep in sync with src/context/ThemeContext.jsx (key 'assettrack-theme'). -->
-    <script>
-      try {
-        if (localStorage.getItem('assettrack-theme') === 'dark') {
-          document.documentElement.classList.add('dark');
-        }
-      } catch (e) { /* storage blocked: stay light */ }
-    </script>
+    <!-- Before CSS paints: applies the saved dark theme (external file so the CSP allows it). -->
+    <script src="/theme-init.js"></script>
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

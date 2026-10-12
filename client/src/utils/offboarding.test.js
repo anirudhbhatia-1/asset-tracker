@@ -137,3 +137,18 @@ describe('list filters and labels', () => {
     expect(getReasonLabel(null)).toBeNull();
   });
 });
+
+describe('Directors are offboarded only by Directors', () => {
+  const staff = [
+    { id: 1, name: 'Me' },
+    { id: 2, name: 'Dee Director', role: 'director' },
+    { id: 3, name: 'Ann Admin', role: 'admin' },
+  ];
+  it('leaves Directors out for everyone else', () => {
+    expect(getOffboardableEmployees(staff, '1').map((e) => e.id)).toEqual([3]);
+  });
+  it('includes them for a Director', () => {
+    expect(getOffboardableEmployees(staff, '1', { actorIsDirector: true }).map((e) => e.id)).toEqual([2, 3]);
+  });
+});
+

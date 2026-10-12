@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const ThemeContext = createContext();
 
-// Must match the inline script in index.html, which applies the saved theme
+// Must match client/public/theme-init.js, which applies the saved theme
 // before first paint.
 const STORAGE_KEY = 'assettrack-theme';
 

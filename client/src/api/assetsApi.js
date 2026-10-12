@@ -27,8 +27,24 @@ export const checkSerialExists = async (serial) => {
 };
 export const getChildAssets = (parentId) => api.get('/assets', { params: { parentId } });
 
-export const exportAssetsExcel = () =>
-  api.get('/assets/export', { responseType: 'blob' }); // blob for file download
+// Whole inventory, or just the given asset ids (blob for file download).
+export const exportAssetsExcel = (ids) =>
+  api.get('/assets/export', {
+    responseType: 'blob',
+    ...(Array.isArray(ids) && ids.length ? { params: { ids: ids.join(',') } } : {}),
+  });
+
+// Inventory bulk actions (at most BULK_ACTION_LIMIT ids per call).
+// Assign is all-or-nothing (409 with a message if any asset isn't available).
+export const BULK_ACTION_LIMIT = 200;
+export const bulkAssignSelectedAssets = (assetIds, employeeId, note) =>
+  api.post('/assets/bulk/assign', { assetIds, employeeId, ...(note ? { note } : {}) });
+// Answers { returned, skipped: [{ id, name, reason }] }.
+export const bulkReturnAssets = (assetIds, note) =>
+  api.post('/assets/bulk/return', { assetIds, ...(note ? { note } : {}) });
+// changes: { location?, categoryId? }. Answers { updated }.
+export const bulkUpdateAssets = (assetIds, changes) =>
+  api.post('/assets/bulk/update', { assetIds, changes });
 
 // dryRun runs the whole import on the server and rolls it back, returning
 // what would happen so the user can confirm before anything is saved.

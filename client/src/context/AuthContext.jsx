@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api, { PASSWORD_CHANGE_REQUIRED_EVENT } from '../api/axiosInstance';
+import { isRetryableLoginError } from '../utils/authErrors';
 import { clearQueryCache, invalidateAfterMutation } from '../utils/queryCache';
 import { prefetchWhenIdle } from '../utils/routePrefetch';
+import { clearRecentItems } from '../utils/searchPalette';
 
 const AuthContext = createContext();
 
@@ -130,7 +132,19 @@ export const AuthProvider = ({ children }) => {
   const hasPermission = useCallback((permissionKey) => userHasPermission(user, permissionKey), [user]);
 
   const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password }, { skipAuthRedirect: true });
+    // A server waking up (or a slow first database connection) can take
+    // longer than the usual 10s, and a request that got no answer at all is
+    // worth one quiet retry. A real answer (wrong password, too many
+    // attempts) is never retried.
+    const send = () => api.post('/auth/login', { email: String(email).trim(), password }, { skipAuthRedirect: true, timeout: 30000 });
+    let res;
+    try {
+      res = await send();
+    } catch (err) {
+      if (!isRetryableLoginError(err)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      res = await send();
+    }
     const { token, user: userData } = res.data.data;
 
     sessionStorage.setItem('token', token);
@@ -150,6 +164,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     // Nothing loaded for this user may show for the next one.
     clearQueryCache();
+    clearRecentItems();
     try {
       if (sessionStorage.getItem('token')) {
         await api.post('/auth/logout');

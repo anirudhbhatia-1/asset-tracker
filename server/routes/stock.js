@@ -32,6 +32,7 @@ const itemFields = (optional) => [
   body('categoryId').optional({ nullable: true }).isInt({ min: 1 }).toInt(),
   body('location').optional({ nullable: true }).isString().trim().isLength({ max: 100 }),
   body('costCents').optional({ nullable: true }).isInt({ min: 0, max: 2147483647 }).withMessage('Cost must be between ₹0 and ₹21,474,836').toInt(),
+  body('purchaseDate').optional({ nullable: true, checkFalsy: true }).isISO8601({ strict: true, strictSeparator: true }).withMessage('Use a YYYY-MM-DD date'),
   body('lowStockThreshold').optional({ nullable: true }).isInt({ min: 0, max: 100000 }).toInt(),
   body('notes').optional({ nullable: true }).isString().isLength({ max: 2000 }),
 ];

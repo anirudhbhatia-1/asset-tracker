@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import OfflineBanner from './OfflineBanner';
+import RouteErrorBoundary from '../ErrorBoundary';
 
 // The full 256px sidebar only auto-opens from xl (1280px); between 768 and
 // 1279px it starts as the 80px icon rail so tables keep their width.
@@ -33,7 +34,11 @@ const MainLayout = () => {
         <TopBar toggleSidebar={toggleSidebar} />
         {/* overflow-x-clip (not overflow-auto) so position: sticky children stick to the window scroll */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-x-clip">
-          <Outlet />
+          {/* A page that fails to render shows a friendly error here; the
+              sidebar and top bar keep working. */}
+          <RouteErrorBoundary>
+            <Outlet />
+          </RouteErrorBoundary>
         </main>
       </div>
     </div>

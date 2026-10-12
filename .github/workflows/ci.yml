@@ -5,6 +5,13 @@ on:
     branches: [main, new_test]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -51,3 +58,89 @@ jobs:
 
       - name: Server tests
         run: npm test --prefix server
+
+  # Fails on known high/critical vulnerabilities in production dependencies.
+  # A new advisory can turn this red without a code change: update the
+  # package (Dependabot usually opens the PR) rather than ignoring it.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [server, client]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: npm audit (${{ matrix.package }}, production dependencies)
+        working-directory: ${{ matrix.package }}
+        run: npm audit --omit=dev --audit-level=high
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix server
+          npm ci --prefix client
+
+      - name: Configure local settings
+        run: |
+          cp server/.env.example server/.env
+          cp client/.env.example client/.env
+
+      # The same command `npm run dev` uses: creates the database, applies
+      # every supabase/migrations file and seeds the test accounts. Wait for
+      # its "ready at" line (printed after migrations/seed), not just the port.
+      - name: Start local PostgreSQL (migrated and seeded)
+        run: |
+          npm run db --prefix server > /tmp/devdb.log 2>&1 &
+          for i in $(seq 1 90); do
+            grep -q "ready at" /tmp/devdb.log && break
+            grep -q "failed" /tmp/devdb.log && { cat /tmp/devdb.log; exit 1; }
+            sleep 2
+          done
+          cat /tmp/devdb.log
+          grep -q "ready at" /tmp/devdb.log || { echo "Local database did not start"; exit 1; }
+          (exec 3<>/dev/tcp/127.0.0.1/54322) || { echo "Port 54322 is not accepting connections"; exit 1; }
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # playwright.config.js starts the API and web app with `npm run dev`
+      # (webServer); its database step sees port 54322 in use and leaves the
+      # database started above running.
+      - name: Run end-to-end tests
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Database log
+        if: failure()
+        run: cat /tmp/devdb.log || true

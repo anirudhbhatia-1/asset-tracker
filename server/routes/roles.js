@@ -3,8 +3,26 @@ const { body, param } = require('express-validator');
 const { pool, withTransaction } = require('../db');
 const validateRequest = require('../middleware/validateRequest');
 const { validateSession, requirePermission, hasPermission } = require('../middleware/validateSession');
+const auditService = require('../services/auditService');
 
 const router = express.Router();
+
+const getRolePermissionKeys = async (executor, roleId) => {
+  const { rows } = await executor.query(
+    'SELECT p.key FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = $1 ORDER BY p.key',
+    [roleId]
+  );
+  return rows.map((row) => row.key);
+};
+
+const auditRole = (client, req, eventType, role, values) => auditService.record(client, {
+  eventType,
+  actor: req.user,
+  targetType: 'role',
+  targetId: role.id,
+  targetName: role.name,
+  ...values,
+});
 
 router.use(validateSession);
 
@@ -164,6 +182,14 @@ router.post('/', [
           `, [createdRole.id, p.id]);
         }
       }
+
+      await auditRole(client, req, 'role.created', createdRole, {
+        newValue: {
+          name: createdRole.name,
+          adminType: createdRole.admin_type,
+          permissions: await getRolePermissionKeys(client, createdRole.id),
+        },
+      });
     });
 
     res.status(201).json({
@@ -220,6 +246,15 @@ router.put('/:id', [
     }
 
     await withTransaction(async (client) => {
+      // Lock the role first so the "before" permissions and fields are the
+      // ones this update replaces, even with concurrent edits.
+      const { rows: [lockedRole] } = await client.query('SELECT * FROM roles WHERE id = $1 FOR UPDATE', [roleId]);
+      if (!lockedRole) {
+        const err = new Error('Role not found');
+        err.statusCode = 404;
+        throw err;
+      }
+      const keysBefore = await getRolePermissionKeys(client, roleId);
       await client.query(`
         UPDATE roles
         SET name = $1,
@@ -243,6 +278,28 @@ router.put('/:id', [
             await client.query('INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [roleId, p.id]);
           }
         }
+      }
+
+      const keysAfter = await getRolePermissionKeys(client, roleId);
+      const added = keysAfter.filter((key) => !keysBefore.includes(key));
+      const removed = keysBefore.filter((key) => !keysAfter.includes(key));
+      const newName = name && !currentRole.is_system ? name : currentRole.name;
+      const newAdminType = adminType !== undefined ? adminType : currentRole.admin_type;
+      const renamed = newName !== lockedRole.name;
+      const adminTypeChanged = (newAdminType || null) !== (lockedRole.admin_type || null);
+      if (added.length > 0 || removed.length > 0 || renamed || adminTypeChanged) {
+        const oldValue = {};
+        if (renamed) oldValue.name = lockedRole.name;
+        if (adminTypeChanged) oldValue.adminType = lockedRole.admin_type || null;
+        await auditRole(client, req, 'role.updated', { id: roleId, name: newName }, {
+          oldValue: Object.keys(oldValue).length > 0 ? oldValue : null,
+          newValue: {
+            name: newName,
+            ...(adminTypeChanged ? { adminType: newAdminType || null } : {}),
+            permissionsAdded: added,
+            permissionsRemoved: removed,
+          },
+        });
       }
     });
 
@@ -303,7 +360,16 @@ router.delete('/:id', [
       });
     }
 
-    await pool.query('DELETE FROM roles WHERE id = $1', [roleId]);
+    await withTransaction(async (client) => {
+      await client.query('SELECT id FROM roles WHERE id = $1 FOR UPDATE', [roleId]);
+      const permissions = await getRolePermissionKeys(client, roleId);
+      await client.query('DELETE FROM roles WHERE id = $1', [roleId]);
+      // A role with holders can't be deleted (checked above), so there is no
+      // holder count to record.
+      await auditRole(client, req, 'role.deleted', currentRole, {
+        oldValue: { name: currentRole.name, adminType: currentRole.admin_type || null, permissions },
+      });
+    });
 
     res.status(200).json({
       data: { id: roleId, deleted: true },

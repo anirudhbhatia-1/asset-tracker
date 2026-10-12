@@ -102,6 +102,18 @@ const Tickets = () => {
       });
   }, [deepLinkId, tickets, loadedScope, queueScope, clearDeepLink]);
 
+  // /tickets?new=1 (e.g. "Raise ticket" in global search) opens the form.
+  const wantsNewTicket = searchParams.get('new') === '1';
+  useEffect(() => {
+    if (!wantsNewTicket) return;
+    if (canRaiseTicket) setIsCreateModalOpen(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('new');
+      return next;
+    }, { replace: true });
+  }, [wantsNewTicket, canRaiseTicket, setSearchParams]);
+
   const closeTicketDetails = useCallback(() => {
     setSelectedTicket(null);
     clearDeepLink();

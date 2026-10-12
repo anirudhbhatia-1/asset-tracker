@@ -18,9 +18,26 @@ describe('error handler', () => {
     expect(respond(duplicate).status).toBe(409);
   });
 
+  it('turns a deadlock or serialization failure into a "try again" 409', () => {
+    for (const code of ['40P01', '40001']) {
+      const res = respond(Object.assign(new Error('deadlock detected'), { code }));
+      expect(res.status).toBe(409);
+      expect(res.body.message).toMatch(/try again/);
+    }
+  });
+
   it('keeps explicit status codes, messages and details', () => {
     const err = Object.assign(new Error('Return 1 assigned asset(s)'), { statusCode: 409, details: { assets: [{ id: 1 }] } });
     expect(respond(err)).toMatchObject({ status: 409, body: { message: 'Return 1 assigned asset(s)', details: { assets: [{ id: 1 }] } } });
+  });
+
+  it('passes a reason code through only as a string on a 4xx', () => {
+    expect(respond(Object.assign(new Error('Locked'), { statusCode: 423, reason: 'ACCOUNT_LOCKED' })).body.reason).toBe('ACCOUNT_LOCKED');
+    expect(respond(Object.assign(new Error('x'), { statusCode: 400, reason: { sql: 'SELECT' } })).body).not.toHaveProperty('reason');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const internal = Object.assign(new Error('boom'), { reason: 'ECONNRESET at 10.0.0.5:5432' });
+    expect(respond(internal).body).not.toHaveProperty('reason');
+    expect(respond(Object.assign(new Error('x'), { statusCode: 503, reason: 'DB_DOWN' })).body).not.toHaveProperty('reason');
   });
 
   it('hides unexpected error messages in production', () => {

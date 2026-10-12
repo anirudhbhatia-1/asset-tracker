@@ -19,6 +19,8 @@ export const grantEmployeeAccess = (id, roleOrId) => api.post(`/employees/${id}/
 export const resetEmployeePassword = (id) => api.post(`/employees/${id}/reset-password`);
 // Removes the employee's login. 409 if it would remove the last Director.
 export const revokeEmployeeAccess = (id) => api.post(`/employees/${id}/revoke-access`);
+// Clears a sign-in lockout (too many failed attempts). Answers { data: employee }.
+export const unlockEmployeeSignIn = (id) => api.post(`/employees/${id}/unlock`);
 
 // TESTING ONLY — remove when production Google Workspace flow is implemented
 export const grantEmployeeGoogleAccess = (id) => api.post(`/employees/${id}/grant-google-access`);

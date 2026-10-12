@@ -5,16 +5,19 @@ import StatusPill from '../ui/StatusPill';
 import WarrantyBadge from '../ui/WarrantyBadge';
 import { ChevronRight, MapPin, Calendar, User } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
+import SelectCheckbox from './SelectCheckbox';
 
-export default function AssetCard({ asset }) {
-  return (
+// With `onToggleSelect`, a checkbox sits over the card's top-left corner
+// (beside the link, not inside it, so it never opens the asset).
+export default function AssetCard({ asset, selectable = false, selected = false, onToggleSelect }) {
+  const card = (
     <Link
       to={`/inventory/${asset.id}`}
-      className="group block bg-surface border border-border/80 rounded-2xl hover:border-accent hover:shadow-lg hover:shadow-accent/5 transition-all overflow-hidden flex flex-col"
+      className={`group block h-full bg-surface border rounded-2xl hover:border-accent hover:shadow-lg hover:shadow-accent/5 transition-all overflow-hidden flex flex-col ${selected ? 'border-accent ring-2 ring-accent/30' : 'border-border/80'}`}
     >
       <div className="p-5 flex-1 space-y-4">
         {/* Header: Badge & Statuses */}
-        <div className="flex items-start justify-between gap-2">
+        <div className={`flex items-start justify-between gap-2 ${selectable ? 'pl-9' : ''}`}>
           <Badge
             badgeChar={asset.categoryBadgeChar || asset.categoryName || '?'}
             color={asset.categoryColor}
@@ -78,5 +81,18 @@ export default function AssetCard({ asset }) {
         </div>
       </div>
     </Link>
+  );
+
+  if (!selectable) return card;
+  return (
+    <div className="relative">
+      {card}
+      <SelectCheckbox
+        checked={selected}
+        onChange={() => onToggleSelect(asset.id)}
+        label={`Select ${asset.name}${asset.serialNumber ? ` (${asset.serialNumber})` : ''}`}
+        className="absolute top-3 left-3 md:top-4 md:left-4 bg-surface/80"
+      />
+    </div>
   );
 }

@@ -2,6 +2,7 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const categoryService = require('../services/categoryService');
+const { parsePagination } = require('../utils/pagination');
 
 const { validateSession, requirePermission } = require('../middleware/validateSession');
 
@@ -12,6 +13,12 @@ router.use(validateSession);
 // GET /api/categories — list all categories
 router.get('/', requirePermission('categories:read'), async (req, res, next) => {
   try {
+    // Optional paging (?limit=&offset=); without it, the full list as before.
+    const page = parsePagination(req.query);
+    if (page) {
+      const { rows, total } = await categoryService.getCategories(page);
+      return res.status(200).json({ data: rows, total, limit: page.limit, offset: page.offset, message: 'OK' });
+    }
     const categories = await categoryService.getCategories();
     res.status(200).json({
       data: categories,

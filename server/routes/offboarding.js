@@ -3,6 +3,7 @@ const { body, query } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const { validateSession, requirePermission } = require('../middleware/validateSession');
 const offboardingService = require('../services/offboardingService');
+const { parsePagination } = require('../utils/pagination');
 
 const router = express.Router();
 
@@ -31,7 +32,14 @@ router.get('/', [
     if (repeated.length > 0) {
       return res.status(400).json({ error: true, message: `Filter given more than once: ${repeated.join(', ')}`, code: 400 });
     }
-    const requests = await offboardingService.getRequests(req.query);
+    // Optional paging (?limit=&offset=); without it, the full list as before.
+    const page = parsePagination(req.query);
+    const filters = { status: req.query.status, employeeId: req.query.employeeId };
+    if (page) {
+      const { rows, total } = await offboardingService.getRequests(filters, page);
+      return res.status(200).json({ data: rows, total, limit: page.limit, offset: page.offset, message: 'OK' });
+    }
+    const requests = await offboardingService.getRequests(filters);
     res.status(200).json({ data: requests, total: requests.length, message: 'OK' });
   } catch (err) {
     next(err);

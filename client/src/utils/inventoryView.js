@@ -9,7 +9,11 @@ export function viewFromParams(params) {
 export function withViewParam(params, view) {
   const next = new URLSearchParams(params);
   if (view === 'bulk') next.set('view', 'bulk');
-  else next.delete('view');
+  else {
+    next.delete('view');
+    // A bulk item opened by link (?item=) belongs to the bulk view only.
+    next.delete('item');
+  }
   return next;
 }
 

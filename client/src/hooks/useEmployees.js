@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, updateEmployeeDetails, grantEmployeeAccess, grantEmployeeGoogleAccess, resetEmployeePassword, revokeEmployeeAccess } from '../api/employeesApi';
+import { getEmployees, createEmployee, deleteEmployeeApi, updateEmployeeRole, updateEmployeeDetails, grantEmployeeAccess, grantEmployeeGoogleAccess, resetEmployeePassword, revokeEmployeeAccess, unlockEmployeeSignIn } from '../api/employeesApi';
 import { invalidateQueries, setQueryData } from '../utils/queryCache';
 import useQuery, { errorMessageOf } from './useQuery';
 import { listOf } from './useAssets';
@@ -135,6 +135,26 @@ export default function useEmployees() {
     }
   };
 
+  // Lets a locked-out employee try signing in again straight away.
+  const unlockSignIn = async (id) => {
+    try {
+      const res = await unlockEmployeeSignIn(id);
+      const updated = res.data?.data;
+      if (updated?.id) {
+        mergeEmployee({ ...updated, lockedUntil: updated.lockedUntil ?? null });
+        reloadEmployees();
+      } else {
+        setQueryData(EMPLOYEES_KEY, (prev) => prev.map((e) => (e.id === id ? { ...e, lockedUntil: null } : e)));
+        await reloadEmployees();
+      }
+      toast.success('Sign-in unlocked; they can try again now');
+      return updated;
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to unlock sign-in');
+      throw err;
+    }
+  };
+
   // TESTING ONLY — remove when production Google Workspace flow is implemented
   const grantGoogleAccess = async (id) => {
     try {
@@ -163,5 +183,6 @@ export default function useEmployees() {
     grantGoogleAccess,
     resetPassword,
     revokeAccess,
+    unlockSignIn,
   };
 }

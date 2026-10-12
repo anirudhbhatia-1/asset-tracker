@@ -4,6 +4,7 @@
 // same transaction.
 const { pool, withTransaction } = require('../db');
 const { todayISO } = require('../utils/dates');
+const auditService = require('./auditService');
 
 const httpError = (statusCode, message) => {
   const err = new Error(message);
@@ -24,6 +25,7 @@ const mapItem = (row) => {
     categoryColor: row.category_color || null,
     categoryBadgeChar: row.category_badge_char || null,
     location: row.location || null,
+    purchaseDate: row.purchase_date || null,
     totalQuantity: total,
     givenOut,
     inStock,
@@ -130,10 +132,10 @@ const createItem = async (data, actor) => {
   try {
     const id = await withTransaction(async (client) => {
       const { rows: [row] } = await client.query(`
-        INSERT INTO stock_items (name, category_id, location, total_quantity, cost_cents, low_stock_threshold, notes)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        INSERT INTO stock_items (name, category_id, location, total_quantity, cost_cents, low_stock_threshold, notes, purchase_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [data.name.trim(), data.categoryId || null, data.location || null, quantity,
-        data.costCents ?? null, data.lowStockThreshold ?? null, data.notes || null]);
+        data.costCents ?? null, data.lowStockThreshold ?? null, data.notes || null, data.purchaseDate || null]);
       await logEvent(client, row.id, 'created', { quantity, actor, note: `Added with ${quantity} in stock` });
       return row.id;
     });
@@ -143,7 +145,7 @@ const createItem = async (data, actor) => {
   }
 };
 
-const UPDATABLE = { name: 'name', categoryId: 'category_id', location: 'location', costCents: 'cost_cents', lowStockThreshold: 'low_stock_threshold', notes: 'notes' };
+const UPDATABLE = { name: 'name', categoryId: 'category_id', location: 'location', costCents: 'cost_cents', lowStockThreshold: 'low_stock_threshold', notes: 'notes', purchaseDate: 'purchase_date' };
 
 const updateItem = async (id, data, actor) => {
   const sets = [];
@@ -252,6 +254,13 @@ const deleteItem = async (id, actor) => {
     if (item.givenOut > 0) throw httpError(409, `${item.givenOut} ${item.name} are still with people. Take them back first.`);
     await client.query('UPDATE stock_items SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [id]);
     await logEvent(client, id, 'deleted', { actor });
+    await auditService.record(client, {
+      eventType: 'stock.deleted',
+      actor,
+      targetType: 'system',
+      targetName: item.name,
+      details: { stockItemId: Number(id), totalQuantity: Number(item.total_quantity) },
+    });
   });
   return { id: Number(id), deleted: true };
 };

@@ -173,4 +173,25 @@ describe('bulk stock items', () => {
     await stockService.deleteItem(item.id, director);
     await categoryService.deleteCategory(category.id);
   });
+
+  it('stores, updates and clears the purchase date', async () => {
+    const it = await login('itadmin@company.com');
+    const create = await request(app).post('/api/stock').set(it)
+      .send({ name: `Dated Bag ${unique()}`, quantity: 5, purchaseDate: '2026-09-15' });
+    expect(create.status).toBe(201);
+    created.items.push(create.body.data.id);
+    expect(create.body.data.purchaseDate).toBe('2026-09-15');
+
+    const edit = await request(app).patch(`/api/stock/${create.body.data.id}`).set(it)
+      .send({ purchaseDate: '2026-10-01' });
+    expect(edit.body.data.purchaseDate).toBe('2026-10-01');
+
+    const cleared = await request(app).patch(`/api/stock/${create.body.data.id}`).set(it)
+      .send({ purchaseDate: null });
+    expect(cleared.body.data.purchaseDate).toBeNull();
+
+    expect((await request(app).post('/api/stock').set(it)
+      .send({ name: `Bad Date ${unique()}`, quantity: 1, purchaseDate: '15/09/2026' })).status).toBe(400);
+  });
 });
+

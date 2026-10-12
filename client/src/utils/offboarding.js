@@ -150,15 +150,20 @@ export const getCompleteBlocker = (request) => {
   return null;
 };
 
+// A Director (system role or a custom role with Director rights).
+export const isDirectorEmployee = (emp) => Boolean(emp && (emp.role === 'director' || emp.isDirector));
+
 /**
  * Employees who can be offboarded: still in the directory, not the signed-in
- * user, and without an open exit already.
+ * user, without an open exit already — and Directors only by a Director (the
+ * server enforces the same rule).
  */
-export const getOffboardableEmployees = (employees, currentUserId) => (
+export const getOffboardableEmployees = (employees, currentUserId, { actorIsDirector = false } = {}) => (
   (Array.isArray(employees) ? employees : []).filter(emp => (
     emp
     && !emp.deletedAt
     && !emp.offboarding
     && String(emp.id) !== String(currentUserId)
+    && (actorIsDirector || !isDirectorEmployee(emp))
   ))
 );

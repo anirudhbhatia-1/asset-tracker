@@ -10,6 +10,17 @@ const path = require('path');
 const fs = require('fs');
 const { exportAssetsToExcel, importAssetsFromExcel } = require('../services/importExportService');
 const { importAssetsFromCsv } = require('../services/csvImportService');
+const auditService = require('../services/auditService');
+
+// data.exported / data.imported entries; recorded after the work is done and
+// never able to fail the request.
+const auditData = (req, eventType, details) => auditService.record(undefined, {
+  eventType,
+  actor: req.user,
+  targetType: 'system',
+  targetName: 'Assets',
+  details,
+});
 
 const upload = multer({
   dest: path.join(__dirname, '../tmp/'),
@@ -95,10 +106,56 @@ router.get('/available', (req, res, next) => {
   }
 });
 
-// GET /api/assets/export — download all assets as .xlsx
+// Bulk actions take 1–200 distinct positive integer asset ids.
+const BULK_MAX = 200;
+const EXPORT_IDS_MAX = 1000;
+const isPositiveId = (value) => (Number.isSafeInteger(value) && value > 0)
+  || (typeof value === 'string' && /^[1-9]\d{0,9}$/.test(value) && Number(value) <= 2147483647);
+const assetIdsField = body('assetIds').custom((value) => {
+  if (!Array.isArray(value) || value.length < 1 || value.length > BULK_MAX) {
+    throw new Error(`must be a list of 1 to ${BULK_MAX} asset ids`);
+  }
+  if (!value.every(isPositiveId) || value.some((v) => Number(v) > 2147483647)) {
+    throw new Error('each asset id must be a positive integer');
+  }
+  if (new Set(value.map(Number)).size !== value.length) {
+    throw new Error('asset ids must not repeat');
+  }
+  return true;
+});
+const assetIdsOf = (req) => req.body.assetIds.map(Number);
+
+// GET /api/assets/export — download assets as .xlsx: everything, or only
+// ?ids=1,2,3 (the Inventory selection).
 router.get('/export', requirePermission('assets:export'), async (req, res, next) => {
   try {
-    const workbook = await exportAssetsToExcel();
+    const repeated = Object.keys(req.query).filter((key) => Array.isArray(req.query[key]));
+    if (repeated.length > 0) {
+      return res.status(400).json({ error: true, message: `Filter given more than once: ${repeated.join(', ')}`, code: 400 });
+    }
+    let ids = null;
+    if (req.query.ids !== undefined) {
+      const parts = String(req.query.ids).split(',').map((part) => part.trim());
+      if (parts.length === 0 || parts.length > EXPORT_IDS_MAX || !parts.every((part) => isPositiveId(part))) {
+        return res.status(400).json({ error: true, message: `ids must be a comma-separated list of 1 to ${EXPORT_IDS_MAX} asset ids`, code: 400 });
+      }
+      ids = [...new Set(parts.map(Number))];
+    }
+    const workbook = await exportAssetsToExcel({}, { ids });
+    // The workbook is built, so the export has happened: record it before
+    // streaming, or a dropped download (or an immediate look at the access
+    // history) would miss it.
+    await auditData(req, 'data.exported', {
+      entity: 'assets',
+      format: 'xlsx',
+      // A selection is recorded by size, not by listing every id.
+      filters: (() => {
+        const { ids: _ids, ...rest } = req.query;
+        const filters = { ...rest, ...(ids ? { ids: ids.length } : {}) };
+        return Object.keys(filters).length > 0 ? filters : null;
+      })(),
+      count: workbook.exportedAssetCount ?? null,
+    });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=AssetTrack_Export_${new Date().toISOString().substring(0,10)}.xlsx`);
     await workbook.xlsx.write(res);
@@ -118,6 +175,17 @@ router.post('/import', requirePermission('assets:import'), upload.single('file')
     }
     const dryRun = req.query.dryRun === 'true';
     const results = await importAssetsFromExcel(filePath, req.user, {}, { dryRun });
+    if (!dryRun) {
+      await auditData(req, 'data.imported', {
+        entity: 'assets',
+        format: 'xlsx',
+        fileName: req.file.originalname,
+        count: results.imported,
+        total: results.total,
+        skipped: results.skipped.length,
+        errors: results.errors.length,
+      });
+    }
     const counts = `${results.skipped.length} skipped, ${results.errors.length} with errors`;
     res.status(200).json({
       data: results,
@@ -144,6 +212,16 @@ router.post('/import-csv', requirePermission('assets:import'), csvUpload.single(
     }
     const dryRun = req.query.dryRun === 'true';
     const results = await importAssetsFromCsv(filePath, req.user, { dryRun });
+    if (!dryRun) {
+      await auditData(req, 'data.imported', {
+        entity: 'assets',
+        format: 'csv',
+        fileName: req.file.originalname,
+        count: results.imported,
+        total: results.total,
+        errors: results.errors.length,
+      });
+    }
     res.status(200).json({
       data: results,
       message: dryRun
@@ -156,6 +234,71 @@ router.post('/import-csv', requirePermission('assets:import'), csvUpload.single(
     if (filePath) {
       fs.unlink(filePath, () => {});
     }
+  }
+});
+
+// POST /api/assets/bulk/assign — hand several available company assets to
+// one employee. All or nothing.
+router.post('/bulk/assign', [
+  requirePermission('assets:assign'),
+  assetIdsField,
+  body('employeeId').notEmpty().withMessage('employeeId is required').isInt({ min: 1, max: 2147483647 }),
+  body('note').optional({ nullable: true }).isString().trim().isLength({ max: 500 }),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const result = await assetService.bulkAssignAssets(
+      Number(req.body.employeeId), assetIdsOf(req), req.body.note || null, req.user, { companyOnly: true }
+    );
+    res.status(200).json({ data: { assigned: result.assigned }, message: `${result.assigned} asset(s) assigned` });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/assets/bulk/return — return every selected in-use asset; the
+// rest are reported as skipped.
+router.post('/bulk/return', [
+  requirePermission('assets:assign'),
+  assetIdsField,
+  body('note').optional({ nullable: true }).isString().trim().isLength({ max: 500 }),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const result = await assetService.bulkReturnAssets(assetIdsOf(req), req.body.note || null, req.user);
+    const skippedText = result.skipped.length ? `, ${result.skipped.length} skipped` : '';
+    res.status(200).json({ data: result, message: `${result.returned} asset(s) returned${skippedText}` });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/assets/bulk/update — set location and/or category on several assets.
+router.post('/bulk/update', [
+  requirePermission('assets:update'),
+  assetIdsField,
+  body('changes').custom((changes) => {
+    if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new Error('must be an object');
+    const keys = Object.keys(changes);
+    const unknown = keys.filter((key) => !['location', 'categoryId'].includes(key));
+    if (unknown.length) throw new Error(`unknown field(s): ${unknown.join(', ')}`);
+    if (keys.length === 0) throw new Error('choose at least one change (location or categoryId)');
+    if ('location' in changes && changes.location !== null) {
+      if (typeof changes.location !== 'string') throw new Error('location must be text or null');
+      if (changes.location.trim().length > 100) throw new Error('location must be at most 100 characters');
+    }
+    if ('categoryId' in changes && changes.categoryId !== null && !isPositiveId(changes.categoryId)) {
+      throw new Error('categoryId must be a positive integer or null');
+    }
+    return true;
+  }),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const result = await assetService.bulkUpdateAssets(assetIdsOf(req), req.body.changes, req.user);
+    res.status(200).json({ data: result, message: `${result.updated} asset(s) updated` });
+  } catch (err) {
+    next(err);
   }
 });
 

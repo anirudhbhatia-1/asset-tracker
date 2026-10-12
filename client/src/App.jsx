@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 import MainLayout from './components/layout/MainLayout';
+import RouteErrorBoundary from './components/ErrorBoundary';
 import { recordLocation } from './utils/navHistory';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -88,6 +89,7 @@ const App = () => {
         <AuthProvider>
           <LocationTracker />
           <AppToaster />
+          <RouteErrorBoundary fullScreen>
           <Suspense fallback={
             <div className="flex h-screen w-full items-center justify-center bg-base">
               <div className="flex flex-col items-center gap-4">
@@ -107,7 +109,7 @@ const App = () => {
                   <Route path="profile" element={<ProfilePage />} />
 
                   {/* Settings Routes */}
-                  <Route element={<ProtectedRoute requiredAnyPermission={['roles:read', 'categories:manage', 'locations:manage']} />}>
+                  <Route element={<ProtectedRoute requiredAnyPermission={['roles:read', 'categories:manage', 'locations:manage', 'audit:read']} />}>
                     <Route path="settings/*" element={<Settings />} />
                   </Route>
 
@@ -155,6 +157,7 @@ const App = () => {
               </Route>
             </Routes>
           </Suspense>
+          </RouteErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

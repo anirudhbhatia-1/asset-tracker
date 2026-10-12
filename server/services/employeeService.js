@@ -1,5 +1,6 @@
 const { pool, withTransaction } = require('../db');
 const { hasPermission, expandPermissions, getDefaultPermissionsForRole } = require('../middleware/validateSession');
+const auditService = require('./auditService');
 
 const OPEN_OFFBOARDING_SQL = `(
   SELECT json_build_object('id', o.id, 'lastWorkingDate', o.last_working_date, 'status', o.status)
@@ -26,11 +27,15 @@ const mapEmployee = (row) => {
     role: row.role || null,
     roleId: row.role_id || null,
     roleName: row.role_name || row.role || null,
+    // A Director by system role or by a custom role with Director rights.
+    isDirector: row.role === 'director' || Boolean(row.is_director),
     customRoleName: row.custom_role_name || row.role_name || row.role || null,
     adminType: row.admin_type || null,
     // The open exit, if one is in progress: { id, lastWorkingDate, status }.
     offboarding: row.offboarding || null,
     hasLogin: row.has_login !== undefined ? Boolean(row.has_login) : (row.password_hash != null || row.google_id != null || Boolean(row.role)),
+    // Set while password sign-in is locked after repeated failures.
+    lockedUntil: row.active_locked_until || null,
   };
 };
 
@@ -93,7 +98,8 @@ const getEmployees = async (filters = {}) => {
     SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.work_mode, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role, e.role_id, e.admin_type, e.password_hash,
-           r.name as role_name, r.name as custom_role_name,
+           CASE WHEN e.locked_until > NOW() THEN e.locked_until END AS active_locked_until,
+           r.name as role_name, r.name as custom_role_name, r.is_director,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count,
            ${OPEN_OFFBOARDING_SQL} AS offboarding
     FROM employees e
@@ -108,12 +114,15 @@ const getEmployees = async (filters = {}) => {
   return result.rows.map(mapEmployee);
 };
 
-const getEmployeeById = async (id) => {
-  const result = await pool.query(`
+// `executor` — a transaction client, to read what that transaction has
+// already changed (offboarding revokes access, then removes the employee).
+const getEmployeeById = async (id, executor = pool) => {
+  const result = await executor.query(`
     SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.work_mode, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
            e.role, e.role_id, e.admin_type, e.password_hash,
-           r.name as role_name, r.name as custom_role_name,
+           CASE WHEN e.locked_until > NOW() THEN e.locked_until END AS active_locked_until,
+           r.name as role_name, r.name as custom_role_name, r.is_director,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count,
            ${OPEN_OFFBOARDING_SQL} AS offboarding
     FROM employees e
@@ -176,7 +185,7 @@ const validateCorporateEmail = (email) => {
 
 // Directory entry only: no role means no login until access is granted.
 // googleId is deliberately not accepted from callers.
-const createEmployee = async (data) => {
+const createEmployee = async (data, actingUser = null) => {
   const { name, department, location, address, avatarUrl } = data;
   const workMode = data.workMode || 'office';
   const email = String(data.email).trim().toLowerCase();
@@ -194,6 +203,10 @@ const createEmployee = async (data) => {
     RETURNING id
   `, [name, email, department ?? null, location ?? null, address ?? null, avatarUrl ?? null, workMode]);
 
+  await auditEmployee(undefined, actingUser, 'employee.created', { id: result.rows[0].id, name, email }, {
+    newValue: { department: department ?? null, workMode },
+    details: { withLogin: false },
+  });
   return getEmployeeById(result.rows[0].id);
 };
 
@@ -205,12 +218,33 @@ const forbidden = (message) => {
   return err;
 };
 
+// Access audit entries about one employee. `client` keeps the entry in the
+// same transaction as the change.
+// { role: display name, roleId }
+const roleSnapshot = (role) => (role ? { role: role.name ?? null, roleId: role.id ?? null } : null);
+const employeeRoleSnapshot = (employee) => (employee.role || employee.roleId
+  ? { role: employee.roleName || employee.role || null, roleId: employee.roleId || null }
+  : null);
+
+const auditEmployee = (client, actingUser, eventType, employee, { oldValue, newValue, details } = {}) => (
+  auditService.record(client, {
+    eventType,
+    actor: actingUser || null,
+    targetType: 'employee',
+    targetId: employee.id,
+    targetName: employee.name,
+    oldValue: oldValue ?? null,
+    newValue: newValue ?? null,
+    details: { email: employee.email, ...(details || {}) },
+  })
+);
+
 // Resolves a role by id or name, including the permissions it effectively
 // grants (roles without DB permissions fall back to the base-role defaults,
 // mirroring validateSession).
-const resolveRole = async (roleOrRoleId) => {
+const resolveRole = async (roleOrRoleId, executor = pool) => {
   const isNumeric = roleOrRoleId !== null && roleOrRoleId !== '' && !isNaN(Number(roleOrRoleId));
-  const { rows } = await pool.query(`
+  const { rows } = await executor.query(`
     SELECT r.id, r.name, r.admin_type, r.is_director, r.is_system,
            ARRAY_AGG(p.key) FILTER (WHERE p.key IS NOT NULL) AS permissions
     FROM roles r
@@ -234,6 +268,7 @@ const resolveRole = async (roleOrRoleId) => {
   const permissions = (row.permissions || []).filter(Boolean);
   return {
     id: row.id,
+    name: row.name,
     baseRole,
     adminType: row.admin_type,
     isDirector,
@@ -245,8 +280,8 @@ const resolveRole = async (roleOrRoleId) => {
 };
 
 // The privileges an existing employee currently holds, or null if they have none.
-const getCurrentRole = async (employee) => {
-  if (employee.roleId) return resolveRole(employee.roleId);
+const getCurrentRole = async (employee, executor = pool) => {
+  if (employee.roleId) return resolveRole(employee.roleId, executor);
   if (!employee.role) return null;
   const baseRole = BASE_SYSTEM_ROLES.includes(employee.role) ? employee.role : 'employee';
   return {
@@ -288,17 +323,29 @@ const createEmployeeWithAccess = async (data, actingUser) => {
   assertCanActOnRole(actingUser, targetRole, 'assign');
 
   const crypto = require('crypto');
-  const bcrypt = require('bcrypt');
+  const { hashPassword } = require('./passwordPolicy');
   const temporaryPassword = crypto.randomBytes(9).toString('base64url');
-  const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+  const passwordHash = await hashPassword(temporaryPassword);
 
-  const result = await pool.query(`
-    INSERT INTO employees (name, email, department, location, address, work_mode, google_id, avatar_url, is_google_synced, password_hash, role, role_id, admin_type, must_change_password, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, 0, $7, $8, $9, $10, true, NOW())
-    RETURNING id
-  `, [name, email, department ?? null, location ?? null, address ?? null, data.workMode || 'office', passwordHash, targetRole.baseRole, targetRole.id, targetRole.adminType]);
+  const newId = await withTransaction(async (client) => {
+    const result = await client.query(`
+      INSERT INTO employees (name, email, department, location, address, work_mode, google_id, avatar_url, is_google_synced, password_hash, role, role_id, admin_type, must_change_password, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, 0, $7, $8, $9, $10, true, NOW())
+      RETURNING id
+    `, [name, email, department ?? null, location ?? null, address ?? null, data.workMode || 'office', passwordHash, targetRole.baseRole, targetRole.id, targetRole.adminType]);
+    const id = result.rows[0].id;
+    await auditEmployee(client, actingUser, 'employee.created', { id, name, email }, {
+      newValue: { department: department ?? null, workMode: data.workMode || 'office' },
+      details: { withLogin: true },
+    });
+    await auditEmployee(client, actingUser, 'employee.access_granted', { id, name, email }, {
+      newValue: { ...roleSnapshot(targetRole), method: 'password' },
+      details: { newEmployee: true },
+    });
+    return id;
+  });
 
-  const employee = await getEmployeeById(result.rows[0].id);
+  const employee = await getEmployeeById(newId);
   return { employee, temporaryPassword };
 };
 
@@ -368,6 +415,12 @@ const updateEmployee = async (id, data, actingUser) => {
 
     if (isEmailChange) {
       await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+      if (current.hasLogin) {
+        await auditEmployee(client, actingUser, 'employee.email_changed', current, {
+          oldValue: { email: current.email },
+          newValue: { email },
+        });
+      }
     }
   });
 
@@ -378,7 +431,10 @@ const updateEmployee = async (id, data, actingUser) => {
 const inTransaction = (client, fn) => (client ? fn(client) : withTransaction(fn));
 
 const deleteEmployee = async (id, actingUser, options = {}) => {
-  const current = await getEmployeeById(id);
+  // Inside an outer transaction, read through it so the audit entry reflects
+  // what that transaction already changed (e.g. access revoked just before).
+  const reader = options.client || pool;
+  const current = await getEmployeeById(id, reader);
 
   if (current.deletedAt) {
     return { id: Number(id), deleted: true };
@@ -388,7 +444,7 @@ const deleteEmployee = async (id, actingUser, options = {}) => {
 
   // Hardware must be handed back first, or it would stay assigned to a
   // hidden, removed account.
-  const { rows: heldAssets } = await pool.query(
+  const { rows: heldAssets } = await reader.query(
     `SELECT id, name, serial_number FROM assets WHERE assigned_to = $1 AND status = 'in-use' ORDER BY name`,
     [id]
   );
@@ -416,6 +472,10 @@ const deleteEmployee = async (id, actingUser, options = {}) => {
     }
     await client.query('UPDATE employees SET deleted_at = NOW() WHERE id = $1', [id]);
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+    await auditEmployee(client, actingUser, 'employee.removed', current, {
+      oldValue: { ...employeeRoleSnapshot(current), hasLogin: current.hasLogin },
+      details: options.auditDetails,
+    });
   });
   return { id: Number(id), deleted: true };
 };
@@ -462,11 +522,20 @@ const updateEmployeeRole = async (id, roleOrRoleId, actingUser) => {
   assertCanActOnRole(actingUser, targetRole, 'assign');
 
   await withTransaction(async (client) => {
-    await client.query('SELECT id FROM employees WHERE id = $1 FOR UPDATE', [id]);
+    const { rows: [locked] } = await client.query(
+      'SELECT role, role_id FROM employees WHERE id = $1 FOR UPDATE', [id]
+    );
+    // Assigning the role the employee already holds changes nothing: no
+    // sign-out, no audit entry.
+    if (locked && locked.role_id === targetRole.id && locked.role === targetRole.baseRole) return;
     if (!targetRole.isDirector) await assertNotLastDirector(client, id, 'demote');
     await applyRole(client, id, targetRole);
     // Role changes take effect on the next login.
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+    await auditEmployee(client, actingUser, 'employee.role_changed', current, {
+      oldValue: employeeRoleSnapshot(current),
+      newValue: roleSnapshot(targetRole),
+    });
   });
 
   return getEmployeeById(id);
@@ -490,11 +559,14 @@ const grantEmployeeAccess = async (id, roleOrRoleId, passwordHash, actingUser) =
   // role. A temporary password must be replaced at first login.
   await withTransaction(async (client) => {
     await client.query(
-      'UPDATE employees SET password_hash = $1, must_change_password = true WHERE id = $2',
+      'UPDATE employees SET password_hash = $1, must_change_password = true, failed_login_count = 0, last_failed_login_at = NULL, locked_until = NULL WHERE id = $2',
       [passwordHash, id]
     );
     await applyRole(client, id, targetRole);
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+    await auditEmployee(client, actingUser, 'employee.access_granted', current, {
+      newValue: { ...roleSnapshot(targetRole), method: 'password' },
+    });
   });
 
   return getEmployeeById(id);
@@ -512,11 +584,15 @@ const resetEmployeePassword = async (id, passwordHash, actingUser) => {
   assertCanActOnRole(actingUser, await getCurrentRole(current), 'reset the password of');
 
   await withTransaction(async (client) => {
+    // A new temporary password also clears any lockout.
     await client.query(
-      'UPDATE employees SET password_hash = $1, must_change_password = true WHERE id = $2',
+      'UPDATE employees SET password_hash = $1, must_change_password = true, failed_login_count = 0, last_failed_login_at = NULL, locked_until = NULL WHERE id = $2',
       [passwordHash, id]
     );
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+    await auditEmployee(client, actingUser, 'employee.password_reset', current, {
+      details: { mustChangePassword: true, wasLocked: Boolean(current.lockedUntil) },
+    });
   });
   return getEmployeeById(id);
 };
@@ -537,14 +613,19 @@ const revokeEmployeeAccess = async (id, actingUser, options = {}) => {
     await assertNotLastDirector(client, id, 'revoke access for');
     await client.query(`
       UPDATE employees
-      SET password_hash = NULL, role = NULL, role_id = NULL, google_id = NULL, must_change_password = false
+      SET password_hash = NULL, role = NULL, role_id = NULL, google_id = NULL, must_change_password = false,
+          failed_login_count = 0, last_failed_login_at = NULL, locked_until = NULL
       WHERE id = $1`, [id]);
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
+    await auditEmployee(client, actingUser, 'employee.access_revoked', current, {
+      oldValue: { ...employeeRoleSnapshot(current), hasLogin: current.hasLogin },
+      details: options.auditDetails,
+    });
   });
   return getEmployeeById(id);
 };
 
-const grantGoogleAccess = async (id) => {
+const grantGoogleAccess = async (id, actingUser = null) => {
   const current = await getEmployeeById(id);
   validateCorporateEmail(current.email);
   if (current.hasLogin) {
@@ -552,7 +633,40 @@ const grantGoogleAccess = async (id) => {
     err.statusCode = 400;
     throw err;
   }
-  await applyRole(pool, id, await resolveRole('employee'));
+  const targetRole = await resolveRole('employee');
+  await withTransaction(async (client) => {
+    await applyRole(client, id, targetRole);
+    await auditEmployee(client, actingUser, 'employee.access_granted', current, {
+      newValue: { ...roleSnapshot(targetRole), method: 'google' },
+    });
+  });
+  return getEmployeeById(id);
+};
+
+// Lifts a lockout from repeated failed sign-ins (see authService.login).
+const unlockEmployee = async (id, actingUser) => {
+  const current = await getEmployeeById(id);
+  if (current.deletedAt) {
+    const err = new Error('This employee has been removed');
+    err.statusCode = 400;
+    throw err;
+  }
+  assertCanActOnRole(actingUser, await getCurrentRole(current), 'unlock');
+
+  await withTransaction(async (client) => {
+    const { rows: [before] } = await client.query(
+      `SELECT locked_until, failed_login_count, (locked_until IS NOT NULL AND locked_until > NOW()) AS is_locked
+       FROM employees WHERE id = $1 FOR UPDATE`, [id]
+    );
+    await client.query('UPDATE employees SET failed_login_count = 0, last_failed_login_at = NULL, locked_until = NULL WHERE id = $1', [id]);
+    // Only lifting an active lock is an event worth recording; unlocking an
+    // account that isn't locked just clears the failure count.
+    if (!before.is_locked) return;
+    await auditEmployee(client, actingUser, 'account.unlocked', current, {
+      oldValue: { lockedUntil: before.locked_until, failedLoginCount: before.failed_login_count },
+      newValue: { lockedUntil: null },
+    });
+  });
   return getEmployeeById(id);
 };
 
@@ -572,5 +686,7 @@ module.exports = {
   grantEmployeeAccess,
   resolveRole,
   assertCanActOnRole,
+  getCurrentRole,
   grantGoogleAccess,
+  unlockEmployee,
 };

@@ -1,0 +1,3 @@
+# server/data holds files shipped with the API (e.g. the common-password list),
+# not database data; the repository-wide "data/" ignore does not apply here.
+!data/

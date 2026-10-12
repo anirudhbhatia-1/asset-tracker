@@ -1,9 +1,10 @@
 import React from 'react';
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
-import { Settings as SettingsIcon, Tags, MapPin, ShieldCheck } from 'lucide-react';
+import { Settings as SettingsIcon, Tags, MapPin, ShieldCheck, History } from 'lucide-react';
 import CategoriesTab from '../components/categories/CategoriesTab';
 import LocationsTab from '../components/settings/LocationsTab';
 import RolesTab from '../components/settings/RolesTab';
+import AuditLogTab from '../components/settings/AuditLogTab';
 import { useAuth } from '../context/AuthContext';
 import ProtectedRoute from '../components/layout/ProtectedRoute';
 import PageHeader from '../components/ui/PageHeader';
@@ -18,6 +19,7 @@ const Settings = () => {
     { name: 'Roles & Permissions', path: '/settings/roles', icon: ShieldCheck, permissionKey: 'roles:read' },
     { name: 'Categories', path: '/settings/categories', icon: Tags, permissionKey: 'categories:read' },
     { name: 'Locations', path: '/settings/locations', icon: MapPin, permissionKey: 'locations:read' },
+    { name: 'Access history', path: '/settings/audit', icon: History, permissionKey: 'audit:read' },
   ];
 
   const visibleTabs = tabs.filter(tab => {
@@ -25,15 +27,25 @@ const Settings = () => {
     return hasPermission(tab.permissionKey);
   });
 
-  // Unknown or bare /settings paths land on the first tab this user can open.
-  const defaultSettingsPath = visibleTabs[0]?.path || '/';
+  // Unknown or bare /settings paths land on the tab that gave this user
+  // access to Settings (everyone can read categories, so "first visible tab"
+  // would send someone who may only see Access history to Categories).
+  const preferredTab = [
+    ['roles:read', '/settings/roles'],
+    ['categories:manage', '/settings/categories'],
+    ['locations:manage', '/settings/locations'],
+    ['audit:read', '/settings/audit'],
+  ].find(([key]) => hasPermission(key));
+  const defaultSettingsPath = preferredTab?.[1] || visibleTabs[0]?.path || '/';
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <PageHeader
         icon={SettingsIcon}
         title="System Settings"
-        subtitle="Manage roles and permissions, asset categories, and office locations."
+        subtitle={hasPermission('audit:read')
+          ? 'Manage roles and permissions, asset categories and office locations, and review access history.'
+          : 'Manage roles and permissions, asset categories, and office locations.'}
       />
 
       {/* Tabs Navigation */}
@@ -71,6 +83,9 @@ const Settings = () => {
           </Route>
           <Route element={<ProtectedRoute requiredPermission="locations:read" />}>
             <Route path="locations" element={<LocationsTab />} />
+          </Route>
+          <Route element={<ProtectedRoute requiredPermission="audit:read" />}>
+            <Route path="audit" element={<AuditLogTab />} />
           </Route>
           <Route path="*" element={<Navigate to={defaultSettingsPath} replace />} />
         </Routes>

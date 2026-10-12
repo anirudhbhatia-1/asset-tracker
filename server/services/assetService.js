@@ -1,6 +1,7 @@
 const { pool, withTransaction } = require('../db');
 const { todayISO } = require('../utils/dates');
 const historyService = require('./historyService');
+const auditService = require('./auditService');
 
 const mapAsset = (row) => {
   if (!row) return null;
@@ -123,13 +124,17 @@ const getAssets = async (filters = {}) => {
     if (filters.warranty === 'no-warranty') {
       conditions.push(`a.warranty_expiry_date IS NULL`);
     } else if (filters.warranty === 'expired') {
-      conditions.push(`a.warranty_expiry_date < CURRENT_DATE`);
+      params.push(todayISO());
+      conditions.push(`a.warranty_expiry_date < $${params.length}::date`);
     } else if (filters.warranty === 'expiring-soon') {
-      // Within 60 days
-      conditions.push(`a.warranty_expiry_date >= CURRENT_DATE AND a.warranty_expiry_date <= CURRENT_DATE + 60`);
+      // Within 60 days of today in the company's time zone (not the DB's),
+      // and not retired assets — the same rule as the dashboard's warranty card.
+      params.push(todayISO());
+      conditions.push(`a.warranty_expiry_date >= $${params.length}::date AND a.warranty_expiry_date <= $${params.length}::date + 60 AND a.status <> 'retired'`);
     } else if (filters.warranty === 'in-warranty') {
       // More than 60 days
-      conditions.push(`a.warranty_expiry_date > CURRENT_DATE + 60`);
+      params.push(todayISO());
+      conditions.push(`a.warranty_expiry_date > $${params.length}::date + 60`);
     }
   }
 
@@ -440,6 +445,15 @@ const deleteAsset = async (id, confirm, actorUser = null) => {
       throw err;
     }
     await historyService.logEvent(id, 'deleted', actorUser, current.assignedTo, `Permanently deleted asset: ${current.name} (${current.serialNumber})`, null, client);
+    // Destructive: also goes in the access history, where asset history
+    // alone would vanish with the asset's page.
+    await auditService.record(client, {
+      eventType: 'asset.deleted',
+      actor: actorUser,
+      targetType: 'system',
+      targetName: `${current.name} (${current.serialNumber})`,
+      details: { assetId: Number(id), serialNumber: current.serialNumber, status: current.status, assetType: current.assetType },
+    });
     await client.query('DELETE FROM assets WHERE id = $1', [id]);
   });
 
@@ -464,6 +478,15 @@ const lockAsset = async (client, id) => {
   return rows[0];
 };
 
+// Locks the given assets AND their accessories in one fixed order (by id)
+// before any of them is changed. Every single and bulk assign/return/retire
+// takes its locks this way, so two of them running at once can never wait on
+// each other in a loop (which Postgres would abort as a deadlock).
+const lockAssetsWithAccessories = (client, ids) => client.query(
+  'SELECT id FROM assets WHERE id = ANY($1::int[]) OR parent_id = ANY($1::int[]) ORDER BY id FOR UPDATE',
+  [ids.map(Number)]
+);
+
 /**
  * Assigns an asset (and its accessories) to an employee.
  * options.reassign     — allow taking it from its current holder (explicit
@@ -478,6 +501,7 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null,
   const dateToSet = assignedDate || todayISO();
 
   await inTransaction(outerClient, async (client) => {
+    await lockAssetsWithAccessories(client, [id]);
     const current = await lockAsset(client, id);
 
     if (current.status === 'retired') {
@@ -549,6 +573,7 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null,
 const returnAsset = async (id, note, actorUser = null, options = {}) => {
   const { client: outerClient = null } = options;
   await inTransaction(outerClient, async (client) => {
+    await lockAssetsWithAccessories(client, [id]);
     const current = await lockAsset(client, id);
 
     if (current.status === 'retired') {
@@ -603,6 +628,7 @@ const retireAsset = async (id, note, confirm, actorUser = null) => {
   }
 
   await withTransaction(async (client) => {
+    await lockAssetsWithAccessories(client, [id]);
     const current = await lockAsset(client, id);
     if (current.status === 'retired') {
       const err = new Error('Asset is already retired');
@@ -641,7 +667,10 @@ const retireAsset = async (id, note, confirm, actorUser = null) => {
   return getAssetById(id);
 };
 
-const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
+// options.companyOnly — refuse client-owned assets (Inventory bulk actions
+// hand out company stock only).
+const bulkAssignAssets = async (employeeId, assetIds, note, actorUser, options = {}) => {
+  const { companyOnly = false } = options;
   if (!Array.isArray(assetIds) || assetIds.length === 0) {
     const err = new Error('assetIds must be a non-empty array');
     err.statusCode = 400;
@@ -658,15 +687,40 @@ const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
   const assignedNote = note || `Bulk assignment of ${assetIds.length} asset(s)`;
   // Lock in a fixed order so two overlapping bulk assignments can't deadlock.
   const orderedIds = [...new Set(assetIds.map(Number))].sort((a, b) => a - b);
+  // Accessories already carried along with their parent earlier in this batch
+  // (e.g. a laptop and its charger both selected) are assigned, not "busy".
+  const cascaded = new Set();
   await withTransaction(async (client) => {
+    await lockAssetsWithAccessories(client, orderedIds);
+    if (companyOnly) {
+      // Checked for every selected asset up front (an accessory selected with
+      // its parent is otherwise skipped below and never checked).
+      const { rows: clientOwned } = await client.query(
+        "SELECT name FROM assets WHERE id = ANY($1::int[]) AND asset_type = 'client' ORDER BY id LIMIT 1",
+        [orderedIds]
+      );
+      if (clientOwned.length) {
+        throw Object.assign(
+          new Error(`Asset "${clientOwned[0].name}" is client-owned and can't be assigned from company stock`),
+          { statusCode: 409 }
+        );
+      }
+    }
     for (const assetId of orderedIds) {
+      if (cascaded.has(assetId)) continue;
       // Lock the row and verify it is available
       const assetCheck = await client.query(
-        'SELECT id, name, status FROM assets WHERE id = $1 FOR UPDATE',
+        'SELECT id, name, status, asset_type FROM assets WHERE id = $1 FOR UPDATE',
         [assetId]
       );
       if (assetCheck.rows.length === 0) {
         throw Object.assign(new Error(`Asset #${assetId} not found`), { statusCode: 404 });
+      }
+      if (companyOnly && assetCheck.rows[0].asset_type === 'client') {
+        throw Object.assign(
+          new Error(`Asset "${assetCheck.rows[0].name}" is client-owned and can't be assigned from company stock`),
+          { statusCode: 409 }
+        );
       }
       if (assetCheck.rows[0].status !== 'available') {
         throw Object.assign(
@@ -684,15 +738,114 @@ const bulkAssignAssets = async (employeeId, assetIds, note, actorUser) => {
       // Cascade to any sub-assets (parent-child — Feature 3 prerequisite)
       const { rows: moved } = await client.query(
         `UPDATE assets SET status = 'in-use', assigned_to = $1, assigned_date = $2, updated_at = NOW()
-         WHERE parent_id = $3 AND status = 'available' RETURNING id`,
-        [employeeId, today, assetId]
+         WHERE parent_id = $3 AND status = 'available'
+           AND ($4::boolean IS NOT TRUE OR asset_type = 'company') RETURNING id`,
+        [employeeId, today, assetId, companyOnly]
       );
       for (const sub of moved) {
+        cascaded.add(Number(sub.id));
         await historyService.logEvent(sub.id, 'assigned', actorUser, employeeId, `Cascaded from parent asset #${assetId}`, null, client);
       }
     }
   });
   return { assigned: orderedIds.length, employeeId };
+};
+
+/**
+ * Returns every in-use asset in `assetIds` in one transaction (client-owned
+ * ones go back to their client, accessories follow as in returnAsset).
+ * Anything not in use is skipped rather than failing the batch.
+ */
+const bulkReturnAssets = async (assetIds, note, actorUser) => {
+  const orderedIds = [...new Set(assetIds.map(Number))].sort((a, b) => a - b);
+  const returnedIds = new Set();
+  const skipped = [];
+  await withTransaction(async (client) => {
+    await lockAssetsWithAccessories(client, orderedIds);
+    for (const assetId of orderedIds) {
+      // Already brought back as an accessory of another asset in this batch.
+      if (returnedIds.has(assetId)) continue;
+      const { rows: [current] } = await client.query(
+        'SELECT id, name, status, assigned_to FROM assets WHERE id = $1 FOR UPDATE', [assetId]
+      );
+      if (!current) {
+        skipped.push({ id: assetId, name: null, reason: 'Asset not found' });
+        continue;
+      }
+      if (current.status !== 'in-use') {
+        skipped.push({ id: assetId, name: current.name, reason: `Not in use (status: ${current.status})` });
+        continue;
+      }
+      const { rows: accessories } = await client.query(
+        "SELECT id FROM assets WHERE parent_id = $1 AND status = 'in-use' AND assigned_to = $2",
+        [assetId, current.assigned_to]
+      );
+      await returnAsset(assetId, note || undefined, actorUser, { client });
+      returnedIds.add(assetId);
+      for (const sub of accessories) returnedIds.add(sub.id);
+    }
+  });
+  // Accessories returned with their parent count only if they were selected.
+  const returned = orderedIds.filter((id) => returnedIds.has(id)).length;
+  // An accessory skipped before its parent was processed did come back after all.
+  return { returned, skipped: skipped.filter((s) => !returnedIds.has(s.id)) };
+};
+
+/**
+ * Applies the same location and/or category to many assets in one
+ * transaction, with an 'updated' history entry per asset. All or nothing:
+ * unknown or retired assets fail the whole batch.
+ */
+const bulkUpdateAssets = async (assetIds, changes, actorUser) => {
+  const hasLocation = Object.prototype.hasOwnProperty.call(changes, 'location');
+  const hasCategory = Object.prototype.hasOwnProperty.call(changes, 'categoryId');
+  if (!hasLocation && !hasCategory) {
+    throw Object.assign(new Error('Choose at least one change'), { statusCode: 400 });
+  }
+  const location = hasLocation ? (changes.location ? String(changes.location).trim() || null : null) : undefined;
+  const categoryId = hasCategory ? (changes.categoryId == null ? null : Number(changes.categoryId)) : undefined;
+
+  let categoryName = null;
+  if (hasCategory && categoryId !== null) {
+    const { rows } = await pool.query('SELECT name FROM categories WHERE id = $1', [categoryId]);
+    if (rows.length === 0) throw Object.assign(new Error('Category not found'), { statusCode: 400 });
+    categoryName = rows[0].name;
+  }
+
+  const orderedIds = [...new Set(assetIds.map(Number))].sort((a, b) => a - b);
+  await withTransaction(async (client) => {
+    const { rows } = await client.query(`
+      SELECT a.id, a.name, a.status, a.location, a.category_id, a.assigned_to, c.name AS category_name
+      FROM assets a LEFT JOIN categories c ON c.id = a.category_id
+      WHERE a.id = ANY($1::int[])
+      ORDER BY a.id
+      FOR UPDATE OF a
+    `, [orderedIds]);
+    const found = new Map(rows.map((row) => [row.id, row]));
+    const missing = orderedIds.find((id) => !found.has(id));
+    if (missing) throw Object.assign(new Error(`Asset #${missing} not found`), { statusCode: 404 });
+    const retired = rows.find((row) => row.status === 'retired');
+    if (retired) {
+      throw Object.assign(new Error(`"${retired.name}" is retired; retired assets cannot be changed`), { statusCode: 400 });
+    }
+
+    await client.query(`
+      UPDATE assets
+      SET location = CASE WHEN $2::boolean THEN $3::text ELSE location END,
+          category_id = CASE WHEN $4::boolean THEN $5::int ELSE category_id END,
+          updated_at = NOW()
+      WHERE id = ANY($1::int[])
+    `, [orderedIds, hasLocation, location ?? null, hasCategory, categoryId ?? null]);
+
+    for (const row of rows) {
+      const parts = [];
+      if (hasLocation) parts.push(`location: ${row.location || 'none'} → ${location || 'none'}`);
+      if (hasCategory) parts.push(`category: ${row.category_name || 'none'} → ${categoryName || 'none'}`);
+      await historyService.logEvent(row.id, 'updated', actorUser, row.assigned_to,
+        `Bulk update: ${parts.join('; ')}`, null, client);
+    }
+  });
+  return { updated: orderedIds.length };
 };
 
 module.exports = {
@@ -708,5 +861,7 @@ module.exports = {
   returnAsset,
   retireAsset,
   bulkAssignAssets,
+  bulkReturnAssets,
+  bulkUpdateAssets,
   lockAsset,
 };

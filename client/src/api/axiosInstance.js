@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearRecentItems } from '../utils/searchPalette';
 
 export const shouldRedirectForUnauthorized = (error) => (
   error.response?.status === 401 && !error.config?.skipAuthRedirect
@@ -62,6 +63,9 @@ axiosInstance.interceptors.response.use(
     if (shouldRedirectForUnauthorized(error)) {
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');
+      // Same forgetting as AuthContext's sign-out: the palette's recently
+      // opened items don't outlive the session either.
+      clearRecentItems();
       window.location.href = '/login';
     } else if (isPasswordChangeRequired(error)) {
       flagPasswordChangeRequired();

@@ -1,26 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Plus, Bell, Sun, Moon, X, LogOut, Menu, ChevronDown, Key, User } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, LogOut, Menu, ChevronDown, Key, User } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from './ChangePasswordModal';
 import useNotifications from '../../hooks/useNotifications';
 import NotificationPanel from './NotificationPanel';
+import usePaletteShortcut from '../../hooks/usePaletteShortcut';
+import { shortcutLabel } from '../../utils/searchPalette';
+// Bundled with the layout (small), so keys typed right after Ctrl+K are
+// never lost while a chunk downloads.
+import CommandPalette from '../search/CommandPalette';
 
 const TopBar = ({ toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, logout, hasPermission } = useAuth();
   const { notifications, loading: notifLoading, hasUnread, refresh, markAsRead } = useNotifications();
-  // Search lands on the inventory, which needs assets:read. The inventory
-  // has its own (debounced) search box, so this one steps aside there.
-  const canSearchAssets = hasPermission('assets:read') && location.pathname !== '/inventory';
+  const shortcut = shortcutLabel();
+
+  // Ctrl+K / ⌘K anywhere, or "/" outside text fields, opens global search.
+  usePaletteShortcut({
+    isOpen: isPaletteOpen,
+    onOpen: () => setIsPaletteOpen(true),
+    onClose: () => setIsPaletteOpen(false),
+  });
 
   const userMenuButtonRef = useRef(null);
 
@@ -48,53 +57,15 @@ const TopBar = ({ toggleSidebar }) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isUserMenuOpen]);
 
-  // Start empty on every page (a search typed elsewhere doesn't linger).
+  // Leaving the page (e.g. Back) closes search.
   useEffect(() => {
-    setQuery('');
-    setIsSearchExpanded(false);
+    setIsPaletteOpen(false);
   }, [location.pathname]);
 
-  // Typing only updates the box; Enter opens the inventory with the search,
-  // so no request is sent per keystroke.
-  const handleSearchChange = (e) => setQuery(e.target.value);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && query.trim()) {
-      navigate(`/inventory?q=${encodeURIComponent(query.trim())}`);
-      setIsSearchExpanded(false);
-    }
-  };
-
-
+  const openPalette = () => setIsPaletteOpen(true);
 
   return (
     <header className="h-[4.5rem] bg-surface/80 backdrop-blur-xl border-b border-border/80 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 shadow-[0_1px_0_rgba(20,33,58,0.02)]">
-      
-      {/* Mobile Expanded Search */}
-      {isSearchExpanded && canSearchAssets ? (
-        <div className="flex-1 flex items-center gap-2">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
-            <input
-              type="text"
-              autoFocus
-              value={query}
-              onChange={handleSearchChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Search assets..."
-              className="w-full pl-9 pr-4 py-2 bg-raised/80 border border-border rounded-xl text-base md:text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
-            />
-          </div>
-          <button 
-            type="button"
-            onClick={() => setIsSearchExpanded(false)}
-            className="p-2.5 rounded-lg text-secondary hover:text-primary"
-            aria-label="Close search"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      ) : (
         <>
           {/* Page Title & Desktop Search */}
           <div className="flex items-center gap-3 sm:gap-6 flex-1 max-w-xl overflow-hidden">
@@ -117,35 +88,34 @@ const TopBar = ({ toggleSidebar }) => {
             </div>
 
             
-            {/* Inline from lg; below that it's an icon that opens a full-width box. */}
-            {canSearchAssets && (
-            <div className="relative w-full hidden lg:block">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
-              <input
-                type="text"
-                value={query}
-                onChange={handleSearchChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Search assets by serial or name..."
-                className="w-full pl-9 pr-4 py-2 bg-raised/80 border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
-              />
-            </div>
-            )}
+            {/* Looks like a field from lg; opens the global search palette.
+                Below lg it's the icon button on the right. */}
+            <button
+              type="button"
+              onClick={openPalette}
+              aria-haspopup="dialog"
+              aria-keyshortcuts="Control+K Meta+K"
+              aria-label={`Search everything (${shortcut})`}
+              className="hidden lg:flex items-center gap-2.5 w-full max-w-md pl-3 pr-2 py-2 bg-raised/80 border border-border rounded-xl text-sm text-secondary hover:border-accent/50 hover:text-primary focus-visible:outline-none focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent transition-colors cursor-text text-left"
+            >
+              <Search className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="flex-1 truncate">Search everything…</span>
+              <kbd aria-hidden="true" className="shrink-0 font-sans text-[11px] font-medium px-1.5 py-0.5 rounded-md border border-border bg-surface text-secondary">{shortcut}</kbd>
+            </button>
           </div>
 
           {/* Quick Actions & User Profile */}
           <div className="flex items-center gap-1 sm:gap-4 shrink-0 ml-2">
             
-            {canSearchAssets && (
-            <button 
+            <button
               type="button"
               className="lg:hidden p-2.5 rounded-lg text-secondary hover:text-primary hover:bg-raised/50"
-              onClick={() => setIsSearchExpanded(true)}
+              onClick={openPalette}
+              aria-haspopup="dialog"
               aria-label="Open search"
             >
               <Search className="w-5 h-5" />
             </button>
-            )}
 
             {/* Only Users with assets:create permission can add assets */}
             {hasPermission('assets:create') && (
@@ -303,6 +273,9 @@ const TopBar = ({ toggleSidebar }) => {
             </div>
           </div>
         </>
+
+      {isPaletteOpen && (
+        <CommandPalette onClose={() => setIsPaletteOpen(false)} />
       )}
 
       {/* Change Password Modal */}

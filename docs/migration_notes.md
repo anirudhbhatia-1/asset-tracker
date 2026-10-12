@@ -2,7 +2,7 @@
 
 > **Historical document.** This describes the original plan and parts of it no longer match
 > the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
-> configuration and API are documented in [README.md](README.md).
+> configuration and API are documented in [README.md](../README.md).
 
 ## Audit Findings for `inventory:*` Key Replacements
 

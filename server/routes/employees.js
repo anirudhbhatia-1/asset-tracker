@@ -4,8 +4,9 @@ const validateRequest = require('../middleware/validateRequest');
 const employeeService = require('../services/employeeService');
 const onboardingService = require('../services/onboardingService');
 const assetService = require('../services/assetService');
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { hashPassword } = require('../services/passwordPolicy');
+const logger = require('../logger');
 
 const { validateSession, requireRole, requirePermission, hasPermission } = require('../middleware/validateSession');
 
@@ -113,7 +114,7 @@ const linkOnboarding = async (employee, actorUser) => {
   try {
     return await onboardingService.assignFulfilledItemsToEmployee(employee, actorUser);
   } catch (err) {
-    console.error(`Could not assign onboarding assets to employee #${employee.id}:`, err.message);
+    logger.error(`Could not assign onboarding assets to employee #${employee.id}: ${err.message}`);
     return [`Onboarding assets could not be assigned automatically: ${err.message}`];
   }
 };
@@ -152,7 +153,7 @@ router.post('/', [
       return res.status(201).json({ data: employee, temporaryPassword, warnings, message: 'Employee created with login access' });
     }
 
-    const created = await employeeService.createEmployee(req.body);
+    const created = await employeeService.createEmployee(req.body, req.user);
     const warnings = await linkOnboarding(created, req.user);
     res.status(201).json({ data: created, warnings, message: 'Employee created successfully' });
   } catch (err) {
@@ -211,7 +212,7 @@ router.post('/:id/grant-access', [
   try {
     const roleOrId = req.body.roleId || req.body.role || 'employee';
     const temporaryPassword = crypto.randomBytes(9).toString('base64url');
-    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    const passwordHash = await hashPassword(temporaryPassword);
     
     const updated = await employeeService.grantEmployeeAccess(Number(req.params.id), roleOrId, passwordHash, req.user);
     
@@ -234,13 +235,28 @@ router.post('/:id/reset-password', [
 ], async (req, res, next) => {
   try {
     const temporaryPassword = crypto.randomBytes(9).toString('base64url');
-    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    const passwordHash = await hashPassword(temporaryPassword);
     const updated = await employeeService.resetEmployeePassword(Number(req.params.id), passwordHash, req.user);
     res.status(200).json({
       data: updated,
       temporaryPassword,
       message: 'Password reset. Share the temporary password securely; it must be changed at next login.',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/employees/:id/unlock — lift a lockout caused by repeated failed
+// password sign-ins. Same rules as resetting a password.
+router.post('/:id/unlock', [
+  requirePermission('employees:grant-access'),
+  param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
+  validateRequest,
+], async (req, res, next) => {
+  try {
+    const updated = await employeeService.unlockEmployee(Number(req.params.id), req.user);
+    res.status(200).json({ data: updated, message: 'Account unlocked' });
   } catch (err) {
     next(err);
   }
@@ -270,7 +286,7 @@ router.post('/:id/grant-google-access', [
     return res.status(403).json({ error: true, message: 'Granting testing Google access is disabled in production environment.' });
   }
   try {
-    const updated = await employeeService.grantGoogleAccess(Number(req.params.id));
+    const updated = await employeeService.grantGoogleAccess(Number(req.params.id), req.user);
     res.status(200).json({
       data: updated,
       message: 'Google login access granted successfully',

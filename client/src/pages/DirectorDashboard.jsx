@@ -5,6 +5,7 @@ import Dashboard from './Dashboard';
 import ExecutiveOverview from '../components/dashboard/ExecutiveOverview';
 import HrDashboard from './HrDashboard';
 import EmployeeDashboard from './EmployeeDashboard';
+import AttentionPanel from '../components/dashboard/AttentionPanel';
 import SegmentedControl from '../components/ui/SegmentedControl';
 import { withSearchParam } from '../utils/searchParams';
 
@@ -52,6 +53,9 @@ export default function DirectorDashboard() {
           <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
+
+      {/* Shown once for every tab (embedded dashboards leave theirs out). */}
+      <AttentionPanel />
 
       {/* Mode View Switcher Tabs (selected view is kept in the URL as ?tab=) */}
       <div className="border-b border-border/80 pb-3">

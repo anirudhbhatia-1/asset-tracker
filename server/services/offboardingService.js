@@ -1,7 +1,9 @@
 const { pool, withTransaction } = require('../db');
+const { queryPage } = require('../utils/pagination');
 const assetService = require('./assetService');
 const employeeService = require('./employeeService');
 const historyService = require('./historyService');
+const auditService = require('./auditService');
 const { hasPermission } = require('../middleware/validateSession');
 
 const OPEN_STATUSES = ['pending', 'in_progress'];
@@ -116,6 +118,18 @@ const lockRequest = async (client, id) => {
 };
 
 // The person leaving can see their exit but never change it.
+// Only a Director may offboard a Director: start, edit, cancel, collect their
+// assets or complete their exit. (Completing also checks the full role rules
+// when it revokes access or removes the person.)
+const assertMayOffboard = async (employeeId, actingUser, executor = pool) => {
+  if (!actingUser || hasPermission(actingUser, '*')) return;
+  // Reads through the caller's transaction connection when there is one, so
+  // it doesn't need extra pool connections while holding one.
+  const employee = await employeeService.getEmployeeById(employeeId, executor);
+  const role = await employeeService.getCurrentRole(employee, executor);
+  if (role?.isDirector) throw httpError(403, 'Only a Director can offboard a Director');
+};
+
 const assertNotOwnExit = (request, actingUser) => {
   if (actingUser && Number(request.employee_id) === Number(actingUser.id)) {
     throw httpError(403, 'You cannot change your own offboarding');
@@ -128,7 +142,8 @@ const assertOpen = (request) => {
   }
 };
 
-const getRequests = async (filters = {}) => {
+// With `page` ({ limit, offset }) returns { rows, total } for that page.
+const getRequests = async (filters = {}, page = null) => {
   const params = [];
   const conditions = [];
   if (filters.status === 'open') {
@@ -142,11 +157,13 @@ const getRequests = async (filters = {}) => {
     conditions.push(`o.employee_id = $${params.length}`);
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const { rows } = await pool.query(
-    `${REQUEST_SELECT} ${where}
-     ORDER BY (o.status IN ('pending', 'in_progress')) DESC, o.last_working_date ASC, o.id DESC`,
-    params
-  );
+  const sql = `${REQUEST_SELECT} ${where}
+     ORDER BY (o.status IN ('pending', 'in_progress')) DESC, o.last_working_date ASC, o.id DESC`;
+  if (page) {
+    const { rows, total } = await queryPage(pool, sql.replace(/\bFROM offboarding_requests o\b/, '{{total}} FROM offboarding_requests o'), params, page);
+    return { rows: rows.map(mapRequest), total };
+  }
+  const { rows } = await pool.query(sql, params);
   return rows.map(mapRequest);
 };
 
@@ -172,6 +189,7 @@ const getRequestById = async (id) => {
 
 const createRequest = async (actingUser, { employeeId, lastWorkingDate, reason, notes, revokeAccess = true }) => {
   if (reason && !REASONS.includes(reason)) throw httpError(400, 'Unknown reason');
+  await assertMayOffboard(employeeId, actingUser);
   if (Number(employeeId) === Number(actingUser.id)) {
     throw httpError(400, 'You cannot start your own offboarding');
   }
@@ -195,6 +213,19 @@ const createRequest = async (actingUser, { employeeId, lastWorkingDate, reason, 
       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [employeeId, lastWorkingDate, reason || null, notes || null, revokeAccess !== false, actingUser.id]);
     await syncItems(client, request, actingUser);
+    const { rows: [{ count: toCollect }] } = await client.query(
+      "SELECT COUNT(*)::int AS count FROM offboarding_items WHERE offboarding_request_id = $1 AND status = 'pending'",
+      [request.id]
+    );
+    await auditService.record(client, {
+      eventType: 'offboarding.started',
+      actor: actingUser,
+      targetType: 'employee',
+      targetId: Number(employeeId),
+      targetName: employee.name,
+      newValue: { lastWorkingDate, reason: reason || null },
+      details: { assetsToCollect: toCollect, offboardingRequestId: request.id },
+    });
     return request.id;
   });
   return getRequestById(id);
@@ -205,6 +236,7 @@ const updateRequest = async (id, { lastWorkingDate, reason, notes, revokeAccess 
   await withTransaction(async (client) => {
     const request = await lockRequest(client, id);
     assertNotOwnExit(request, actingUser);
+    await assertMayOffboard(request.employee_id, actingUser, client);
     assertOpen(request);
     await client.query(`
       UPDATE offboarding_requests
@@ -239,6 +271,7 @@ const resolveItem = async (requestId, itemId, { outcome, condition, notes }, act
   await withTransaction(async (client) => {
     const request = await lockRequest(client, requestId);
     assertNotOwnExit(request, actingUser);
+    await assertMayOffboard(request.employee_id, actingUser, client);
     assertOpen(request);
     await syncItems(client, request, actingUser);
 
@@ -313,6 +346,7 @@ const completeRequest = async (id, { revokeAccess, deactivateEmployee = false },
   await withTransaction(async (client) => {
     const request = await lockRequest(client, id);
     assertNotOwnExit(request, actingUser);
+    await assertMayOffboard(request.employee_id, actingUser, client);
     assertOpen(request);
     await syncItems(client, request, actingUser);
 
@@ -333,16 +367,34 @@ const completeRequest = async (id, { revokeAccess, deactivateEmployee = false },
       if (!hasPermission(actingUser, 'employees:grant-access')) {
         throw httpError(403, "Revoking login access requires the 'employees:grant-access' permission");
       }
-      await employeeService.revokeEmployeeAccess(request.employee_id, actingUser, { client });
+      await employeeService.revokeEmployeeAccess(request.employee_id, actingUser, { client, auditDetails: { offboardingRequestId: Number(id) } });
     }
     if (deactivateEmployee && !employee.deletedAt) {
-      await employeeService.deleteEmployee(request.employee_id, actingUser, { client });
+      await employeeService.deleteEmployee(request.employee_id, actingUser, { client, auditDetails: { offboardingRequestId: Number(id) } });
     }
 
     await client.query(`
       UPDATE offboarding_requests
       SET status = 'completed', revoke_access = $2, completed_by = $3, completed_at = NOW(), updated_at = NOW()
       WHERE id = $1`, [id, shouldRevoke && hasActiveLogin, actingUser.id]);
+    const { rows: [outcome] } = await client.query(`
+      SELECT COUNT(*) FILTER (WHERE status = 'returned')::int AS returned,
+             COUNT(*) FILTER (WHERE status = 'missing')::int AS missing
+      FROM offboarding_items WHERE offboarding_request_id = $1`, [id]);
+    await auditService.record(client, {
+      eventType: 'offboarding.completed',
+      actor: actingUser,
+      targetType: 'employee',
+      targetId: Number(request.employee_id),
+      targetName: employee.name,
+      details: {
+        offboardingRequestId: Number(id),
+        revokedAccess: Boolean(shouldRevoke && hasActiveLogin),
+        removedFromDirectory: Boolean(deactivateEmployee && !employee.deletedAt),
+        returned: outcome.returned,
+        missing: outcome.missing,
+      },
+    });
   });
   return getRequestById(id);
 };
@@ -351,10 +403,20 @@ const cancelRequest = async (id, actingUser) => {
   await withTransaction(async (client) => {
     const request = await lockRequest(client, id);
     assertNotOwnExit(request, actingUser);
+    await assertMayOffboard(request.employee_id, actingUser, client);
     assertOpen(request);
     await client.query(
       `UPDATE offboarding_requests SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [id]
     );
+    const { rows: [leaver] } = await client.query('SELECT name FROM employees WHERE id = $1', [request.employee_id]);
+    await auditService.record(client, {
+      eventType: 'offboarding.cancelled',
+      actor: actingUser || null,
+      targetType: 'employee',
+      targetId: Number(request.employee_id),
+      targetName: leaver?.name || null,
+      details: { offboardingRequestId: Number(id) },
+    });
   });
   return getRequestById(id);
 };

@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { X, Printer } from 'lucide-react';
 import useFocusTrap from '../../hooks/useFocusTrap';
 import { escapeHtml } from '../../utils/html';
+import { closeAfterPrint } from '../../utils/qrLabels';
 
 export default function QrTagModal({ isOpen, onClose, asset }) {
   const printRef = useRef(null);
@@ -94,10 +95,12 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
     `);
     printWindow.document.close();
     // Print from here rather than an inline script in the popup, which the
-    // production Content-Security-Policy would block.
+    // production Content-Security-Policy would block. Closed on afterprint
+    // (not synchronously, which would cut Safari's print dialog short), with
+    // a timeout fallback.
     printWindow.focus();
+    closeAfterPrint(printWindow);
     printWindow.print();
-    printWindow.close();
   };
 
   return (

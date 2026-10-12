@@ -1,5 +1,24 @@
 # Example Nginx configuration for AssetTrack (static web app + API proxy).
-# Requires nginx 1.25.1+ for the `http2 on;` directive.
+# Works with the nginx that Ubuntu 22.04/24.04 install (`listen … http2`;
+# on nginx 1.25.1+ you may switch to `listen 443 ssl;` + `http2 on;`).
+#
+# Setup on the VM:
+#   sudo cp nginx-security-headers.conf.example /etc/nginx/snippets/assettrack-security-headers.conf
+#   sudo cp nginx.conf.example /etc/nginx/sites-available/assettrack   (edit server_name / paths)
+#   sudo ln -s /etc/nginx/sites-available/assettrack /etc/nginx/sites-enabled/assettrack
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Caching strategy:
+#   /assets/*.{js,css,...}  Vite output with a content hash in the file name:
+#                           cached for a year and marked immutable.
+#   index.html + SPA routes  `no-cache`: the browser revalidates on every load,
+#                           so a new deploy is picked up immediately.
+#   other files in dist/     (favicon, logo, CSV template) `no-cache` too; they
+#                           are small and revalidation is a cheap 304.
+#
+# IMPORTANT (add_header inheritance): a location that has any `add_header`
+# does NOT inherit the server-level ones. Every such location below includes
+# the security-header snippet again — keep it that way when editing.
 
 server {
     # Redirect HTTP to HTTPS
@@ -12,8 +31,7 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    http2 on;
+    listen 443 ssl http2;
     server_name assettrack.yourcompany.com;
 
     # SSL Configuration (assuming Let's Encrypt / Certbot)
@@ -26,30 +44,71 @@ server {
     # nginx's default (1 MB) would reject them first.
     client_max_body_size 12m;
 
-    # Security headers (`always` so they are also sent on error responses)
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(self), microphone=(), geolocation=()" always;
-    # Google Identity Services needs accounts.google.com; fonts come from Google Fonts.
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
+    # Security headers for every response that does not set its own headers
+    # (the /api proxy, redirects, nginx error pages).
+    include /etc/nginx/snippets/assettrack-security-headers.conf;
 
-    # Gzip Compression
+    # Compression. gzip is built into nginx.
     gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/json application/xml application/xml+rss application/manifest+json image/svg+xml;
+
+    # Brotli needs the ngx_brotli module (not in stock nginx; on Debian/Ubuntu
+    # `apt install libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static`).
+    # Uncomment once the module is installed:
+    # brotli on;
+    # brotli_comp_level 5;
+    # brotli_types text/plain text/css text/xml text/javascript application/javascript application/json application/xml application/manifest+json image/svg+xml;
 
     # 1. Serve the built web app (client/dist after `npm run build`)
     root /var/www/assettrack/client/dist;
     index index.html;
 
+    # The app shell: always revalidated so new deploys load immediately.
+    location = /index.html {
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/snippets/assettrack-security-headers.conf;
+    }
+
+    # Hashed build output. NOTE: /assets/<id> is also a client route (asset
+    # detail page), so only paths that look like files are served from disk;
+    # anything else falls through to the app shell.
+    location /assets/ {
+        # Source maps are built ('hidden') for error reporting only; never serve them.
+        location ~* \.map$ {
+            return 404;
+        }
+        location ~* \.(?:js|mjs|css|woff2?|ttf|svg|png|jpe?g|gif|webp|avif|ico|json|wasm)$ {
+            # A missing chunk is a real 404 (never index.html served as JS).
+            try_files $uri =404;
+            add_header Cache-Control "public, max-age=31536000, immutable" always;
+            include /etc/nginx/snippets/assettrack-security-headers.conf;
+            access_log off;
+        }
+        rewrite ^ /index.html last;
+    }
+
+    # Source maps anywhere else: not served either.
+    location ~* \.map$ {
+        return 404;
+    }
+
     location / {
         # Single Page Application: fall back to index.html for client routes
+        # (the fallback is served by `location = /index.html` above, no-cache).
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/snippets/assettrack-security-headers.conf;
     }
 
     # 2. Proxy API requests to the Node.js backend (listening on localhost only)
-    location /api/ {
+    # No add_header here, so the server-level security headers apply.
+    # Set TRUST_PROXY_HOPS=1 in server/.env so the API reads the client IP from
+    # X-Forwarded-For (otherwise rate limits see every user as 127.0.0.1).
+    location ^~ /api/ {
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -58,5 +117,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         # Imports of large workbooks can take a while.
         proxy_read_timeout 180s;
+        # The API sends its own security headers (helmet); drop them so the
+        # server-level ones from the snippet aren't duplicated.
+        proxy_hide_header Strict-Transport-Security;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header X-Content-Type-Options;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header Referrer-Policy;
+        proxy_hide_header Permissions-Policy;
     }
 }

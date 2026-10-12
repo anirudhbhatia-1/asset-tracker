@@ -6,6 +6,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import api from '../api/axiosInstance';
 import { getGoogleButtonWidth, getGoogleLoginError, isGoogleLoginConfigured } from '../utils/googleAuth';
 import { getPostLoginPath } from '../utils/redirect';
+import { loginErrorMessage } from '../utils/authErrors';
 
 const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
   const [email, setEmail] = useState('');
@@ -43,7 +44,7 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
-      setFormError(err.response?.data?.message || 'Invalid credentials');
+      setFormError(loginErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

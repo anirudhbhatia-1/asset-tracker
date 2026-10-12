@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import useEmployees from '../hooks/useEmployees';
 import EmployeeAssetDrawer from '../components/employees/EmployeeAssetDrawer';
@@ -10,18 +11,21 @@ import EditEmployeeModal from '../components/forms/EditEmployeeModal';
 import BulkAssignModal from '../components/forms/BulkAssignModal';
 import StartOffboardingModal from '../components/offboarding/StartOffboardingModal';
 import { useOffboarding } from '../hooks/useOffboarding';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatDateTime } from '../utils/formatters';
 import RoleManagementPanel from '../components/dashboard/RoleManagementPanel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
-import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX, UserMinus, LogOut, Home, Shuffle, MapPin, Pencil } from 'lucide-react';
+import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX, UserMinus, LogOut, Home, Shuffle, MapPin, Pencil, Lock, LockOpen } from 'lucide-react';
 import { onActivateKey } from '../utils/a11y';
 import { WORK_MODES, matchesWorkModeFilter } from '../utils/workMode';
 import { getInitials } from '../utils/initials';
 import { distinctDepartments } from '../utils/departments';
 import { roleLabel } from '../utils/roleLabel';
 import RowActionsMenu from '../components/employees/RowActionsMenu';
+import { isSignInLocked } from '../utils/lockout';
+import { isDirectorEmployee } from '../utils/offboarding';
+import { resolveDeepLink } from '../utils/searchParams';
 const ACCESS_FILTERS = ['All', 'With Access', 'No Access'];
 const WORK_MODE_FILTERS = [{ value: 'all', label: 'All' }, ...WORK_MODES];
 // Lower-priority columns, shown from lg / xl so the table fits beside the
@@ -49,10 +53,14 @@ export default function Employees() {
   const canEdit = hasPermission('employees:manage');
   const canAssignAssets = hasPermission('employees:assign-assets');
   const canStartOffboarding = hasPermission('offboarding:create');
+  // Only a Director may reset, unlock, revoke or offboard a Director (the
+  // server refuses it for everyone else), so those actions aren't offered.
+  const actorIsDirector = Boolean(user?.isDirector || user?.role === 'director');
+  const mayManage = (emp) => actorIsDirector || !isDirectorEmployee(emp);
   const canReadOffboarding = hasPermission('offboarding:read');
   const navigate = useNavigate();
   const { createRequest: createOffboarding } = useOffboarding();
-  const { employees, loading, refreshing, error, refresh, addEmployee, updateEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline, resetPassword, revokeAccess } = useEmployees();
+  const { employees, loading, refreshing, error, refresh, addEmployee, updateEmployee, changeRole, grantAccess, grantGoogleAccess, changeRoleInline, resetPassword, revokeAccess, unlockSignIn } = useEmployees();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'roles'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
@@ -76,6 +84,42 @@ export default function Employees() {
   }, [canManageRoles, activeTab]);
 
   const safeEmployees = useMemo(() => (Array.isArray(employees) ? employees : []), [employees]);
+
+  // Deep link (e.g. from global search): /employees?employee=<id> opens that
+  // person's assets drawer once the directory has loaded.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('employee');
+  const handledDeepLinkRef = useRef(null);
+  const clearDeepLink = useCallback(() => {
+    setSearchParams((prev) => {
+      if (!prev.has('employee')) return prev;
+      const next = new URLSearchParams(prev);
+      next.delete('employee');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    if (!deepLinkId) {
+      handledDeepLinkRef.current = null;
+      return;
+    }
+    if (handledDeepLinkRef.current === deepLinkId) return;
+    // Decided only once the directory has settled: while it loads or
+    // refreshes nothing is concluded, and if it failed to load, "not found"
+    // would mislead — the link stays so a retry can still honour it.
+    const { status, match } = resolveDeepLink({ id: deepLinkId, list: safeEmployees, loading, refreshing, error });
+    if (status === 'wait' || status === 'error') return;
+    handledDeepLinkRef.current = deepLinkId;
+    if (status === 'open') {
+      setActiveTab('directory');
+      setSelectedEmployee(match);
+      setIsDrawerOpen(true);
+    } else {
+      toast.error('That person was not found or is no longer visible to you.');
+      clearDeepLink();
+    }
+  }, [deepLinkId, loading, refreshing, error, safeEmployees, clearDeepLink]);
   // Department chips come from the people actually in the directory.
   const departmentFilters = useMemo(() => ['All', ...distinctDepartments(safeEmployees)], [safeEmployees]);
 
@@ -180,14 +224,23 @@ export default function Employees() {
         icon: ShieldCheck,
         onSelect: withFocus(() => openGrantAccess(emp)),
       },
-      canGrantAccess && emp.hasLogin && {
+      canGrantAccess && emp.hasLogin && mayManage(emp) && {
         key: 'reset',
         label: 'Reset Password',
         ariaLabel: `Reset password for ${emp.name}`,
         icon: KeyRound,
         onSelect: withFocus(() => openAccessAction('reset', emp)),
       },
-      canStartOffboarding && !emp.offboarding && !emp.deletedAt && !isSelf && {
+      canGrantAccess && isSignInLocked(emp) && mayManage(emp) && {
+        key: 'unlock',
+        label: 'Unlock sign-in',
+        ariaLabel: `Unlock sign-in for ${emp.name}`,
+        icon: LockOpen,
+        iconClassName: 'text-warning',
+        // Errors are reported by the hook's toast.
+        onSelect: () => { unlockSignIn(emp.id).catch(() => {}); },
+      },
+      canStartOffboarding && !emp.offboarding && !emp.deletedAt && !isSelf && mayManage(emp) && {
         key: 'offboard',
         label: 'Offboard',
         ariaLabel: `Start offboarding for ${emp.name}`,
@@ -195,7 +248,7 @@ export default function Employees() {
         iconClassName: 'text-warning',
         onSelect: withFocus(() => setOffboardTarget(emp)),
       },
-      canGrantAccess && emp.hasLogin && !isSelf && {
+      canGrantAccess && emp.hasLogin && !isSelf && mayManage(emp) && {
         key: 'revoke',
         label: 'Revoke Access',
         ariaLabel: `Revoke login access for ${emp.name}`,
@@ -210,6 +263,16 @@ export default function Employees() {
   const renderBadges = (emp) => (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="font-medium text-primary">{emp.name}</span>
+      {isSignInLocked(emp) && (
+        <span
+          title={`Sign-in locked after too many failed attempts, until ${formatDateTime(emp.lockedUntil)}`}
+          className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded-full whitespace-nowrap"
+        >
+          <Lock className="w-3 h-3" aria-hidden="true" />
+          Locked
+          <span className="sr-only">: sign-in locked until {formatDateTime(emp.lockedUntil)}</span>
+        </span>
+      )}
       <WorkModeBadge mode={emp.workMode} />
       {emp.offboarding && (canReadOffboarding ? (
         <Link
@@ -602,6 +665,7 @@ export default function Employees() {
           restoreFocus();
           setIsDrawerOpen(false);
           setSelectedEmployee(null);
+          clearDeepLink();
         }}
         employee={selectedEmployee}
       />

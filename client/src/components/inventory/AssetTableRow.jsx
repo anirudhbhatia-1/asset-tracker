@@ -6,6 +6,7 @@ import WarrantyBadge from '../ui/WarrantyBadge';
 import { ChevronRight, MapPin, User } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
 import { onActivateKey } from '../../utils/a11y';
+import SelectCheckbox from './SelectCheckbox';
 
 // Columns that only appear on wider screens (kept in sync with AssetTable's
 // header) so the table fits beside the sidebar without sideways scrolling.
@@ -15,7 +16,7 @@ const FROM_LG = 'hidden lg:table-cell';
 
 const stop = (e) => e.stopPropagation();
 
-const AssetTableRow = memo(function AssetTableRow({ asset }) {
+const AssetTableRow = memo(function AssetTableRow({ asset, selectable = false, selected = false, onToggleSelect }) {
   const navigate = useNavigate();
   const href = `/inventory/${asset.id}`;
 
@@ -32,8 +33,18 @@ const AssetTableRow = memo(function AssetTableRow({ asset }) {
       onClick={openAsset}
       onKeyDown={onActivateKey(() => navigate(href))}
       tabIndex={0}
-      className="hover:bg-raised/40 transition-colors group cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2"
+      className={`${selected ? 'bg-accent/[0.06] hover:bg-accent/10' : 'hover:bg-raised/40'} transition-colors group cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2`}
     >
+      {selectable && (
+        // Clicking around the box selects too, never opens the asset.
+        <td className="pl-2 pr-0 py-1.5 w-10" onClick={stop}>
+          <SelectCheckbox
+            checked={selected}
+            onChange={() => onToggleSelect(asset.id)}
+            label={`Select ${asset.name}${asset.serialNumber ? ` (${asset.serialNumber})` : ''}`}
+          />
+        </td>
+      )}
       {/* Category Icon & Badge */}
       <td className={`${FROM_LG} px-3 py-3.5 whitespace-nowrap`}>
         <Badge

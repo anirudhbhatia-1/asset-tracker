@@ -2,7 +2,7 @@
 
 > **Historical document.** This describes the original plan and parts of it no longer match
 > the code (for example it may mention SQLite, in-memory sessions or JWT). The current setup,
-> configuration and API are documented in [README.md](README.md).
+> configuration and API are documented in [README.md](../README.md).
 
 **Document Version:** 1.0  
 **Date:** July 21, 2026  
@@ -1187,7 +1187,7 @@ services:
 
 > **Outdated example removed.** Development must use the local database, never a
 > Supabase address. See `server/.env.example` and the Configuration section of
-> [README.md](README.md) for the current settings.
+> [README.md](../README.md) for the current settings.
 
 ### `client/.env`
 

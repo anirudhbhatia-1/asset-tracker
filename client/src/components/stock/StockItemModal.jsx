@@ -26,6 +26,7 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
   const [location, setLocation] = useState('');
   const [quantity, setQuantity] = useState('0');
   const [cost, setCost] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState('');
   const [threshold, setThreshold] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState({});
@@ -38,6 +39,7 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
     setLocation(item?.location || '');
     setQuantity('0');
     setCost(paiseToRupeesInput(item?.costCents));
+    setPurchaseDate(item?.purchaseDate || '');
     setThreshold(item?.lowStockThreshold === null || item?.lowStockThreshold === undefined ? '' : String(item.lowStockThreshold));
     setNotes(item?.notes || '');
     setErrors({});
@@ -75,6 +77,7 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
       categoryId: categoryId ? Number(categoryId) : null,
       location: location.trim() || null,
       costCents: rupeesToPaise(cost),
+      purchaseDate: purchaseDate || null,
       lowStockThreshold: threshold.trim() === '' ? null : parseQuantity(threshold),
       notes: notes.trim() || null,
     };
@@ -216,6 +219,17 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
               />
             </div>
             {fieldError('cost')}
+          </div>
+
+          <div>
+            <label htmlFor="stock-item-purchase-date" className={labelClass}>Purchase date</label>
+            <input
+              id="stock-item-purchase-date"
+              type="date"
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+              className={inputClass}
+            />
           </div>
         </div>
 

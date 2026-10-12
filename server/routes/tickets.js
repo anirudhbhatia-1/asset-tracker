@@ -3,6 +3,7 @@ const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const { validateSession, requireRole, requirePermission } = require('../middleware/validateSession');
 const ticketService = require('../services/ticketService');
+const { parsePagination } = require('../utils/pagination');
 
 const router = express.Router();
 
@@ -24,6 +25,12 @@ router.get('/', requirePermission('tickets:read'), async (req, res, next) => {
     const filters = {
       scope: req.query.scope
     };
+    // Optional paging (?limit=&offset=); without it, the full list as before.
+    const page = parsePagination(req.query);
+    if (page) {
+      const { rows, total } = await ticketService.getTicketsPage(req.user, filters, page);
+      return res.status(200).json({ data: rows, total, limit: page.limit, offset: page.offset, message: 'OK' });
+    }
     const tickets = await ticketService.getTickets(req.user, filters);
     res.status(200).json({
       data: tickets,

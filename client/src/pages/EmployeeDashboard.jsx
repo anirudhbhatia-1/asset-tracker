@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getEmployeeAssets } from '../api/employeesApi';
 import { useTickets } from '../hooks/useTickets';
+import AttentionPanel from '../components/dashboard/AttentionPanel';
 import Badge from '../components/ui/Badge';
 import StatusPill from '../components/ui/StatusPill';
 import { Laptop, Ticket as TicketIcon, Calendar, Plus, PackageX, Package } from 'lucide-react';
@@ -79,6 +80,8 @@ export default function EmployeeDashboard({ embedded = false }) {
           </p>
         </div>
       )}
+
+      {!embedded && <AttentionPanel />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* My Assets */}

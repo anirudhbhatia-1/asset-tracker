@@ -71,9 +71,17 @@ All use the password `password`. They exist **only in the local database**.
 | `npm run build` | Production build of the web app into `client/dist` |
 | `npm run migrate:status --prefix server` | Which migrations a database has / is missing |
 | `npm run migrate:apply --prefix server` | Apply pending migrations (see Database changes) |
+| `scripts/deploy.sh [ref] [--migrate]` | Production deploy on the VM (see Deployment) |
+| `scripts/rollback.sh <commit>` | Put an earlier commit back live on the VM |
+| `scripts/backup_db.sh` | `pg_dump` of the production database (run daily from cron) |
 
-CI (`.github/workflows/ci.yml`) runs lint, client tests, the build and the
-server tests against a fresh local PostgreSQL on every push and pull request.
+CI (`.github/workflows/ci.yml`) runs on every push and pull request: lint,
+client tests, the build and the server tests against a fresh local
+PostgreSQL; `npm audit --omit=dev --audit-level=high` for server and client
+(fails on high/critical advisories in production dependencies); and the
+Playwright end-to-end suite in Chromium (the HTML report is uploaded as an
+artifact when it fails). Dependabot (`.github/dependabot.yml`) opens weekly,
+grouped dependency update PRs for root, server, client and GitHub Actions.
 
 ## Configuration
 
@@ -96,10 +104,22 @@ environment variables instead.
 | `HOST` | Optional bind address; set `127.0.0.1` on a VM behind nginx, leave unset on hosting platforms |
 | `APP_TIMEZONE` | Business timezone for "today" defaults (default `Asia/Kolkata`) |
 | `DEV_DB_PORT` | Local database port (default 54322) |
+| `DATABASE_SSL_REQUIRE_CA` | `true` makes the API refuse to start in production without `DATABASE_SSL_CA_FILE` (otherwise it only warns) |
+| `DB_CONNECT_TIMEOUT_MS` | Optional database connection timeout (default 10000) |
+| `API_RATE_LIMIT_PER_MINUTE` | Optional: requests per minute per signed-in session (default 600) |
+| `API_RATE_LIMIT_ANON_PER_MINUTE` | Optional: requests per minute per IP without a session (default 300) |
+| `API_RATE_LIMIT_IP_PER_MINUTE` | Optional: ceiling on all requests per IP per minute (default 1200) |
+| `DB_STATEMENT_TIMEOUT_MS` | Optional: longest a single database query may run (default 30000) |
+| `LOGIN_FAILURE_MIN_MS` | Optional: minimum time a failed sign-in takes, so timing reveals nothing (default 350) |
+| `LOG_LEVEL` | Optional log level (`error`, `warn`, `info`, `debug`; default `info`). Logs are JSON lines |
+| `SENTRY_DSN` | Optional: report API errors to Sentry. Unset = no reporting |
+| `GIT_COMMIT` | Commit reported by `GET /api/health`; set by `scripts/deploy.sh` through PM2 (falls back to `git rev-parse`) |
 | `ALLOW_REMOTE_DB_TESTS` | Set to `1` only to deliberately run the server tests against a non-local database |
 
 Client settings (`client/.env`, read at build time): `VITE_API_BASE_URL`
-(default `/api`) and `VITE_GOOGLE_CLIENT_ID`.
+(default `/api`), `VITE_GOOGLE_CLIENT_ID`, and optionally `VITE_SENTRY_DSN`
+(report web-app errors to Sentry; the deploy script also sets
+`VITE_GIT_COMMIT` so reports are tagged with the release).
 
 `GET /api/google/config` reports whether Google sign-in is enabled and, if not,
 which setting is missing. The API also logs this at startup.
@@ -111,7 +131,16 @@ which setting is missing. The API also logs this at startup.
   role) can log in; plain directory entries cannot. Sessions are random tokens
   stored as SHA-256 hashes, valid 8 hours; changing a password, role or email
   signs that user out. Password login and password changes are limited to 10
-  failed attempts per 15 minutes per address.
+  failed attempts per 15 minutes per address. On top of that, 20 wrong
+  passwords for one account within an hour lock that account's password
+  sign-in for 15 minutes (Google sign-in still works; an admin can unlock it
+  from Employees). While locked, a wrong password gets the normal "Invalid
+  email or password" — only the correct password is told the account is
+  locked — and every failed sign-in takes the same minimum time, so neither
+  reveals which emails have accounts. The server log records the real reason
+  for each failed sign-in.
+- New passwords: 10–128 characters, not a common password, not containing
+  the person's name or email name, not one repeated character.
 - Temporary passwords (and accounts flagged `must_change_password`) must be
   replaced before anything else: the API answers other calls with 403
   `PASSWORD_CHANGE_REQUIRED` and the app shows a set-new-password screen.
@@ -215,10 +244,30 @@ manual undo scripts that are never applied automatically.
 
 ## Deployment
 
-See [production_checklist.md](production_checklist.md). In short: build the web
-app with the production `VITE_*` values, run the API with `NODE_ENV=production`
-and the variables above, apply pending migrations, and schedule
-`scripts/backup_db.sh`.
+Production runs on one VM: nginx serves `client/dist` and proxies `/api` to the
+API under PM2 (`ecosystem.config.js`), with Supabase Postgres as the database.
+Work through [production_checklist.md](production_checklist.md) before going
+live; day-to-day operations are in the [runbook](docs/RUNBOOK.md).
+
+- **Deploy:** `scripts/deploy.sh` on the VM (default `origin/main`; pass a tag
+  or commit to choose). It installs, builds, reloads PM2 with `GIT_COMMIT` and
+  waits for `/api/health` to report the new commit, rolling back automatically
+  if it does not. Pending migrations stop the deploy until you re-run with
+  `--migrate` (backup first, then apply, then release). Migrations are never
+  rolled back automatically.
+- **Roll back:** `scripts/rollback.sh <commit>` (`--list` shows recent deploys).
+- **Which build is live:** `GET /api/health` returns
+  `{ status, version, commit, startedAt, database }`.
+- **nginx:** `nginx.conf.example` + `nginx-security-headers.conf.example`
+  (security headers on every response, hashed `/assets/*` cached for a year,
+  `index.html` revalidated so deploys show up immediately).
+- **Monitoring:** an uptime monitor on `/api/health` alerting a person, and
+  optional Sentry (`SENTRY_DSN`, `VITE_SENTRY_DSN`) — see the runbook.
+- **Backups:** `scripts/backup_db.sh` daily from cron, encrypted off-site copy,
+  monthly restore test, plus Supabase point-in-time recovery — see the runbook.
+- **Personal data:** [docs/PRIVACY_AND_RETENTION.md](docs/PRIVACY_AND_RETENTION.md)
+  (draft for HR/legal review) lists what employee data is stored, who can see
+  or export it, and the proposed retention rules.
 
 ## Project structure
 
@@ -227,9 +276,10 @@ client/            React app (api/, hooks/, components/, pages/, utils/)
 server/            Express API (routes/, services/, middleware/, scripts/, tests/)
 supabase/          migrations/ (schema history) and rollbacks/
 e2e/               Playwright tests
-scripts/           backup_db.sh
-docs/              design specs and guides (see note at the top of each)
+scripts/           deploy.sh, rollback.sh, backup_db.sh (VM operations)
+docs/              runbook, privacy draft, design specs and guides (index: docs/README.md)
 ```
 
-The `AssetTrack_*.md` planning documents and `LEARN.md` describe the original
-plan and may not match the current code; this README is the source of truth.
+The planning documents in `docs/` (`AssetTrack_*.md`, `LEARN.md`,
+`migration_notes.md`) describe the original plan and may not match the current
+code; this README is the source of truth.

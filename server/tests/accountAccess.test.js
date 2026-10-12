@@ -56,10 +56,10 @@ describe('forced password change', () => {
     expect(sameAgain.status).toBe(400);
 
     const changed = await request(app).patch('/api/auth/change-password').set(auth)
-      .send({ currentPassword: temporaryPassword, newPassword: 'a-new-strong-password' });
+      .send({ currentPassword: temporaryPassword, newPassword: 'orbit-lantern-cascade-42' });
     expect(changed.status).toBe(200);
 
-    const relogin = await request(app).post('/api/auth/login').send({ email, password: 'a-new-strong-password' });
+    const relogin = await request(app).post('/api/auth/login').send({ email, password: 'orbit-lantern-cascade-42' });
     expect(relogin.body.data.user.mustChangePassword).toBe(false);
     const allowed = await request(app).get('/api/tickets').set('Authorization', `Bearer ${relogin.body.data.token}`);
     expect(allowed.status).toBe(200);

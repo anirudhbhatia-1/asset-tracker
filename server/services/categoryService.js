@@ -1,4 +1,5 @@
 const { pool } = require('../db');
+const { queryPage } = require('../utils/pagination');
 
 const mapCategory = (row) => {
   if (!row) return null;
@@ -13,15 +14,21 @@ const mapCategory = (row) => {
   };
 };
 
-const getCategories = async () => {
-  const result = await pool.query(`
+const CATEGORY_LIST_SQL = `
     SELECT c.id, c.name, c.description, c.badge_char, c.color, c.created_at,
-           COUNT(a.id) AS asset_count
+           COUNT(a.id) AS asset_count{{total}}
     FROM categories c
     LEFT JOIN assets a ON c.id = a.category_id AND a.asset_type <> 'client'
     GROUP BY c.id
-    ORDER BY c.name ASC
-  `);
+    ORDER BY c.name ASC`;
+
+// With `page` ({ limit, offset }) returns { rows, total } for that page.
+const getCategories = async (page = null) => {
+  if (page) {
+    const { rows, total } = await queryPage(pool, `${CATEGORY_LIST_SQL}, c.id ASC`, [], page);
+    return { rows: rows.map(mapCategory), total };
+  }
+  const result = await pool.query(CATEGORY_LIST_SQL.replace('{{total}}', ''));
   return result.rows.map(mapCategory);
 };
 

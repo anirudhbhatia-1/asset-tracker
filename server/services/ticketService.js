@@ -1,15 +1,21 @@
 const db = require('../db');
+const { queryPage } = require('../utils/pagination');
 const assetService = require('./assetService');
 const { hasPermission } = require('../middleware/validateSession');
 
-const getTickets = async (user, filters = {}) => {
+// Directors and ticket resolvers may open any ticket; everyone else only
+// the tickets they raised.
+const canSeeAllTickets = (user) => Boolean(user)
+  && (user.role === 'director' || user.isDirector || hasPermission(user, 'tickets:resolve'));
+
+const buildTicketListQuery = (user, filters = {}) => {
   let query = `
     SELECT t.*, 
            c.name as category_name, 
            a.name as asset_name,
            e.name as employee_name,
            e.email as employee_email,
-           'TK-' || LPAD(t.id::text, 4, '0') as human_readable_id
+           'TK-' || LPAD(t.id::text, 4, '0') as human_readable_id{{total}}
     FROM tickets t 
     LEFT JOIN categories c ON t.category_id = c.id 
     LEFT JOIN assets a ON t.asset_id = a.id
@@ -51,9 +57,20 @@ const getTickets = async (user, filters = {}) => {
   }
 
   query += ' ORDER BY t.created_at DESC';
+  return { query, params };
+};
 
-  const { rows } = await db.pool.query(query, params);
+const getTickets = async (user, filters = {}) => {
+  const { query, params } = buildTicketListQuery(user, filters);
+  const { rows } = await db.pool.query(query.replace('{{total}}', ''), params);
   return rows;
+};
+
+// One page of the same list: { rows, total }. Ties on created_at are broken
+// by id so pages never overlap.
+const getTicketsPage = async (user, filters, page) => {
+  const { query, params } = buildTicketListQuery(user, filters);
+  return queryPage(db.pool, `${query}, t.id DESC`, params, page);
 };
 
 // One ticket, with the same visibility as the list: resolvers and Directors
@@ -74,8 +91,7 @@ const getTicketById = async (id, user) => {
     WHERE t.id = $1
   `, [id]);
   const ticket = rows[0];
-  const isDirector = user.role === 'director' || user.isDirector;
-  if (!ticket || (!isDirector && !hasPermission(user, 'tickets:resolve') && ticket.employee_id !== user.id)) {
+  if (!ticket || (!canSeeAllTickets(user) && ticket.employee_id !== user.id)) {
     const err = new Error('Ticket not found');
     err.statusCode = 404;
     throw err;
@@ -360,6 +376,8 @@ const confirmTicket = async (id, employeeUser, action, note) => {
 };
 
 module.exports = {
+  canSeeAllTickets,
+  getTicketsPage,
   getTicketById,
   getTicketsForAsset,
   getStatusEventType,

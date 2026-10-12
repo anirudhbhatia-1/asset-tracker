@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useMetrics from '../hooks/useMetrics';
 import { useTickets } from '../hooks/useTickets';
+import AttentionPanel from '../components/dashboard/AttentionPanel';
 import MetricCard from '../components/dashboard/MetricCard';
 import InventoryBreakdown from '../components/dashboard/InventoryBreakdown';
 import { SkeletonCard } from '../components/ui/Skeleton';
@@ -66,6 +67,9 @@ export default function Dashboard({ embedded = false }) {
           </button>
         </div>
       </div>
+
+      {/* What to act on first (the Director page shows its own above the tabs). */}
+      {!embedded && <AttentionPanel />}
 
       {/* Error banner if fetching failed */}
       {(metricsError || ticketsError) && (

@@ -4,6 +4,14 @@ import useAssets from '../hooks/useAssets';
 import useCategories from '../hooks/useCategories';
 import { useAuth } from '../context/AuthContext';
 import { exportAssetsExcel, getImportErrorMessage, importAssetsExcel } from '../api/assetsApi';
+import useBulkAssetActions from '../hooks/useBulkAssetActions';
+import { downloadBlob, exportFilename } from '../utils/download';
+import { focusSelectionAnchor, selectedAssetsOf, setManySelected, toggleSelected } from '../utils/assetSelection';
+import BulkActionBar from '../components/inventory/BulkActionBar';
+import BulkAssignSelectedModal from '../components/inventory/BulkAssignSelectedModal';
+import BulkReturnModal from '../components/inventory/BulkReturnModal';
+import BulkEditModal from '../components/inventory/BulkEditModal';
+import QrLabelsModal from '../components/inventory/QrLabelsModal';
 import toast from 'react-hot-toast';
 import SearchBar from '../components/inventory/SearchBar';
 import FilterToolbar from '../components/inventory/FilterToolbar';
@@ -64,6 +72,8 @@ export default function Inventory() {
   const canCreateAssets = hasPermission('assets:create');
   const canImportAssets = hasPermission('assets:import');
   const canExportAssets = hasPermission('assets:export');
+  const canAssignAssets = hasPermission('assets:assign');
+  const canUpdateAssets = hasPermission('assets:update');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   // The checked (dry-run) file waiting for the user to confirm the import.
@@ -174,6 +184,61 @@ export default function Inventory() {
   // the cached list at once and refreshes it.
   const { assets, loading: assetsLoading, refreshing: assetsRefreshing, showingPrevious, error, refresh } = useAssets(filters, { enabled: !isBulk });
 
+  // Bulk selection (Assets view). Cleared whenever the filters or the view
+  // change; otherwise only ids still in the list count.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkDialog, setBulkDialog] = useState(null); // 'assign' | 'return' | 'edit' | 'qr'
+  const [bulkExporting, setBulkExporting] = useState(false);
+  const selectionScope = `${inventoryView}|${JSON.stringify(filters)}`;
+  const [lastSelectionScope, setLastSelectionScope] = useState(selectionScope);
+  if (selectionScope !== lastSelectionScope) {
+    setLastSelectionScope(selectionScope);
+    if (selectedIds.size) setSelectedIds(new Set());
+  }
+  const selectedAssets = useMemo(() => selectedAssetsOf(assets, selectedIds), [assets, selectedIds]);
+  const selectedIdList = useMemo(() => selectedAssets.map((a) => a.id), [selectedAssets]);
+  const toggleSelect = useCallback((id) => setSelectedIds((prev) => toggleSelected(prev, id)), []);
+  const selectMany = useCallback((ids, checked) => setSelectedIds((prev) => setManySelected(prev, ids, checked)), []);
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const bulk = useBulkAssetActions();
+  const closeBulkDialog = () => setBulkDialog(null);
+
+  // Where focus lands after a successful bulk action: clearing the selection
+  // unmounts the action bar (which held focus), so it moves to the results
+  // region's select-all checkbox instead of falling to <body>.
+  const resultsRegionRef = useRef(null);
+  const settleFocusAfterBulk = () => focusSelectionAnchor(resultsRegionRef.current);
+
+  const handleBulkAssign = async (employeeId, note, employeeName) => {
+    await bulk.assign(selectedIdList, employeeId, note, employeeName);
+    // Closed before clearing, so the dialog fades out with its own text.
+    closeBulkDialog();
+    clearSelection();
+    settleFocusAfterBulk();
+  };
+  const handleBulkReturn = async (note) => {
+    await bulk.returnAssets(selectedIdList, note);
+    closeBulkDialog();
+    clearSelection();
+    settleFocusAfterBulk();
+  };
+  const handleBulkEdit = async (changes) => {
+    await bulk.update(selectedIdList, changes);
+    closeBulkDialog();
+    clearSelection();
+    settleFocusAfterBulk();
+  };
+  const handleBulkExport = async () => {
+    setBulkExporting(true);
+    try {
+      await bulk.exportSelected(selectedIdList);
+    } catch {
+      // Toasted by the hook.
+    } finally {
+      setBulkExporting(false);
+    }
+  };
+
   const hasActiveFilters = Boolean(searchQuery) || selectedCategoryId !== 'all' || selectedStatus !== 'all'
     || selectedLocation !== 'all' || selectedWarranty !== 'all';
   // With no filters, an empty list means nothing is registered yet — offer to
@@ -203,14 +268,7 @@ export default function Inventory() {
   const handleExport = async () => {
     try {
       const res = await exportAssetsExcel();
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `AssetTrack_${new Date().toISOString().substring(0,10)}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      downloadBlob(res.data, exportFilename());
       toast.success('Export downloaded successfully');
     } catch {
       toast.error('Export failed');
@@ -442,6 +500,7 @@ export default function Inventory() {
       </div>
 
       {/* Asset Data Table */}
+      <div ref={resultsRegionRef}>
       {showNoAssetsYet ? (
         <EmptyState
           title={ownership === 'client' ? 'No client assets yet' : 'No assets yet'}
@@ -474,6 +533,9 @@ export default function Inventory() {
           loading={assetsLoading || categoriesLoading}
           refreshing={showingPrevious}
           onClearFilters={handleClearFilters}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onSelectMany={selectMany}
         />
       ) : (
         <AssetGrid
@@ -481,8 +543,49 @@ export default function Inventory() {
           loading={assetsLoading || categoriesLoading}
           refreshing={showingPrevious}
           onClearFilters={handleClearFilters}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onSelectMany={selectMany}
         />
       )}
+      </div>
+
+      <BulkActionBar
+        selectedAssets={selectedAssets}
+        permissions={{ assign: canAssignAssets, update: canUpdateAssets, export: canExportAssets }}
+        exporting={bulkExporting}
+        onAssign={() => setBulkDialog('assign')}
+        onReturn={() => setBulkDialog('return')}
+        onEdit={() => setBulkDialog('edit')}
+        onExport={handleBulkExport}
+        onPrint={() => setBulkDialog('qr')}
+        onClear={clearSelection}
+      />
+
+      <BulkAssignSelectedModal
+        isOpen={bulkDialog === 'assign'}
+        onClose={closeBulkDialog}
+        assets={selectedAssets}
+        onAssign={handleBulkAssign}
+      />
+      <BulkReturnModal
+        isOpen={bulkDialog === 'return'}
+        onClose={closeBulkDialog}
+        assets={selectedAssets}
+        onReturn={handleBulkReturn}
+      />
+      <BulkEditModal
+        isOpen={bulkDialog === 'edit'}
+        onClose={closeBulkDialog}
+        count={selectedAssets.length}
+        categories={categories}
+        onSave={handleBulkEdit}
+      />
+      <QrLabelsModal
+        isOpen={bulkDialog === 'qr'}
+        onClose={closeBulkDialog}
+        assets={selectedAssets}
+      />
     </>
   );
 

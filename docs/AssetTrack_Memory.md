@@ -1,6 +1,6 @@
 # AssetTrack — AI Memory & Project Context
 
-> **Start with [README.md](README.md)** — it is the current source of truth for setup,
+> **Start with [README.md](../README.md)** — it is the current source of truth for setup,
 > configuration, the security model and the API. Sections 3–7 and 13–14 below reflect the
 > original July 2026 plan (SQLite, JWT, older file layout) and are kept for history; the
 > Session Log records how the project actually evolved.

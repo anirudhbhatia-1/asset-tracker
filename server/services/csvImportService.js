@@ -1,4 +1,5 @@
 const ExcelJS = require('exceljs');
+const { createRowCounter } = require('./spreadsheetLimits');
 const { pool, withTransaction } = require('../db');
 const historyService = require('./historyService');
 const { importCategoryName } = require('./importExportService');
@@ -41,6 +42,7 @@ const readCsvRows = async (filePath) => {
   const sheet = await workbook.csv.readFile(filePath, { map: (value) => value });
   const rows = [];
   let headers = null;
+  const countRow = createRowCounter('CSV file');
   sheet.eachRow({ includeEmpty: false }, (row, rowNum) => {
     const values = row.values.slice(1).map((value) => (value == null ? '' : String(value)));
     if (!headers) {
@@ -54,6 +56,7 @@ const readCsvRows = async (filePath) => {
       return;
     }
     if (values.every((value) => !value.trim())) return;
+    countRow();
     const record = {};
     headers.forEach((header, index) => { if (header) record[header] = values[index] ?? ''; });
     rows.push({ rowNum, record });

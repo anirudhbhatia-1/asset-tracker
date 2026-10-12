@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useStock } from '../../hooks/useStock';
 import Button from '../ui/Button';
@@ -24,6 +25,24 @@ export default function BulkItemsView({ createOpen, onCreateOpen, onCreateClose,
   const { items, loading, loaded, error, fetchItems, createItem, assignStock } = stock;
 
   const [detailsId, setDetailsId] = useState(null);
+
+  // Deep link (e.g. from global search): ?view=bulk&item=<id> opens that
+  // item's details; closing them drops the parameter.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedItemId = searchParams.get('item');
+  useEffect(() => {
+    if (linkedItemId && /^\d+$/.test(linkedItemId)) setDetailsId(Number(linkedItemId));
+  }, [linkedItemId]);
+  const closeDetails = () => {
+    setDetailsId(null);
+    if (searchParams.has('item')) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      }, { replace: true });
+    }
+  };
   const [assignItem, setAssignItem] = useState(null);
 
   useEffect(() => {
@@ -102,7 +121,7 @@ export default function BulkItemsView({ createOpen, onCreateOpen, onCreateClose,
       <StockDetailsModal
         isOpen={Boolean(detailsId)}
         itemId={detailsId}
-        onClose={() => setDetailsId(null)}
+        onClose={closeDetails}
         actions={stock}
       />
     </div>

@@ -1,4 +1,5 @@
 const ExcelJS = require('exceljs');
+const { checkXlsxStructure, createRowCounter, tooManyRowsError, MAX_DATA_ROWS_PER_SHEET } = require('./spreadsheetLimits');
 const { pool, withTransaction } = require('../db');
 const historyService = require('./historyService');
 const {
@@ -114,8 +115,11 @@ const DEPARTED_HOLDER_NOTE_PATTERN = /\s*\[Holder \S+ is no longer an active emp
 //
 // Status, Category, Location, Parent Serial and Asset Name are appended to
 // every sheet (Comments too where the legacy layout had none).
-const exportAssetsToExcel = async (dependencies = {}) => {
+// options.ids — export only these assets (Inventory "export selected");
+// omitted, everything is exported as before.
+const exportAssetsToExcel = async (dependencies = {}, options = {}) => {
   const databasePool = dependencies.pool || pool;
+  const ids = Array.isArray(options.ids) ? options.ids : null;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'AssetTrack';
   workbook.created = new Date();
@@ -131,12 +135,24 @@ const exportAssetsToExcel = async (dependencies = {}) => {
     LEFT JOIN categories c ON a.category_id = c.id
     LEFT JOIN employees e ON a.assigned_to = e.id
     LEFT JOIN assets p ON a.parent_id = p.id
+    ${ids ? 'WHERE a.id = ANY($1::int[])' : ''}
     ORDER BY a.category_id, a.id
-  `);
+  `, ids ? [ids] : undefined);
+
+  // A selection may leave out the adaptors of the laptops in it; read them
+  // separately so the legacy column is the same as in a full export.
+  const adaptorSource = ids
+    ? (await databasePool.query(`
+        SELECT a.parent_id, a.serial_number, c.name AS category_name
+        FROM assets a LEFT JOIN categories c ON a.category_id = c.id
+        WHERE a.parent_id = ANY($1::int[])
+        ORDER BY a.category_id, a.id
+      `, [ids])).rows
+    : assets;
 
   // Adaptor children per parent, for the legacy "Adaptor S/N" column.
   const adaptorsByParent = new Map();
-  for (const asset of assets) {
+  for (const asset of adaptorSource) {
     if (!asset.parent_id) continue;
     if (asset.category_name && importCategoryName(asset.category_name) !== 'Adaptor') continue;
     adaptorsByParent.set(asset.parent_id, [...(adaptorsByParent.get(asset.parent_id) || []), asset.serial_number]);
@@ -271,6 +287,8 @@ const exportAssetsToExcel = async (dependencies = {}) => {
     ]);
   }
 
+  // For the access audit log (data.exported).
+  Object.defineProperty(workbook, 'exportedAssetCount', { value: assets.length, enumerable: false });
   return workbook;
 };
 
@@ -567,6 +585,8 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}, { d
   const databasePool = dependencies.pool || pool;
   const runInTransaction = dependencies.withTransaction || withTransaction;
   const logHistoryEvent = dependencies.logEvent || historyService.logEvent;
+  // Sheet count and unpacked size are checked before the workbook is loaded.
+  await checkXlsxStructure(filePath);
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
 
@@ -576,6 +596,8 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}, { d
   for (const sheetName of Object.keys(SHEETS)) {
     const sheet = workbook.worksheets.find((ws) => normalizeHeader(ws.name) === normalizeHeader(sheetName));
     if (!sheet) continue;
+    // actualRowCount counts rows with values (header included).
+    if (sheet.actualRowCount - 1 > MAX_DATA_ROWS_PER_SHEET) throw tooManyRowsError(`sheet "${sheet.name}"`);
     const layout = readSheetColumns(sheet);
     const missing = missingHeadersFor(layout.columns);
     if (missing.length > 0) missingBySheet.push(`${sheetName}: ${missing.join('; ')}`);
@@ -615,8 +637,10 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}, { d
   const rows = [];
   const serialsWithOwnRow = new Set();
   for (const { sheetName, sheet, layout } of sheets) {
+    const countRow = createRowCounter(`sheet "${sheet.name}"`);
     sheet.eachRow((excelRow, rowNum) => {
       if (rowNum === 1) return;
+      countRow();
       const row = parseSheetRow(excelRow, rowNum, sheetName, layout, lookups, generateSerial);
       const hasContent = row.issuedTo || row.fields.brand || row.fields.model || row.assetName;
       if (row.serialGenerated && !hasContent) {

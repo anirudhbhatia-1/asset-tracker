@@ -66,11 +66,12 @@ const StartOffboardingModal = ({ isOpen, onClose, onSubmit, onCreated, onOpenExi
     return () => { cancelled = true; };
   }, [isOpen, preselectedId]);
 
+  const actorIsDirector = Boolean(user?.isDirector || user?.role === 'director');
   const candidates = useMemo(
-    () => getOffboardableEmployees(employees, user?.id)
+    () => getOffboardableEmployees(employees, user?.id, { actorIsDirector })
       .slice()
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
-    [employees, user?.id]
+    [employees, user?.id, actorIsDirector]
   );
 
   const filteredCandidates = useMemo(() => {

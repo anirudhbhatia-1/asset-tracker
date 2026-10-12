@@ -4,6 +4,8 @@ import { SkeletonTable } from '../ui/Skeleton';
 import EmptyState from '../ui/EmptyState';
 import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { sortLabel } from '../../utils/inventoryView';
+import { selectionState } from '../../utils/assetSelection';
+import SelectCheckbox from './SelectCheckbox';
 
 // Lower-priority columns drop out on narrower screens so the table fits
 // beside the sidebar without sideways scrolling (see AssetTableRow): below
@@ -12,7 +14,11 @@ const WIDE_ONLY = 'hidden 2xl:table-cell';
 const FROM_XL = 'hidden xl:table-cell';
 const FROM_LG = 'hidden lg:table-cell';
 
-export default function AssetTable({ assets = [], loading = false, refreshing = false, onClearFilters }) {
+// With `selectedIds` (a Set) and `onToggleSelect(id)` / `onSelectMany(ids,
+// checked)`, rows get selection checkboxes and the header a "select all on
+// this page" box.
+export default function AssetTable({ assets = [], loading = false, refreshing = false, onClearFilters, selectedIds = null, onToggleSelect, onSelectMany }) {
+  const selectable = Boolean(selectedIds && onToggleSelect);
   const [sortField, setSortField] = useState('updatedAt');
   const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
 
@@ -78,6 +84,9 @@ export default function AssetTable({ assets = [], loading = false, refreshing = 
     </th>
   );
 
+  const visibleIds = useMemo(() => safeAssets.map((a) => a.id), [safeAssets]);
+  const headerState = selectable ? selectionState(selectedIds, visibleIds) : 'none';
+
   // The skeleton is only for the first load; a reload keeps the rows.
   if (loading && safeAssets.length === 0) {
     return <SkeletonTable rows={8} />;
@@ -106,6 +115,16 @@ export default function AssetTable({ assets = [], loading = false, refreshing = 
           <caption className="sr-only">Hardware assets. Select a row to open the asset. Column headers with sort buttons reorder the list.</caption>
           <thead>
             <tr className="bg-surface/90 border-b border-border/80 text-xs font-semibold uppercase tracking-wider text-secondary select-none">
+              {selectable && (
+                <th scope="col" className="pl-2 pr-0 py-1.5 w-10">
+                  <SelectCheckbox
+                    checked={headerState === 'all'}
+                    indeterminate={headerState === 'some'}
+                    onChange={(checked) => onSelectMany?.(visibleIds, checked)}
+                    label={`Select all ${visibleIds.length} assets shown`}
+                  />
+                </th>
+              )}
               <th scope="col" className={`${FROM_LG} px-3 py-3.5 w-12 text-center`}>
                 <abbr title="Category" className="no-underline">Cat</abbr>
               </th>
@@ -123,7 +142,13 @@ export default function AssetTable({ assets = [], loading = false, refreshing = 
           </thead>
           <tbody className="divide-y divide-border/60 bg-surface/40">
             {sortedAssets.map((asset) => (
-              <AssetTableRow key={asset.id} asset={asset} />
+              <AssetTableRow
+                key={asset.id}
+                asset={asset}
+                selectable={selectable}
+                selected={selectable && selectedIds.has(asset.id)}
+                onToggleSelect={onToggleSelect}
+              />
             ))}
           </tbody>
         </table>

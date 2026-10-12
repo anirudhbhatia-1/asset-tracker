@@ -1,5 +1,6 @@
 const { pool } = require('../db');
 const { hashSessionToken } = require('../services/sessionToken');
+const { attachRequestIp } = require('../services/auditService');
 
 // This is only used for employees with role_id IS NULL (pre-role-assignment). It is NOT a live mirror of the role_permissions table — do not treat it as authoritative once a Director has customized a system role via the Role Matrix.
 const DEFAULT_ROLE_PERMISSIONS = {
@@ -139,6 +140,8 @@ const validateSession = async (req, res, next) => {
       permissions: expandPermissions(userPermissions),
       mustChangePassword: Boolean(sessionUser.must_change_password),
     };
+    // For the access audit log; not enumerable, so never serialised.
+    attachRequestIp(req.user, req.ip);
 
     // Until a temporary or shared password is replaced, only allow what the
     // change-password screen needs.

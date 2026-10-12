@@ -141,14 +141,45 @@ describe('offboarding workflow', () => {
     await pool.query('UPDATE employees SET deleted_at = NOW() WHERE id = ANY($1)', [others]);
     let offboarding;
     try {
-      offboarding = await offboardingService.createRequest(it, { employeeId: director.id, lastWorkingDate: LAST_DAY });
-      // Another Director (by role) completes it; revoking the last one is refused.
+      // Another Director (by role) starts and completes it; revoking the last one is refused.
       const otherDirector = { id: it.id, role: 'director', isDirector: true, permissions: ['*'] };
+      offboarding = await offboardingService.createRequest(otherDirector, { employeeId: director.id, lastWorkingDate: LAST_DAY });
       await expect(offboardingService.completeRequest(offboarding.id, {}, otherDirector)).rejects.toMatchObject({ statusCode: 409 });
       expect((await offboardingService.getRequestById(offboarding.id)).status).not.toBe('completed');
     } finally {
       if (offboarding) await pool.query('DELETE FROM offboarding_requests WHERE id = $1', [offboarding.id]);
       await pool.query('UPDATE employees SET deleted_at = NULL WHERE id = ANY($1)', [others]);
+    }
+  });
+
+  it('only lets a Director offboard a Director (start, edit, cancel, collect, complete)', async () => {
+    const admin = await login('itadmin@company.com');
+    // Through the API: an IT admin cannot start an exit for a Director.
+    const refused = await request(app).post('/api/offboarding').set(admin)
+      .send({ employeeId: director.id, lastWorkingDate: LAST_DAY });
+    expect(refused.status).toBe(403);
+    expect(refused.body.message).toMatch(/Only a Director can offboard a Director/);
+
+    // An exit a Director started: the admin can't edit, collect, complete or cancel it.
+    const otherDirector = { id: (await pool.query("SELECT id FROM employees WHERE email = 'hr@company.com'")).rows[0].id,
+      role: 'director', isDirector: true, permissions: ['*'] };
+    const asset = await newAsset();
+    await assetService.assignAsset(asset.id, director.id, null, null);
+    const exit = await offboardingService.createRequest(otherDirector, { employeeId: director.id, lastWorkingDate: LAST_DAY });
+    try {
+      const item = exit.items.find((i) => i.assetId === asset.id);
+      expect((await request(app).put(`/api/offboarding/${exit.id}`).set(admin).send({ notes: 'x' })).status).toBe(403);
+      expect((await request(app).patch(`/api/offboarding/${exit.id}/items/${item.id}`).set(admin)
+        .send({ outcome: 'missing' })).status).toBe(403);
+      expect((await request(app).post(`/api/offboarding/${exit.id}/complete`).set(admin).send({})).status).toBe(403);
+      expect((await request(app).post(`/api/offboarding/${exit.id}/cancel`).set(admin)).status).toBe(403);
+      // The Director's laptop was not touched.
+      expect((await assetService.getAssetById(asset.id))).toMatchObject({ status: 'in-use', assignedTo: director.id });
+      // Directors themselves still can.
+      await offboardingService.cancelRequest(exit.id, otherDirector);
+    } finally {
+      await pool.query('DELETE FROM offboarding_requests WHERE id = $1', [exit.id]);
+      await assetService.returnAsset(asset.id, 'test cleanup');
     }
   });
 

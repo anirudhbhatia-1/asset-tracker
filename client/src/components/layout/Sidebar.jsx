@@ -24,7 +24,7 @@ const allNavItems = [
   { name: 'Employees', path: '/employees', icon: Users, permissionKey: 'employees:read' },
   // Everyone can read categories/locations (form dropdowns need them), so
   // Settings only appears for people who can manage something there.
-  { name: 'Settings', path: '/settings', icon: Settings, permissionKeys: ['roles:read', 'categories:manage', 'locations:manage'] },
+  { name: 'Settings', path: '/settings', icon: Settings, permissionKeys: ['roles:read', 'categories:manage', 'locations:manage', 'audit:read'] },
 ];
 
 // Start downloading a page's code as soon as the user points at, focuses or

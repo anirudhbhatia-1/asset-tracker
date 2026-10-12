@@ -1,16 +1,17 @@
 import React, { useState, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { X, Lock, Eye, EyeOff, AlertCircle, Check, Circle, Info } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { PASSWORD_MAX_LENGTH, passwordChecks, passwordRuleError } from '../../utils/passwordRules';
 
 // `required`: shown when the account must replace a temporary or shared
 // password; it cannot be dismissed and the only way out is changing it or
 // signing out.
 const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -27,10 +28,15 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
   const titleId = useId();
   const fieldId = useId();
   const errorId = `${fieldId}-error`;
+  const rulesId = `${fieldId}-rules`;
   // Traps Tab inside the dialog and closes it on Escape
   useFocusTrap(dialogRef, isOpen, () => handleClose());
 
   if (!isOpen) return null;
+
+  // The rules the server checks, ticked as the user types.
+  const person = { name: user?.name, email: user?.email };
+  const checks = passwordChecks(newPassword, person);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,8 +46,9 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
       setError('Current password is required');
       return;
     }
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters long');
+    const ruleError = passwordRuleError(newPassword, person);
+    if (ruleError) {
+      setError(ruleError);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -104,7 +111,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
           {required && (
             <p className="mb-5 text-sm text-secondary">
               For security, you need to choose a new password before using AssetTrack.
-              Enter your current password, then a new one of at least 8 characters.
+              Enter your current password, then a new one that meets the rules below.
               You will be asked to sign in again afterwards.
             </p>
           )}
@@ -149,11 +156,12 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
                   type={showNew ? "text" : "password"}
                   id={`${fieldId}-new`}
                   autoComplete="new-password"
-                  aria-describedby={error ? errorId : undefined}
+                  maxLength={PASSWORD_MAX_LENGTH}
+                  aria-describedby={error ? `${rulesId} ${errorId}` : rulesId}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full bg-base border border-border rounded-xl px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all pr-10"
-                  placeholder="At least 8 characters"
+                  placeholder="At least 10 characters"
                 />
                 <button
                   type="button"
@@ -165,6 +173,21 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
                   {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <ul id={rulesId} aria-label="Password rules" className="pt-1 space-y-1">
+                {checks.map((check) => {
+                  const Icon = check.met === null ? Info : check.met ? Check : Circle;
+                  const tone = check.met === null ? 'text-secondary' : check.met ? 'text-success' : 'text-secondary';
+                  return (
+                    <li key={check.key} className={`flex items-start gap-2 text-xs ${tone}`}>
+                      <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${check.met ? 'stroke-[3]' : ''}`} aria-hidden="true" />
+                      <span>
+                        {check.label}
+                        {check.met !== null && <span className="sr-only">{check.met ? ' (done)' : ' (not yet)'}</span>}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
 
             <div className="space-y-1.5">
