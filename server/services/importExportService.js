@@ -453,6 +453,7 @@ const parseSheetRow = (excelRow, rowNum, sheetName, layout, lookups, nextSerial)
     lifecycle = parseStatusKeyword(statusText);
     if (lifecycle === undefined) problems.push(`Status "${statusText}" must be available, in-use, assigned, retired or returned`);
     if (lifecycle === 'returned' && config.assetType !== 'client') problems.push('Status returned is only for client-owned assets (Client Laptops sheet)');
+    if (lifecycle === 'retired' && config.assetType === 'client') problems.push('Client-owned assets cannot be retired (use Status returned once it goes back to the client)');
     if (lifecycle === 'in-use' && !issuedTo) problems.push(`Status in-use needs ${labels.issuedTo || 'Issued To'}`);
   } else {
     // Legacy layout: lifecycle is free text in the status cell or comments.
@@ -789,8 +790,9 @@ const importAssetsFromExcel = async (filePath, actorUser, dependencies = {}, { d
         if (finalRow.strictStatus) {
           status = lifecycle || (finalRow.issuedTo ? 'in-use' : 'available');
         } else if (lifecycle === 'retired' || lifecycle === 'available') {
-          // A released client asset went back to the client, not into stock.
-          status = lifecycle === 'available' && fields.assetType === 'client' ? 'returned' : lifecycle;
+          // A released client asset went back to the client, not into stock —
+          // and is never retired (a legacy note saying so means it went back).
+          status = fields.assetType === 'client' ? 'returned' : lifecycle;
         } else {
           status = finalRow.issuedTo ? 'in-use' : 'available';
         }

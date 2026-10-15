@@ -31,6 +31,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || '');
   const [model, setModel] = useState(initialData?.model || '');
   const [assetType, setAssetType] = useState(initialData?.assetType || 'company');
+  const lockedClientOwnership = isEdit && initialData?.assetType === 'client';
   const [location, setLocation] = useState(initialData?.location || '');
   const [address, setAddress] = useState(initialData?.address || '');
   const [costString, setCostString] = useState(
@@ -482,7 +483,11 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               <button
                 type="button"
                 onClick={() => setAssetType('company')}
-                className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors ${
+                // A client's asset can't become company-owned (that would let
+                // it be retired or deleted); the server refuses it too.
+                disabled={lockedClientOwnership}
+                title={lockedClientOwnership ? 'Client-owned assets stay client-owned' : undefined}
+                className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   assetType === 'company'
                     ? 'bg-accent text-on-accent shadow-sm'
                     : 'text-secondary hover:text-primary hover:bg-surface'

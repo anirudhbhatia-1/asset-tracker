@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const QUEUES = [
   { key: 'it', label: 'IT' },
-  { key: 'hardware', label: 'Hardware' },
+  { key: 'hardware', label: 'Admin' },
   { key: 'hr', label: 'HR' },
 ];
 

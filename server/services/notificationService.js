@@ -115,7 +115,7 @@ const getAdminNotifications = async (adminEmployee) => {
 
     // 2. Tickets transferred to them (from ticket_history, last 24 hours)
     const { rows: transfers } = await pool.query(
-      `SELECT th.created_at, t.title, t.id
+      `SELECT th.created_at, th.performed_by, t.title, t.id, t.priority
        FROM ticket_history th
        JOIN tickets t ON th.ticket_id = t.id
        WHERE th.event_type = 'transferred'
@@ -130,8 +130,10 @@ const getAdminNotifications = async (adminEmployee) => {
       notifications.push({
         id: `admin-ticket-transfer-${row.id}-${row.created_at}`,
         type: 'warning',
-        title: 'Ticket Transferred to You',
-        message: `Ticket "${row.title}" has been transferred to your queue.`,
+        title: row.performed_by ? 'Ticket Transferred to You' : `${row.priority === 'urgent' ? 'Urgent' : 'High priority'} ticket moved to you`,
+        message: row.performed_by
+          ? `Ticket "${row.title}" has been transferred to your queue.`
+          : `"${row.title}" wasn't picked up by the other team within 10 minutes, so it was moved to your queue.`,
         link: `/tickets?ticket=${row.id}`,
         createdAt: row.created_at,
       });
@@ -327,6 +329,51 @@ const getOffboardingNotifications = async (user, { collector, requester, accessM
 /**
  * Main entry point — routes to correct function by permissions.
  */
+/**
+ * Escalations of High/Urgent tickets nobody picked up (see
+ * ticketEscalationService): Directors hear about tickets two queues ignored;
+ * the employee hears when HR didn't pick theirs up. Shown until the ticket
+ * is no longer open.
+ */
+const getEscalationNotifications = async (user, isDirector) => {
+  const notifications = [];
+  if (isDirector) {
+    const { rows } = await pool.query(
+      `SELECT t.id, t.title, t.priority, t.escalated_at, e.name AS employee_name
+       FROM tickets t LEFT JOIN employees e ON e.id = t.employee_id
+       WHERE t.escalation_stage = 'directors_alerted' AND t.status = 'open'
+       ORDER BY t.escalated_at DESC LIMIT 10`
+    );
+    for (const row of rows) {
+      notifications.push({
+        id: `ticket-escalated-${row.id}`,
+        type: 'warning',
+        title: `${row.priority === 'urgent' ? 'Urgent' : 'High priority'} ticket not picked up`,
+        message: `"${row.title}" from ${row.employee_name || 'an employee'} was moved between IT Admin and Admin and still nobody has started on it.`,
+        link: `/tickets?ticket=${row.id}`,
+        createdAt: row.escalated_at,
+      });
+    }
+  }
+  const { rows: own } = await pool.query(
+    `SELECT id, title, escalated_at FROM tickets
+     WHERE employee_id = $1 AND escalation_stage = 'employee_notified' AND status = 'open'
+     ORDER BY escalated_at DESC LIMIT 5`,
+    [user.id]
+  );
+  for (const row of own) {
+    notifications.push({
+      id: `ticket-hr-unanswered-${row.id}`,
+      type: 'warning',
+      title: 'HR hasn\'t picked up your ticket yet',
+      message: `Nobody in HR has started on "${row.title}" yet. Please contact management directly about it.`,
+      link: `/tickets?ticket=${row.id}`,
+      createdAt: row.escalated_at,
+    });
+  }
+  return notifications;
+};
+
 const getNotifications = async (user) => {
   let allNotifications = [];
   const isDirector = user.role === 'director' || user.isDirector;
@@ -352,6 +399,8 @@ const getNotifications = async (user) => {
     const empNotifs = await getEmployeeNotifications(user.id);
     allNotifications = allNotifications.concat(empNotifs);
   }
+
+  allNotifications = allNotifications.concat(await getEscalationNotifications(user, isDirector));
 
   allNotifications = allNotifications.concat(await getOffboardingNotifications(user, {
     collector: hasPermission(user, 'offboarding:collect'),

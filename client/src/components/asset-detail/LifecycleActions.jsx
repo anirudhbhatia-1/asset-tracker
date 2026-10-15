@@ -92,9 +92,15 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
         </div>
       )}
 
+      {isClientAsset && (
+        <p className="text-xs text-secondary mb-3">
+          Client-owned: it can only be assigned and returned to the client. It can’t be reassigned, retired or deleted.
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Assign / Reassign Button */}
-        {canAssign && !isRetired && (
+        {/* Assign / Reassign Button — a client-owned asset in use can only
+            be returned to the client, never passed straight to someone else. */}
+        {canAssign && !isRetired && !(isClientAsset && asset.status === 'in-use') && (
           <Button
             variant="primary"
             onClick={() => setIsAssignModalOpen(true)}
@@ -121,8 +127,8 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           </Button>
         )}
 
-        {/* Retire Asset Button */}
-        {canDelete && !isRetired && (
+        {/* Retire Asset Button (never for client-owned assets) */}
+        {canDelete && !isRetired && !isClientAsset && (
           <Button
             variant="danger"
             onClick={() => setIsRetireModalOpen(true)}
@@ -135,7 +141,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
 
         {/* Delete Asset Button (Always available to Admin). Quieter outline
             style, pushed to the far end, so it isn't mistaken for Retire. */}
-        {canDelete && (
+        {canDelete && !isClientAsset && (
           <div className="w-full sm:w-auto sm:ml-auto pt-3 sm:pt-0 sm:pl-3 border-t sm:border-t-0 sm:border-l border-border/60">
             <Button
               variant="danger-outline"

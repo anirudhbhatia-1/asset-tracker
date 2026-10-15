@@ -173,7 +173,8 @@ export default function OffboardingChecklist({ items, canCollect = false, canRet
                 >
                   Returned
                 </button>}
-                {canWriteOff && <button
+                {/* Client-owned assets are settled with the client, never written off. */}
+                {canWriteOff && !isClient && <button
                   type="button"
                   onClick={() => onRequestMissing(item)}
                   disabled={busyItemId != null}

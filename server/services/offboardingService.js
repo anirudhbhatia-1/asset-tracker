@@ -297,6 +297,11 @@ const resolveItem = async (requestId, itemId, { outcome, condition, notes }, act
         `Returned at offboarding of ${employee.name}${detail ? ` (${detail})` : ''}`,
         actingUser, { client });
     } else {
+      // Client-owned assets are never retired: one that's missing has to be
+      // settled with the client, not written off here.
+      if (asset.asset_type === 'client') {
+        throw assetService.clientAssetError(item.asset_name, 'written off as missing');
+      }
       // Only this asset is written off; its accessories stay on the
       // checklist to be handled one by one.
       await client.query(`

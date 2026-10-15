@@ -117,6 +117,9 @@ const getTicketsForAsset = async (assetId) => {
 
 const createTicket = async (user, payload) => {
   const { type, title, description, assetId, categoryId, targetAdminType } = payload;
+  const priority = payload.priority || 'medium';
+  // Typed-in "what do you need" (only for hardware requests).
+  const requestedItem = type === 'request' && payload.requestedItem ? String(payload.requestedItem).trim() || null : null;
   const employeeId = user.id;
 
   if (!employeeId) {
@@ -142,9 +145,9 @@ const createTicket = async (user, payload) => {
 
   return db.withTransaction(async (client) => {
     const { rows } = await client.query(
-      `INSERT INTO tickets (type, employee_id, asset_id, category_id, title, description, current_admin_type) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [type, employeeId, assetId || null, categoryId || null, title, description || null, adminTypeToSet]
+      `INSERT INTO tickets (type, employee_id, asset_id, category_id, title, description, current_admin_type, priority, requested_item)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [type, employeeId, assetId || null, categoryId || null, title, description || null, adminTypeToSet, priority, requestedItem]
     );
     await client.query(
       `INSERT INTO ticket_history (ticket_id, event_type, performed_by) VALUES ($1, 'created', $2)`,
@@ -170,7 +173,7 @@ const ALLOWED_STATUS_CHANGES = {
 };
 
 const updateTicket = async (id, payload, adminUser) => {
-  const { status, resolutionNotes, resolvedAssetId } = payload;
+  const { status, resolutionNotes, resolvedAssetId, priority } = payload;
 
   return db.withTransaction(async (client) => {
     const { rows: currentRows } = await client.query('SELECT * FROM tickets WHERE id = $1 FOR UPDATE', [id]);
@@ -212,6 +215,14 @@ const updateTicket = async (id, payload, adminUser) => {
       err.statusCode = 400;
       throw err;
     }
+    // Priority: changed by whoever works the ticket (checked above); not on
+    // a closed ticket.
+    const newPriority = priority || current.priority;
+    if (newPriority !== current.priority && current.status === 'closed') {
+      const err = new Error('A closed ticket\'s priority cannot be changed.');
+      err.statusCode = 400;
+      throw err;
+    }
     const isResolving = newStatus === 'resolved' && current.status !== 'resolved';
     const resolvedBy = isResolving ? adminUser.id : (newStatus === 'resolved' ? current.resolved_by : null);
 
@@ -234,10 +245,22 @@ const updateTicket = async (id, payload, adminUser) => {
            resolution_notes = $2, 
            resolved_asset_id = $3, 
            resolved_by = $4, 
+           priority = $6,
+           -- Raised to High/Urgent now: the 10 minutes start now, not from
+           -- when the ticket arrived.
+           queue_entered_at = CASE WHEN $7 THEN NOW() ELSE queue_entered_at END,
            updated_at = NOW() 
        WHERE id = $5 RETURNING *`,
-      [newStatus, newNotes, newAssetId, resolvedBy, id]
+      [newStatus, newNotes, newAssetId, resolvedBy, id, newPriority,
+        ['high', 'urgent'].includes(newPriority) && !['high', 'urgent'].includes(current.priority)]
     );
+    if (newPriority !== current.priority) {
+      await client.query(
+        `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note)
+         VALUES ($1, 'status_changed', $2, $3)`,
+        [id, adminUser.id, `Priority changed from ${current.priority} to ${newPriority}`]
+      );
+    }
 
     if (newStatus !== current.status) {
       await client.query(
@@ -310,7 +333,8 @@ const transferTicket = async (id, targetAdminType, note, adminUser) => {
     }
   
     const { rows } = await client.query(
-      `UPDATE tickets SET current_admin_type = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      // A new queue gets its own 10 minutes before any automatic escalation.
+      `UPDATE tickets SET current_admin_type = $1, queue_entered_at = NOW(), updated_at = NOW() WHERE id = $2 RETURNING *`,
       [targetAdminType, id]
     );
   
@@ -356,6 +380,9 @@ const confirmTicket = async (id, employeeUser, action, note) => {
       `UPDATE tickets
          SET status = $1,
              resolved_by = CASE WHEN $1 = 'open' THEN NULL ELSE resolved_by END,
+             -- Reopened: a fresh 10 minutes and a fresh escalation path.
+             queue_entered_at = CASE WHEN $1 = 'open' THEN NOW() ELSE queue_entered_at END,
+             escalation_stage = CASE WHEN $1 = 'open' THEN NULL ELSE escalation_stage END,
              updated_at = NOW()
          WHERE id = $2 RETURNING *`,
       [newStatus, id]

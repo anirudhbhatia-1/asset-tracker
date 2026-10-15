@@ -162,6 +162,7 @@ const importAssetsFromCsv = async (filePath, actorUser, { dryRun = false } = {},
     const assetType = ownershipText || (clientName ? 'client' : 'company');
     if (!['company', 'client'].includes(assetType)) problems.push(`ownership "${record.ownership}" must be company or client`);
     if (status === 'returned' && assetType !== 'client') problems.push('status returned is only for client-owned assets (set ownership to client)');
+    if (status === 'retired' && assetType === 'client') problems.push('client-owned assets cannot be retired (use status returned once it goes back to the client)');
 
     const assignedDate = date('assigned_date');
 

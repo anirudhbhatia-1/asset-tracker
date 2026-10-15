@@ -208,7 +208,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                                {ticket.type}
                              </span>
                              <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-raised text-secondary border border-border/50 truncate max-w-[120px]">
-                               {ticket.current_admin_type === 'it' ? 'IT Support' : ticket.current_admin_type === 'hardware' ? 'Hardware Support' : 'HR Support'}
+                               {ticket.current_admin_type === 'it' ? 'IT Support' : ticket.current_admin_type === 'hardware' ? 'Admin Support' : 'HR Support'}
                              </span>
                            </div>
                            <div className="text-sm font-bold text-primary truncate">{ticket.title}</div>

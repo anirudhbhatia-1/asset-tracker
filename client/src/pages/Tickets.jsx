@@ -14,8 +14,9 @@ import { onActivateKey } from '../utils/a11y';
 import PageHeader from '../components/ui/PageHeader';
 import SegmentedControl from '../components/ui/SegmentedControl';
 import EmptyState from '../components/ui/EmptyState';
+import { QUEUE_SHORT_LABELS, priorityLabel, priorityStyle } from '../utils/ticketMeta';
 
-const ADMIN_TYPE_LABELS = { it: 'IT', hardware: 'Hardware', hr: 'HR' };
+const ADMIN_TYPE_LABELS = QUEUE_SHORT_LABELS;
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -215,6 +216,7 @@ const Tickets = () => {
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <StatusBadge status={ticket.status} />
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full border ${priorityStyle(ticket.priority)}`}>{priorityLabel(ticket.priority)}<span className="sr-only"> priority</span></span>
               <TicketAgeBadge ticket={ticket} />
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-secondary">
@@ -274,6 +276,7 @@ const Tickets = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5">
                         <StatusBadge status={ticket.status} />
+                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full border ${priorityStyle(ticket.priority)}`}>{priorityLabel(ticket.priority)}<span className="sr-only"> priority</span></span>
                         <TicketAgeBadge ticket={ticket} />
                       </div>
                     </td>

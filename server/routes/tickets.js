@@ -78,6 +78,8 @@ router.post('/', [
   body('assetId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   body('categoryId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   body('targetAdminType').optional({ nullable: true, checkFalsy: true }).isIn(['it', 'hardware', 'hr']).withMessage('Invalid department'),
+  body('priority').optional({ nullable: true, checkFalsy: true }).isIn(['low', 'medium', 'high', 'urgent']).withMessage('Priority must be low, medium, high or urgent'),
+  body('requestedItem').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }).withMessage('What you need must be 100 characters or fewer'),
   validateRequest
 ], async (req, res, next) => {
   try {
@@ -97,6 +99,7 @@ router.patch('/:id', [
   body('status').optional().isIn(['open', 'in_progress', 'resolved', 'rejected']).withMessage('Invalid status'),
   body('resolutionNotes').optional({ nullable: true }).isString().trim(),
   body('resolvedAssetId').optional({ nullable: true }).isInt({ min: 1 }),
+  body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']).withMessage('Priority must be low, medium, high or urgent'),
   validateRequest
 ], async (req, res, next) => {
   try {

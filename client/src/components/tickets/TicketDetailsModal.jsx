@@ -8,6 +8,7 @@ import { formatDateTime } from '../../utils/formatters';
 import { canWorkTicket, getTicketStatusOptions, TICKET_STATUS_LABELS } from '../../utils/ticketStatus';
 import { TicketAgeBadge } from './TicketStatusBadge';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { PRIORITIES, priorityLabel, priorityStyle, queueLabel } from '../../utils/ticketMeta';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -46,6 +47,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
   const [status, setStatus] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolvedAssetId, setResolvedAssetId] = useState('');
+  const [priority, setPriority] = useState('medium');
 
   const [assets, setAssets] = useState([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
@@ -64,6 +66,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
   useEffect(() => {
     if (!isOpen || !ticket) return;
     setStatus(ticket.status);
+    setPriority(ticket.priority || 'medium');
     setResolutionNotes(ticket.resolution_notes || '');
     setResolvedAssetId('');
     setShowTransferMode(false);
@@ -171,6 +174,8 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
       status,
       resolutionNotes: resolutionNotes || null,
     };
+    // Only sent when changed, so an unchanged ticket keeps its priority.
+    if (priority && priority !== (ticket.priority || 'medium')) payload.priority = priority;
     // Only send an asset when fulfilling now; leaving it out keeps whatever
     // the ticket already records.
     if (showAssetPicker && resolvedAssetId) {
@@ -197,6 +202,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
           <div className="flex items-center gap-3">
             <h2 id={titleId} className="text-lg font-semibold text-primary">Ticket #{ticket.id}</h2>
             <StatusBadge status={ticket.status} />
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${priorityStyle(ticket.priority)}`}>
+              {priorityLabel(ticket.priority)}<span className="sr-only"> priority</span>
+            </span>
             <TicketAgeBadge ticket={ticket} />
           </div>
           <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
@@ -223,6 +231,19 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                 <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Date</h3>
                 <p className="text-sm text-primary">{formatDateTime(ticket.created_at)}</p>
               </div>
+              <div>
+                <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Department</h3>
+                <p className="text-sm text-primary">{queueLabel(ticket.current_admin_type)}</p>
+              </div>
+              {ticket.type === 'request' && (ticket.category_name || ticket.requested_item) && (
+                <div>
+                  <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Needs</h3>
+                  <p className="text-sm text-primary break-words">
+                    {ticket.category_name || ticket.requested_item}
+                    {!ticket.category_name && <span className="text-xs text-secondary"> (typed in)</span>}
+                  </p>
+                </div>
+              )}
             </div>
 
             {ticket.description && (
@@ -272,7 +293,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                       </div>
                       {event.event_type === 'transferred' && (
                         <p className="text-secondary text-xs mb-1">
-                          From <span className="uppercase font-medium">{event.from_admin_type}</span> → <span className="uppercase font-medium">{event.to_admin_type}</span>
+                          From <span className="font-medium">{queueLabel(event.from_admin_type)}</span> → <span className="font-medium">{queueLabel(event.to_admin_type)}</span>
                         </p>
                       )}
                       {event.note && <p className="text-primary italic mt-1 bg-surface p-2 rounded">{event.note}</p>}
@@ -335,6 +356,21 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                 )}
               </div>
 
+              <div className="space-y-2">
+                <label htmlFor="ticket-priority" className="text-sm font-medium text-primary">Priority</label>
+                <select
+                  id="ticket-priority"
+                  value={priority}
+                  onChange={(e) => { setPriority(e.target.value); setFormError(null); }}
+                  disabled={ticket.status === 'closed'}
+                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent disabled:opacity-60"
+                >
+                  {PRIORITIES.map((p) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+
               {showAssetPicker && (
                 <div className="space-y-2">
                   <label htmlFor="ticket-resolved-asset" className="text-sm font-medium text-primary flex items-center gap-2">
@@ -394,9 +430,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                   className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                 >
                   <option value="" disabled>Select department...</option>
-                  {ticket.current_admin_type !== 'it' && <option value="it">IT Admin</option>}
-                  {ticket.current_admin_type !== 'hardware' && <option value="hardware">Hardware Admin</option>}
-                  {ticket.current_admin_type !== 'hr' && <option value="hr">HR Admin</option>}
+                  {ticket.current_admin_type !== 'it' && <option value="it">{queueLabel('it')}</option>}
+                  {ticket.current_admin_type !== 'hardware' && <option value="hardware">{queueLabel('hardware')}</option>}
+                  {ticket.current_admin_type !== 'hr' && <option value="hr">{queueLabel('hr')}</option>}
                 </select>
               </div>
               <div className="space-y-2">

@@ -111,6 +111,8 @@ if (require.main === module) {
       const domain = normalizeAllowedDomain(process.env.GOOGLE_ALLOWED_DOMAIN);
       logger.info(`Google sign-in enabled${domain ? ` for @${domain} accounts` : ' for any verified Google account'}`);
     }
+    // Every minute: move/alert on High/Urgent tickets nobody has picked up.
+    require('./services/ticketEscalationService').startEscalationWorker();
   });
 }
 

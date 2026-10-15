@@ -227,6 +227,11 @@ const createAsset = async (data, actorUser = null) => {
     throw err;
   }
 
+  if (status === 'retired' && assetType === 'client') {
+    const err = new Error('A client-owned asset cannot be added as retired');
+    err.statusCode = 400;
+    throw err;
+  }
   if (status === 'returned' && assetType !== 'client') {
     const err = new Error('Only client-owned assets can be marked returned to client');
     err.statusCode = 400;
@@ -337,8 +342,9 @@ const updateAsset = async (id, data, actorUser = null) => {
     color, hardwareType, clientName, returnDate, receivedOn
   } = data;
 
-  if (current.status === 'returned' && assetType !== undefined && assetType !== 'client') {
-    const err = new Error('This asset was returned to its client; it cannot be changed to company-owned');
+  if (current.assetType === 'client' && assetType !== undefined && assetType !== 'client') {
+    // Switching it to company-owned would let it be retired or deleted.
+    const err = new Error('A client-owned asset cannot be changed to company-owned');
     err.statusCode = 400;
     throw err;
   }
@@ -439,6 +445,7 @@ const deleteAsset = async (id, confirm, actorUser = null) => {
   await withTransaction(async (client) => {
     // Someone is using it: return it first so the hand-back is on record.
     const locked = await lockAsset(client, id);
+    if (locked.asset_type === 'client') throw clientAssetError(locked.name, 'deleted');
     if (locked.status === 'in-use') {
       const err = new Error('Return this asset before deleting it');
       err.statusCode = 409;
@@ -464,6 +471,15 @@ const deleteAsset = async (id, confirm, actorUser = null) => {
 // new one, so ticket/onboarding flows can assign atomically with their own
 // updates.
 const inTransaction = (client, fn) => (client ? fn(client) : withTransaction(fn));
+
+// Client-owned assets belong to the client: they can only be assigned and
+// then returned to the client. Retiring, reassigning or deleting one is never
+// allowed, for any role.
+const CLIENT_ASSET_RULE = 'is client-owned: it can only be assigned and returned to the client';
+const clientAssetError = (name, action) => Object.assign(
+  new Error(`${name} ${CLIENT_ASSET_RULE}, not ${action}.`),
+  { statusCode: 409, reason: 'CLIENT_ASSET_LOCKED' }
+);
 
 const lockAsset = async (client, id) => {
   const { rows } = await client.query(
@@ -527,6 +543,10 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null,
       const err = new Error('Asset is already assigned to this employee');
       err.statusCode = 400;
       throw err;
+    }
+    if (previousHolder && current.asset_type === 'client') {
+      // Must go back first (to the client), never straight to someone else.
+      throw clientAssetError(current.name, 'reassigned');
     }
     if (previousHolder && !reassign) {
       const err = new Error(`${current.name} is currently assigned to someone else`);
@@ -630,6 +650,7 @@ const retireAsset = async (id, note, confirm, actorUser = null) => {
   await withTransaction(async (client) => {
     await lockAssetsWithAccessories(client, [id]);
     const current = await lockAsset(client, id);
+    if (current.asset_type === 'client') throw clientAssetError(current.name, 'retired');
     if (current.status === 'retired') {
       const err = new Error('Asset is already retired');
       err.statusCode = 400;
@@ -849,6 +870,7 @@ const bulkUpdateAssets = async (assetIds, changes, actorUser) => {
 };
 
 module.exports = {
+  clientAssetError,
   getAvailableCompanyAssets,
   serialExists,
   getAssets,

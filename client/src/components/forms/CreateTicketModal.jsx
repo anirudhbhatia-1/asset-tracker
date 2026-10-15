@@ -5,6 +5,7 @@ import { getEmployeeAssets } from '../../api/employeesApi';
 import { getCategories } from '../../api/categoriesApi';
 import toast from 'react-hot-toast';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import { DEFAULT_PRIORITY, PRIORITIES, queueLabel, resolveRequestedItem } from '../../utils/ticketMeta';
 
 const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', initialAssetId = '' }) => {
   const { user } = useAuth();
@@ -12,7 +13,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assetId, setAssetId] = useState(initialAssetId);
-  const [categoryId, setCategoryId] = useState('');
+  // "What do you need?": a category name or anything typed.
+  const [requestText, setRequestText] = useState('');
+  const [priority, setPriority] = useState(DEFAULT_PRIORITY);
   const [targetAdminType, setTargetAdminType] = useState('it');
   
   const [myAssets, setMyAssets] = useState([]);
@@ -57,7 +60,8 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
       setTitle('');
       setDescription('');
       setAssetId(initialAssetId);
-      setCategoryId('');
+      setRequestText('');
+      setPriority(DEFAULT_PRIORITY);
       setTargetAdminType('it');
       setTitleError(null);
     }
@@ -91,12 +95,15 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
     }
     setSubmitting(true);
     
+    const requested = type === 'request' ? resolveRequestedItem(requestText, categories) : {};
     const payload = {
       type,
       title,
       description: description || undefined,
       assetId: type === 'issue' && assetId ? parseInt(assetId, 10) : undefined,
-      categoryId: type === 'request' && categoryId ? parseInt(categoryId, 10) : undefined,
+      categoryId: requested.categoryId,
+      requestedItem: requested.requestedItem,
+      priority,
       targetAdminType,
     };
 
@@ -178,17 +185,27 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               {type === 'request' && (
                 <div className="space-y-2 animate-fadeIn">
                   <label htmlFor="ticket-new-category" className="text-sm font-medium text-primary">What do you need?</label>
-                  <select
+                  {/* Pick a category from the list, or type anything else. */}
+                  <input
                     id="ticket-new-category"
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
+                    type="text"
+                    list="ticket-new-category-options"
+                    value={requestText}
+                    onChange={(e) => setRequestText(e.target.value)}
+                    maxLength={100}
+                    autoComplete="off"
+                    placeholder="Choose or type, e.g. Monitor or Ergonomic chair (optional)"
+                    aria-describedby="ticket-new-category-hint"
                     className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">Select category (Optional)</option>
+                  />
+                  <datalist id="ticket-new-category-options">
                     {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      <option key={cat.id} value={cat.name} />
                     ))}
-                  </select>
+                  </datalist>
+                  <p id="ticket-new-category-hint" className="text-xs text-secondary">
+                    Pick from the list or type what you need if it isn't there.
+                  </p>
                 </div>
               )}
 
@@ -200,10 +217,24 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
                   onChange={(e) => setTargetAdminType(e.target.value)}
                   className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                 >
-                  <option value="it">IT Admin</option>
-                  <option value="hardware">Hardware Admin</option>
+                  <option value="it">{queueLabel('it')}</option>
+                  <option value="hardware">{queueLabel('hardware')}</option>
                   {/* HR raising a ticket would not target themselves */}
-                  {user?.role !== 'hr' && <option value="hr">HR Admin</option>}
+                  {user?.role !== 'hr' && <option value="hr">{queueLabel('hr')}</option>}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="ticket-new-priority" className="text-sm font-medium text-primary">Priority</label>
+                <select
+                  id="ticket-new-priority"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                >
+                  {PRIORITIES.map((p) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
                 </select>
               </div>
 

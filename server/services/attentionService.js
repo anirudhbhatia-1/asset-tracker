@@ -51,22 +51,24 @@ const ticketsQueue = async (user) => {
     queue = `AND t.current_admin_type = $${params.length}`;
   }
   const { rows } = await pool.query(`
-    SELECT t.id, t.title, e.name AS employee_name,
+    SELECT t.id, t.title, t.priority, e.name AS employee_name,
            FLOOR(EXTRACT(EPOCH FROM (NOW() - t.created_at)) / 86400)::int AS age_days,
-           COUNT(*) OVER ()::int AS total
+           COUNT(*) OVER ()::int AS total,
+           BOOL_OR(t.created_at < NOW() - INTERVAL '3 days' OR t.priority IN ('urgent', 'high')) OVER () AS needs_action
     FROM tickets t
     LEFT JOIN employees e ON e.id = t.employee_id
     WHERE t.status IN ('open', 'in_progress') ${queue}
-    ORDER BY t.created_at ASC, t.id ASC
+    -- Most pressing first: urgent, high, then oldest.
+    ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+             t.created_at ASC, t.id ASC
     LIMIT ${MAX_ENTRIES}
   `, params);
   if (rows.length === 0) return null;
   const count = rows[0].total;
-  // Oldest first, so the first row decides whether anything is overdue.
-  const overdue = rows[0].age_days > 3;
+  // High when anything is urgent/high priority or older than 3 days.
   return {
     key: 'tickets_queue',
-    severity: overdue ? 'high' : 'medium',
+    severity: rows[0].needs_action ? 'high' : 'medium',
     title: isDirector
       ? `${count} open ${plural(count, 'ticket', 'tickets')}`
       : `${count} ${plural(count, 'ticket', 'tickets')} waiting in your queue`,
@@ -74,7 +76,7 @@ const ticketsQueue = async (user) => {
     link: '/tickets',
     entries: rows.map((row) => ({
       label: row.title,
-      sublabel: `Raised by ${row.employee_name || 'unknown'} · ${daysAgo(row.age_days)}`,
+      sublabel: `${row.priority === 'urgent' || row.priority === 'high' ? `${row.priority === 'urgent' ? 'Urgent' : 'High'} · ` : ''}Raised by ${row.employee_name || 'unknown'} · ${daysAgo(row.age_days)}`,
       link: `/tickets?ticket=${row.id}`,
     })),
   };
