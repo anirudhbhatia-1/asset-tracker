@@ -1,5 +1,6 @@
 const { pool, withTransaction } = require('../db');
 const { todayISO } = require('../utils/dates');
+const { escapeLike } = require('../utils/like');
 const historyService = require('./historyService');
 const auditService = require('./auditService');
 
@@ -114,7 +115,8 @@ const getAssets = async (filters = {}) => {
   }
 
   if (filters.q) {
-    const likeQuery = `%${filters.q}%`;
+    // Typed % and _ are searched for literally, not as wildcards.
+    const likeQuery = `%${escapeLike(String(filters.q))}%`;
     params.push(likeQuery);
     const pos = params.length;
     conditions.push(`(a.name ILIKE $${pos} OR a.model ILIKE $${pos} OR a.serial_number ILIKE $${pos})`);
@@ -179,7 +181,8 @@ const getAssetById = async (id, client = pool) => {
   return asset;
 };
 
-const getAssetBySerial = async (serialNumber) => {
+// options.withHistory — also load the full history (the scanner doesn't show it).
+const getAssetBySerial = async (serialNumber, { withHistory = false } = {}) => {
   const result = await pool.query(`
     SELECT a.*,
            c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color,
@@ -193,13 +196,13 @@ const getAssetBySerial = async (serialNumber) => {
   `, [serialNumber]);
 
   if (result.rows.length === 0) {
-    const err = new Error(`Asset not found for serial number: ${serialNumber}`);
+    const err = new Error('No asset with this serial number');
     err.statusCode = 404;
     throw err;
   }
 
   const asset = mapAsset(result.rows[0]);
-  asset.history = await historyService.getAssetHistory(asset.id);
+  if (withHistory) asset.history = await historyService.getAssetHistory(asset.id);
   return asset;
 };
 

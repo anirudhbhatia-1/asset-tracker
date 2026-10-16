@@ -1,4 +1,5 @@
 const { pool, withTransaction } = require('../db');
+const { escapeLike } = require('../utils/like');
 const { hasPermission, expandPermissions, getDefaultPermissionsForRole } = require('../middleware/validateSession');
 const auditService = require('./auditService');
 
@@ -99,7 +100,8 @@ const getEmployees = async (filters = {}) => {
   }
 
   if (filters.q) {
-    const likeQuery = `%${filters.q}%`;
+    // Typed % and _ are searched for literally, not as wildcards.
+    const likeQuery = `%${escapeLike(String(filters.q))}%`;
     params.push(likeQuery);
     const pos = params.length;
     conditions.push(`(e.name ILIKE $${pos} OR e.email ILIKE $${pos})`);
@@ -110,7 +112,8 @@ const getEmployees = async (filters = {}) => {
   const sql = `
     SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.work_mode, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
-           e.role, e.role_id, e.admin_type, e.password_hash,
+           e.role, e.role_id, e.admin_type,
+           (e.password_hash IS NOT NULL OR e.google_id IS NOT NULL OR e.role IS NOT NULL) AS has_login,
            CASE WHEN e.locked_until > NOW() THEN e.locked_until END AS active_locked_until,
            r.name as role_name, r.name as custom_role_name, r.is_director,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count,
@@ -133,7 +136,8 @@ const getEmployeeById = async (id, executor = pool) => {
   const result = await executor.query(`
     SELECT e.id, e.name, e.email, e.department, e.location, e.address, e.work_mode, e.google_id,
            e.avatar_url, e.is_google_synced, e.deleted_at, e.created_at,
-           e.role, e.role_id, e.admin_type, e.password_hash,
+           e.role, e.role_id, e.admin_type,
+           (e.password_hash IS NOT NULL OR e.google_id IS NOT NULL OR e.role IS NOT NULL) AS has_login,
            CASE WHEN e.locked_until > NOW() THEN e.locked_until END AS active_locked_until,
            r.name as role_name, r.name as custom_role_name, r.is_director,
            COUNT(CASE WHEN a.status = 'in-use' THEN a.id END) AS assigned_assets_count,

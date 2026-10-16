@@ -31,6 +31,9 @@ export const getChildAssets = (parentId) => api.get('/assets', { params: { paren
 export const exportAssetsExcel = (ids) =>
   api.get('/assets/export', {
     responseType: 'blob',
+    // Building the workbook for the whole inventory can take a while; same
+    // allowance as the imports.
+    timeout: 120000,
     ...(Array.isArray(ids) && ids.length ? { params: { ids: ids.join(',') } } : {}),
   });
 

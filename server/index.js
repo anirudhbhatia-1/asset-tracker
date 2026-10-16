@@ -85,7 +85,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use((req, res, next) => {
   res.status(404).json({
     error: true,
-    message: `Route not found: ${req.method} ${req.originalUrl}`,
+    message: 'Not found',
     code: 404,
   });
 });
@@ -113,6 +113,8 @@ if (require.main === module) {
     }
     // Every minute: move/alert on High/Urgent tickets nobody has picked up.
     require('./services/ticketEscalationService').startEscalationWorker();
+    require('./services/authService').startSessionCleanup();
+    require('./utils/uploadTmp').sweepUploadTmp();
   });
 }
 

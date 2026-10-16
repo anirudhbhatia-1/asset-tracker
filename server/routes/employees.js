@@ -284,8 +284,8 @@ router.post('/:id/grant-google-access', [
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: true, message: 'Granting testing Google access is disabled in production environment.' });
+  if (!['development', 'test'].includes(process.env.NODE_ENV)) {
+    return res.status(403).json({ error: true, message: 'Granting testing Google access is only available in development and test environments.' });
   }
   try {
     const updated = await employeeService.grantGoogleAccess(Number(req.params.id), req.user);
@@ -323,7 +323,7 @@ router.patch('/:id', [
 router.post('/:id/assign-assets', [
   requirePermission('employees:assign-assets'),
   param('id').isInt({ min: 1 }).withMessage('Employee ID must be a positive integer'),
-  body('assetIds').isArray({ min: 1 }).withMessage('assetIds must be a non-empty array'),
+  body('assetIds').isArray({ min: 1, max: 200 }).withMessage('assetIds must be a list of 1 to 200 asset ids'),
   body('assetIds.*').isInt({ min: 1 }).withMessage('Each assetId must be a positive integer'),
   body('note').optional({ nullable: true }).isString().trim().isLength({ max: 500 }),
   validateRequest,
@@ -333,7 +333,9 @@ router.post('/:id/assign-assets', [
       Number(req.params.id),
       req.body.assetIds,
       req.body.note || null,
-      req.user
+      req.user,
+      // Hands out company stock, like the Inventory bulk assign.
+      { companyOnly: true }
     );
     res.status(200).json({ data: result, message: `${result.assigned} asset(s) assigned successfully` });
   } catch (err) {

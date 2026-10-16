@@ -382,11 +382,11 @@ const getNotifications = async (user) => {
 
   // Director sees all queues combined
   if (isDirector) {
-    const [adminNotifs, hrNotifs, empNotifs] = await Promise.all([
-      getAdminNotifications(user),
-      getHrNotifications(user.id),
-      getEmployeeNotifications(user.id),
-    ]);
+    // One after another: a check (every 30 s per open tab) holds one
+    // database connection, not three.
+    const adminNotifs = await getAdminNotifications(user);
+    const hrNotifs = await getHrNotifications(user.id);
+    const empNotifs = await getEmployeeNotifications(user.id);
     allNotifications = [...adminNotifs, ...hrNotifs, ...empNotifs];
   } else {
     if (hasPermission(user, 'onboarding:fulfill')) {

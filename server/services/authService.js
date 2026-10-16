@@ -295,6 +295,24 @@ const changePassword = async (userId, currentPassword, newPassword, { ip } = {})
   }
 };
 
+// Expired sign-ins are also removed at every login; this catches quiet
+// periods (weekends, holidays) when nobody signs in.
+const SESSION_CLEANUP_EVERY_MS = 60 * 60 * 1000;
+let sessionCleanupTimer = null;
+const purgeExpiredSessions = async () => {
+  const { rowCount } = await db.pool.query('DELETE FROM sessions WHERE expires_at < NOW()');
+  return rowCount;
+};
+const startSessionCleanup = () => {
+  if (sessionCleanupTimer) return;
+  const tick = () => purgeExpiredSessions()
+    .catch((err) => require('../logger').error({ err: err.message }, 'Expired session cleanup failed'));
+  sessionCleanupTimer = setInterval(tick, SESSION_CLEANUP_EVERY_MS);
+  sessionCleanupTimer.unref();
+  tick();
+};
+
 module.exports = {
+  purgeExpiredSessions, startSessionCleanup,
   login, logout, changePassword, createSessionForEmployee, SESSION_HOURS, MAX_FAILED_LOGINS, FAILURE_WINDOW_MINUTES, LOCKOUT_MINUTES,
 };

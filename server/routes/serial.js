@@ -11,10 +11,15 @@ const router = express.Router();
 
 router.use(validateSession, requirePermission('scanner:read'));
 
+// Per signed-in user (every request here is authenticated), at stocktake
+// pace: two scans a second. Counting by IP would make everyone in the office
+// share one small budget; the global per-IP limiter still caps floods.
+const SCANS_PER_MINUTE = 120;
 const scanLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 10, // Limit each IP to 10 scan requests per `window` (here, per minute)
-  message: { message: 'Too many scan requests from this IP, please try again after a minute' },
+  windowMs: 60 * 1000,
+  max: SCANS_PER_MINUTE,
+  keyGenerator: (req) => `user:${req.user.id}`,
+  message: { message: 'Too many scans in a minute. Wait a moment and try again.' },
   standardHeaders: true,
   legacyHeaders: false,
 });

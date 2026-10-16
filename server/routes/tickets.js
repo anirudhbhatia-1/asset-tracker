@@ -5,6 +5,9 @@ const { validateSession, requireRole, requirePermission } = require('../middlewa
 const ticketService = require('../services/ticketService');
 const { parsePagination } = require('../utils/pagination');
 
+// Longest free text accepted (the forms enforce the same limits).
+const TEXT_LIMITS = { description: 2000, resolutionNotes: 2000, note: 1000 };
+
 const router = express.Router();
 
 router.use(validateSession);
@@ -74,7 +77,8 @@ router.post('/', [
   requirePermission('tickets:create'),
   body('type').isIn(['issue', 'request']).withMessage('Invalid ticket type'),
   body('title').notEmpty().withMessage('Title is required').trim().isLength({ max: 150 }),
-  body('description').optional({ nullable: true, checkFalsy: true }).isString().trim(),
+  body('description').optional({ nullable: true, checkFalsy: true }).isString().trim()
+    .isLength({ max: TEXT_LIMITS.description }).withMessage(`Description must be at most ${TEXT_LIMITS.description} characters`),
   body('assetId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   body('categoryId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   body('targetAdminType').optional({ nullable: true, checkFalsy: true }).isIn(['it', 'hardware', 'hr']).withMessage('Invalid department'),
@@ -97,7 +101,8 @@ router.post('/', [
 router.patch('/:id', [
   requirePermission('tickets:update'),
   body('status').optional().isIn(['open', 'in_progress', 'resolved', 'rejected']).withMessage('Invalid status'),
-  body('resolutionNotes').optional({ nullable: true }).isString().trim(),
+  body('resolutionNotes').optional({ nullable: true }).isString().trim()
+    .isLength({ max: TEXT_LIMITS.resolutionNotes }).withMessage(`Resolution notes must be at most ${TEXT_LIMITS.resolutionNotes} characters`),
   body('resolvedAssetId').optional({ nullable: true }).isInt({ min: 1 }),
   body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']).withMessage('Priority must be low, medium, high or urgent'),
   validateRequest
@@ -117,7 +122,8 @@ router.patch('/:id', [
 router.patch('/:id/transfer', [
   requirePermission('tickets:resolve'),
   body('targetAdminType').isIn(['it', 'hardware', 'hr']).withMessage('Invalid target admin type'),
-  body('note').optional({ nullable: true }).isString().trim(),
+  body('note').optional({ nullable: true }).isString().trim()
+    .isLength({ max: TEXT_LIMITS.note }).withMessage(`Note must be at most ${TEXT_LIMITS.note} characters`),
   validateRequest
 ], async (req, res, next) => {
   try {
@@ -150,7 +156,8 @@ router.patch('/:id/confirm-close', [
 // PATCH /api/tickets/:id/reopen — employee reopens a resolved ticket
 router.patch('/:id/reopen', [
   requirePermission('tickets:read'),
-  body('note').optional({ nullable: true }).isString().trim(),
+  body('note').optional({ nullable: true }).isString().trim()
+    .isLength({ max: TEXT_LIMITS.note }).withMessage(`Note must be at most ${TEXT_LIMITS.note} characters`),
   validateRequest
 ], async (req, res, next) => {
   try {

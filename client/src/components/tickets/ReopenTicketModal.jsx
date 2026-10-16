@@ -48,6 +48,7 @@ export default function ReopenTicketModal({ ticket, onClose, onReopen }) {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="E.g., The issue came back after a restart."
+            maxLength={1000}
             autoFocus
             className="w-full px-3 py-2 bg-base border border-border rounded-lg text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent resize-none"
           />

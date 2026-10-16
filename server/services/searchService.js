@@ -5,8 +5,7 @@ const { pool } = require('../db');
 const { hasPermission } = require('../middleware/validateSession');
 const { canSeeAllTickets } = require('./ticketService');
 
-// Treat %, _ and \ in the user's text literally in ILIKE patterns.
-const escapeLike = (text) => text.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+const { escapeLike } = require('../utils/like');
 
 // '#123', '123' or 'TK-0123' name a ticket by id.
 const ticketIdFrom = (q) => {
