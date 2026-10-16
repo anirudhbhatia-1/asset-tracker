@@ -100,7 +100,7 @@ export default function CategoriesTab() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-48 bg-surface/50 rounded-2xl animate-pulse border border-border/50" />
+            <div key={i} className="h-48 bg-surface/50 rounded-xl animate-pulse border border-border/50" />
           ))}
         </div>
       ) : categories.length === 0 ? (

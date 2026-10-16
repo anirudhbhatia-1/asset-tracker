@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 
 export default function WebcamFeed({ videoRef, onStop }) {
   return (
-    <div className="relative w-full max-w-xl mx-auto bg-base rounded-2xl border border-border/80 overflow-hidden shadow-2xl aspect-[4/5] sm:aspect-[4/3] flex items-center justify-center">
+    <div className="relative w-full max-w-xl mx-auto bg-base rounded-xl border border-border/80 overflow-hidden shadow-2xl aspect-[4/5] sm:aspect-[4/3] flex items-center justify-center">
       {/* Video element connected to media stream */}
       <video
         ref={videoRef}
@@ -16,7 +16,7 @@ export default function WebcamFeed({ videoRef, onStop }) {
 
       {/* Reticle Overlay */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-        <div className="relative w-full max-w-xs aspect-[4/3] border-2 border-accent/30 rounded-2xl overflow-hidden flex items-center justify-center">
+        <div className="relative w-full max-w-xs aspect-[4/3] border-2 border-accent/30 rounded-xl overflow-hidden flex items-center justify-center">
           {/* Corner brackets */}
           <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-accent rounded-tl-lg" />
           <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-accent rounded-tr-lg" />

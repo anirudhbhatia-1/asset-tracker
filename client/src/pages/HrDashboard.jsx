@@ -90,7 +90,7 @@ export default function HrDashboard({ embedded = false }) {
 
       {/* HR Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
+        <div className="bg-surface/95 rounded-xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-warning/10 border border-warning/15 flex items-center justify-center text-warning shrink-0">
             <Users className="w-6 h-6" />
           </div>
@@ -99,7 +99,7 @@ export default function HrDashboard({ embedded = false }) {
             <div className="text-xs font-semibold text-secondary uppercase tracking-wider mt-0.5">Pending Onboardings</div>
           </div>
         </div>
-        <div className="bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
+        <div className="bg-surface/95 rounded-xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-success/10 border border-success/15 flex items-center justify-center text-success shrink-0">
             <Target className="w-6 h-6" />
           </div>
@@ -108,7 +108,7 @@ export default function HrDashboard({ embedded = false }) {
             <div className="text-xs font-semibold text-secondary uppercase tracking-wider mt-0.5">Arranged This Month</div>
           </div>
         </div>
-        <div className="bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
+        <div className="bg-surface/95 rounded-xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-info-blue/10 border border-info-blue/15 flex items-center justify-center text-info-blue shrink-0">
             <Laptop className="w-6 h-6" />
           </div>
@@ -201,7 +201,7 @@ export default function HrDashboard({ embedded = false }) {
 
         {/* My Assets */}
         <Card aria-labelledby="hr-my-assets-title">
-          <CardHeader id="hr-my-assets-title" icon={Laptop} title="My assets" />
+          <CardHeader id="hr-my-assets-title" icon={Laptop} title="My Assets" />
           <CardBody className="lg:max-h-[500px] lg:overflow-y-auto">
             {assetsLoading ? (
                <div className="animate-pulse space-y-3">
@@ -214,7 +214,7 @@ export default function HrDashboard({ embedded = false }) {
                  <Button variant="ghost" size="sm" onClick={() => setAssetsAttempt(n => n + 1)}>Retry</Button>
                </div>
             ) : safeAssets.length === 0 ? (
-               <EmptyState size="sm" icon={PackageX} title="No assets assigned" description="Devices IT gives you will show up here." />
+               <EmptyState size="sm" icon={PackageX} title="No Assets Assigned" description="Devices IT gives you will show up here." />
             ) : (
                <ul className="space-y-3">
                  {safeAssets.map(asset => (

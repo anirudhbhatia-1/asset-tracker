@@ -377,7 +377,7 @@ const OffboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, 
                   <div className="flex items-center gap-2 text-xs text-secondary">
                     <span>{describeChecklistProgress(progress)}</span>
                     <div className="w-24 h-1.5 rounded-full bg-raised overflow-hidden" aria-hidden="true">
-                      <div className="h-full bg-success rounded-full transition-all" style={{ width: `${progress.percent}%` }} />
+                      <div className="h-full bg-success rounded-full transition-[width]" style={{ width: `${progress.percent}%` }} />
                     </div>
                   </div>
                 )}

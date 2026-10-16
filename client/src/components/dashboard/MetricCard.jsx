@@ -47,7 +47,7 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
     <Wrapper
       onClick={onClick}
       type={onClick ? 'button' : undefined}
-      className={`bg-surface/95 rounded-2xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] transition-all duration-200 flex flex-col justify-between text-left w-full
+      className={`bg-surface/95 rounded-xl p-5 border border-border/80 shadow-[0_3px_12px_rgba(20,33,58,0.035)] transition duration-200 flex flex-col justify-between text-left w-full
         ${onClick ? 'hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_10px_24px_rgba(20,33,58,0.08)] hover:bg-raised/70 cursor-pointer active:translate-y-0' : 'hover:border-border'}`}
     >
       <div className="flex items-center justify-between">
@@ -59,7 +59,7 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
         )}
       </div>
       <div className="mt-4 flex items-baseline justify-between">
-        <span className="text-[2rem] leading-none font-bold text-primary tracking-[-0.04em]">{displayCount}</span>
+        <span className="text-[2rem] leading-none font-bold text-primary tracking-[-0.04em] tabular-nums">{displayCount}</span>
         {delta && (
           <Pill tone={deltaPositive ? 'success' : 'danger'} size="md">
             <span className="inline-flex items-center gap-0.5">

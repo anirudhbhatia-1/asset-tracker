@@ -132,13 +132,13 @@ export default function ProfilePage() {
       <PageHeader title="My Profile" subtitle="Your account information and assigned assets." />
 
       {/* Profile Card */}
-      <div className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
         {/* Avatar Banner */}
         <div className="h-20 bg-gradient-to-r from-accent/20 to-accent/5" />
         <div className="px-6 pb-6">
           {/* Avatar + Role Badge */}
           <div className="-mt-10 mb-4 flex items-end justify-between">
-            <div className="w-20 h-20 rounded-2xl bg-accent/10 border-4 border-surface flex items-center justify-center text-accent text-2xl font-bold uppercase shadow-md" aria-hidden="true">
+            <div className="w-20 h-20 rounded-xl bg-accent/10 border-4 border-surface flex items-center justify-center text-accent text-2xl font-bold uppercase shadow-md" aria-hidden="true">
               {avatarChar}
             </div>
             <Pill size="md" tone={roleTones[profile?.role] || roleTones.employee}>
@@ -198,7 +198,7 @@ export default function ProfilePage() {
                       type="button"
                       aria-label="Edit name"
                       onClick={handleStartEditName}
-                      className="opacity-60 group-hover:opacity-100 hover:opacity-100 focus-visible:opacity-100 p-2 -m-1 rounded-md text-secondary hover:text-accent hover:bg-accent/10 transition-all cursor-pointer"
+                      className="opacity-60 group-hover:opacity-100 hover:opacity-100 focus-visible:opacity-100 p-2 -m-1 rounded-md text-secondary hover:text-accent hover:bg-accent/10 transition cursor-pointer"
                       title="Edit name"
                     >
                       <Pencil className="w-3.5 h-3.5" />

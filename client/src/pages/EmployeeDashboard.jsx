@@ -123,7 +123,7 @@ export default function EmployeeDashboard({ embedded = false }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* My Assets */}
         <Card aria-labelledby="my-assets-title">
-          <CardHeader id="my-assets-title" icon={Laptop} title="My assets" />
+          <CardHeader id="my-assets-title" icon={Laptop} title="My Assets" />
           <CardBody className="lg:max-h-[500px] lg:overflow-y-auto">
             {assetsLoading ? (
                <div className="animate-pulse space-y-3">
@@ -136,7 +136,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                  <Button variant="ghost" size="sm" onClick={() => setAssetsAttempt(n => n + 1)}>Retry</Button>
                </div>
             ) : safeAssets.length === 0 ? (
-               <EmptyState size="sm" icon={PackageX} title="No assets assigned" description="Devices IT gives you will show up here." />
+               <EmptyState size="sm" icon={PackageX} title="No Assets Assigned" description="Devices IT gives you will show up here." />
             ) : (
                <ul className="space-y-3">
                   {safeAssets.map(asset => (
@@ -170,7 +170,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                       {canRaiseTicket && (
                       <div className="pt-2 border-t border-border/50 flex justify-end">
                         <Button variant="danger-outline" size="sm" onClick={() => reportIssue(asset)}>
-                          Report issue
+                          Report Issue
                         </Button>
                       </div>
                       )}
@@ -205,10 +205,10 @@ export default function EmployeeDashboard({ embedded = false }) {
           <CardHeader
             id="my-tickets-title"
             icon={TicketIcon}
-            title="My tickets"
+            title="My Tickets"
             actions={canRaiseTicket && (
               <Button size="sm" onClick={raiseTicket}>
-                <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Raise ticket
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Raise Ticket
               </Button>
             )}
           />
@@ -221,9 +221,9 @@ export default function EmployeeDashboard({ embedded = false }) {
                <EmptyState
                  size="sm"
                  icon={TicketIcon}
-                 title="No tickets yet"
+                 title="No Tickets Yet"
                  description="Something not working, or need equipment? Raise a ticket."
-                 actionText={canRaiseTicket ? 'Raise a ticket' : undefined}
+                 actionText={canRaiseTicket ? 'Raise a Ticket' : undefined}
                  onAction={canRaiseTicket ? raiseTicket : undefined}
                />
              ) : (
@@ -279,7 +279,7 @@ export default function EmployeeDashboard({ embedded = false }) {
                             onClick={() => handleConfirmClose(ticket.id)}
                             loading={closingTicketId === ticket.id}
                           >
-                            {closingTicketId === ticket.id ? 'Closing…' : 'Confirm & close'}
+                            {closingTicketId === ticket.id ? 'Closing…' : 'Confirm & Close'}
                           </Button>
                         </div>
                       )}

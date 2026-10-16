@@ -148,7 +148,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                 <button
                   type="button"
                   onClick={() => setAssetType('company')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition cursor-pointer ${
                     assetType === 'company'
                       ? 'bg-accent text-on-accent shadow-sm'
                       : 'text-secondary hover:text-primary'
@@ -160,7 +160,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                 <button
                   type="button"
                   onClick={() => setAssetType('client')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-md text-xs font-semibold transition cursor-pointer ${
                     assetType === 'client'
                       ? 'bg-accent text-on-accent shadow-sm'
                       : 'text-secondary hover:text-primary'
@@ -178,7 +178,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                 value={locationName}
                 onChange={handleLocationSelect}
               >
-                <option value="">Select Office Location...</option>
+                <option value="">Select Office Location…</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.name}>
                     {loc.name}
@@ -193,7 +193,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                 type="text"
                 value={addressValue}
                 onChange={(e) => setAddressValue(e.target.value)}
-                placeholder="Building, street address, or room number..."
+                placeholder="Building, street address, or room number…"
               />
             </Field>
 
@@ -212,7 +212,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
               <Textarea
                 value={notesValue}
                 onChange={(e) => setNotesValue(e.target.value)}
-                placeholder="Add tracking notes, maintenance history, or special considerations..."
+                placeholder="Add tracking notes, maintenance history, or special considerations…"
                 rows={3}
               />
             </Field>
@@ -296,7 +296,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                 <span className="text-xs font-semibold text-secondary uppercase tracking-wider block">Warranty Expiry</span>
                 <span className="text-primary font-mono font-medium">{formatDate(asset.warrantyExpiryDate)}</span>
                 {getWarrantyDaysLeft(asset.warrantyExpiryDate) && (
-                  <span className={`text-[10px] mt-0.5 block font-medium ${
+                  <span className={`text-xs mt-0.5 block font-medium ${
                     getWarrantyStatus(asset.warrantyExpiryDate) === 'expired'
                       ? 'text-danger'
                       : getWarrantyStatus(asset.warrantyExpiryDate) === 'expiring soon'

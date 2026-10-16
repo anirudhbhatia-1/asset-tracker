@@ -4,12 +4,12 @@ import Button from '../ui/Button';
 
 export default function LaserViewfinder({ onRetryCamera }) {
   return (
-    <div className="relative w-full max-w-xl mx-auto bg-base rounded-2xl border border-border/80 overflow-hidden shadow-2xl aspect-[4/5] sm:aspect-[4/3] flex flex-col items-center justify-center p-6 text-center">
+    <div className="relative w-full max-w-xl mx-auto bg-base rounded-xl border border-border/80 overflow-hidden shadow-2xl aspect-[4/5] sm:aspect-[4/3] flex flex-col items-center justify-center p-6 text-center">
       {/* Background tech grid pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
       {/* Simulated Reticle Box */}
-      <div className="relative w-full max-w-xs aspect-[4/3] border-2 border-border/60 rounded-2xl flex flex-col items-center justify-center p-4 bg-base/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-xs aspect-[4/3] border-2 border-border/60 rounded-xl flex flex-col items-center justify-center p-4 bg-base/50 backdrop-blur-sm">
         {/* Corner brackets */}
         <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-border rounded-tl-lg" />
         <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-border rounded-tr-lg" />

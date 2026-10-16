@@ -375,7 +375,7 @@ export default function Employees() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                   activeTab === tab.id
                     ? 'bg-surface text-primary shadow-sm border border-border'
                     : 'text-secondary hover:text-primary'
@@ -392,7 +392,7 @@ export default function Employees() {
       {activeTab === 'directory' && (
         <>
           {/* Search & Filters Bar */}
-          <div className="bg-surface rounded-2xl border border-border/80 p-4 shadow-sm space-y-4">
+          <div className="bg-surface rounded-xl border border-border/80 p-4 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="relative flex-1">
             <Search className="w-4.5 h-4.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary" />
@@ -401,7 +401,7 @@ export default function Employees() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               aria-label="Search employees"
-              placeholder="Search by name, corporate email, office, or department..."
+              placeholder="Search by name, corporate email, office, or department…"
               className={`${controlClass()} pl-10 pr-4`}
             />
           </div>
@@ -428,7 +428,7 @@ export default function Employees() {
                   type="button"
                   aria-pressed={isSelected}
                   onClick={() => setSelectedDepartment(dep)}
-                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer border ${
                     isSelected
                       ? 'bg-accent text-on-accent border-accent shadow-sm shadow-accent/20'
                       : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
@@ -453,7 +453,7 @@ export default function Employees() {
                   type="button"
                   aria-pressed={isSelected}
                   onClick={() => setSelectedAccess(acc)}
-                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer border ${
                     isSelected
                       ? 'bg-accent text-on-accent border-accent shadow-sm shadow-accent/20'
                       : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
@@ -478,7 +478,7 @@ export default function Employees() {
                   type="button"
                   onClick={() => setSelectedWorkMode(mode.value)}
                   aria-pressed={isSelected}
-                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer border ${
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer border ${
                     isSelected
                       ? 'bg-accent text-on-accent border-accent shadow-sm shadow-accent/20'
                       : 'bg-base/80 text-secondary border-border/80 hover:bg-surface hover:text-primary'
@@ -500,7 +500,7 @@ export default function Employees() {
         </p>
       )}
       {error && safeEmployees.length === 0 ? (
-        <div className="p-8 bg-danger/10 border border-danger/30 rounded-2xl text-center">
+        <div className="p-8 bg-danger/10 border border-danger/30 rounded-xl text-center">
           <p className="text-sm text-danger font-medium">{error}</p>
         </div>
       ) : !loading && filteredEmployees.length === 0 ? (
@@ -529,7 +529,7 @@ export default function Employees() {
         {/* Phones: one card per employee, same actions as the table row. */}
         <ul aria-label="Employees" aria-busy={loading || undefined} className="md:hidden space-y-3">
           {loading ? [1, 2, 3].map((i) => (
-            <li key={i} className="bg-surface rounded-2xl border border-border p-4 animate-pulse flex items-center gap-3">
+            <li key={i} className="bg-surface rounded-xl border border-border p-4 animate-pulse flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-raised shrink-0" />
               <div className="flex-1 space-y-1.5">
                 <div className="h-4 bg-raised rounded w-32" />
@@ -542,7 +542,7 @@ export default function Employees() {
               onClick={(e) => handleRowClick(e, emp)}
               tabIndex={canEdit ? 0 : undefined}
               onKeyDown={canEdit ? onActivateKey((e) => handleRowClick(e, emp)) : undefined}
-              className={`bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3 ${canEdit ? 'cursor-pointer hover:border-accent/50' : ''}`}
+              className={`bg-surface rounded-xl border border-border shadow-sm p-4 space-y-3 ${canEdit ? 'cursor-pointer hover:border-accent/50' : ''}`}
             >
               <div className="flex items-start gap-3">
                 <div aria-hidden="true" className="w-9 h-9 rounded-xl bg-raised border border-border flex items-center justify-center text-xs font-bold text-primary uppercase shrink-0 shadow-sm">
@@ -564,7 +564,7 @@ export default function Employees() {
           ))}
         </ul>
 
-        <div className="hidden md:block bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="hidden md:block bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table aria-label="Employees" aria-busy={loading || undefined} className="w-full text-left text-sm">
               <thead className="bg-base/60 border-b border-border text-xs text-secondary uppercase tracking-wider">

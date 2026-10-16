@@ -92,7 +92,7 @@ function Widget({ title, icon: Icon, to, linkLabel, loading, error, onRetry, chi
           children
         )}
       </CardBody>
-      {footnote && <p className="px-4 pb-3 text-[11px] text-secondary">{footnote}</p>}
+      {footnote && <p className="px-4 pb-3 text-xs text-secondary">{footnote}</p>}
     </Card>
   );
 }
@@ -100,8 +100,8 @@ function Widget({ title, icon: Icon, to, linkLabel, loading, error, onRetry, chi
 function Stat({ label, value, to, tone = 'text-primary' }) {
   return (
     <Link to={to} className="block rounded-lg border border-border/60 hover:border-border hover:bg-raised transition-colors px-3 py-2">
-      <div className={`text-xl font-bold ${tone}`}>{value ?? 0}</div>
-      <div className="text-[11px] font-medium text-secondary uppercase tracking-wider mt-0.5">{label}</div>
+      <div className={`text-xl font-bold tabular-nums ${tone}`}>{value ?? 0}</div>
+      <div className="text-xs font-medium text-secondary uppercase tracking-wider mt-0.5">{label}</div>
     </Link>
   );
 }

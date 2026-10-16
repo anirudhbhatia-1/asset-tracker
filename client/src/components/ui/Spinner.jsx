@@ -12,7 +12,7 @@ export default function Spinner({ size = 'md', className = '' }) {
       <div
         className={`${sizeClasses[size] || sizeClasses.md} animate-spin rounded-full border-border border-t-accent`}
         role="status"
-        aria-label="Loading..."
+        aria-label="Loading…"
       />
     </div>
   );

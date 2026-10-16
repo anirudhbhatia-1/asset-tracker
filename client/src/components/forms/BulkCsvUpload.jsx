@@ -97,7 +97,7 @@ export default function BulkCsvUpload() {
   const isDone = result && !result.dryRun;
 
   return (
-    <div className="space-y-6 bg-surface rounded-2xl border border-border/80 p-6 sm:p-8 shadow-sm">
+    <div className="space-y-6 bg-surface rounded-xl border border-border/80 p-6 sm:p-8 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
@@ -140,7 +140,7 @@ export default function BulkCsvUpload() {
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="w-full rounded-2xl border-2 border-dashed border-border hover:border-accent/60 hover:bg-accent/5 transition-colors p-8 flex flex-col items-center gap-2 text-center cursor-pointer"
+          className="w-full rounded-xl border-2 border-dashed border-border hover:border-accent/60 hover:bg-accent/5 transition-colors p-8 flex flex-col items-center gap-2 text-center cursor-pointer"
         >
           <Upload className="w-7 h-7 text-accent" />
           <span className="text-sm font-semibold text-primary">Choose a CSV file</span>

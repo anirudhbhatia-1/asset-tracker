@@ -40,7 +40,7 @@ test.describe('Assignment flow', () => {
     await page.goto(`/inventory/${assetId}`);
 
     await page.getByRole('button', { name: 'Assign to Employee' }).click();
-    await page.getByPlaceholder('Filter employees by name, email, or department...').fill(ASSIGNEE_EMAIL);
+    await page.getByPlaceholder('Filter employees by name, email, or department…').fill(ASSIGNEE_EMAIL);
     await page.getByRole('button', { name: new RegExp(ASSIGNEE_EMAIL) }).click();
     await page.getByRole('button', { name: 'Assign Hardware' }).click();
     await expect(page.getByText('Asset assigned successfully')).toBeVisible();

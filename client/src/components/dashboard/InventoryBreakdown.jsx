@@ -141,7 +141,7 @@ export default function InventoryBreakdown({
 
                 {/* Donut Center Display & Hover Tooltip */}
                 {hoveredItem ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-3 text-center transition-all duration-200">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-3 text-center transition duration-200">
                     <span className="text-xs font-semibold text-primary truncate max-w-[130px]" title={hoveredItem.name}>
                       {hoveredItem.name}
                     </span>
@@ -153,7 +153,7 @@ export default function InventoryBreakdown({
                     </Pill>
                   </div>
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-all duration-200">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition duration-200">
                     <span className="text-3xl font-bold text-primary">{totalItems}</span>
                     <span className="text-xs font-medium text-secondary uppercase tracking-wider">Total</span>
                   </div>
@@ -180,7 +180,7 @@ export default function InventoryBreakdown({
                     onKeyDown={linkable ? (e) => { if (e.key === 'Enter') handleNavigateToInventory(segment); } : undefined}
                     onFocus={() => setHoveredIndex(i)}
                     onBlur={() => setHoveredIndex(null)}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border border-transparent transition-all group ${linkable ? 'cursor-pointer' : ''} ${opacityClass} ${
+                    className={`flex items-center justify-between p-2.5 rounded-xl border border-transparent transition group ${linkable ? 'cursor-pointer' : ''} ${opacityClass} ${
                       isHovered ? 'bg-raised border-border/80 shadow-sm scale-[1.01]' : 'hover:bg-raised/50'
                     }`}
                   >

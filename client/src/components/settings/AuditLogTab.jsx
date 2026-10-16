@@ -119,7 +119,7 @@ export default function AuditLogTab() {
       </div>
 
       {/* Filters */}
-      <div className="bg-surface rounded-2xl border border-border/80 p-4 shadow-sm grid grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr] gap-3">
+      <div className="bg-surface rounded-xl border border-border/80 p-4 shadow-sm grid grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr] gap-3">
         <div className="space-y-1.5 col-span-2 lg:col-span-1">
           <label htmlFor={`${fieldId}-q`} className="block text-sm font-medium text-primary">Search people</label>
           <div className="relative">
@@ -177,7 +177,7 @@ export default function AuditLogTab() {
       )}
 
       {error && events.length === 0 ? (
-        <div role="alert" className="p-8 bg-danger/10 border border-danger/30 rounded-2xl text-center space-y-3">
+        <div role="alert" className="p-8 bg-danger/10 border border-danger/30 rounded-xl text-center space-y-3">
           <p className="text-sm text-danger font-medium">{error}</p>
           <Button variant="secondary" size="sm" onClick={refresh}>Try again</Button>
         </div>
@@ -194,7 +194,7 @@ export default function AuditLogTab() {
           {/* Phones: one card per event. */}
           <ul aria-label="Access history" aria-busy={loading || undefined} className="md:hidden space-y-3">
             {loading ? [1, 2, 3].map((i) => (
-              <li key={i} className="bg-surface rounded-2xl border border-border p-4 animate-pulse space-y-2">
+              <li key={i} className="bg-surface rounded-xl border border-border p-4 animate-pulse space-y-2">
                 <div className="h-3 bg-raised rounded w-28" />
                 <div className="h-4 bg-raised rounded w-56" />
               </li>
@@ -203,7 +203,7 @@ export default function AuditLogTab() {
               const isOpen = expanded.has(event.id);
               const detailsId = `${fieldId}-m-${event.id}`;
               return (
-                <li key={event.id} className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+                <li key={event.id} className="bg-surface rounded-xl border border-border shadow-sm p-4">
                   <div className="flex items-center justify-between gap-2">
                     <time dateTime={event.createdAt} className="text-xs text-secondary">{formatDateTime(event.createdAt)}</time>
                     <GroupPill eventType={event.eventType} />
@@ -219,7 +219,7 @@ export default function AuditLogTab() {
             })}
           </ul>
 
-          <div className="hidden md:block bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
+          <div className="hidden md:block bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
             <table aria-label="Access history" aria-busy={loading || undefined} className="w-full text-left text-sm">
               <thead className="bg-base/60 border-b border-border text-xs text-secondary uppercase tracking-wider">
                 <tr>

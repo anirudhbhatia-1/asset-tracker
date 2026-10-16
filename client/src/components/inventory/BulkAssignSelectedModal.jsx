@@ -68,14 +68,14 @@ function AssignForm({ onClose, assets, onAssign }) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filter employees by name, email, or department..."
+            placeholder="Filter employees by name, email, or department…"
             className={`${controlClass()} pl-9 pr-4`}
           />
         </div>
 
         <div role="radiogroup" aria-label="Employee" className="max-h-52 overflow-y-auto rounded-xl border border-border bg-base/60 divide-y divide-border/60 scrollbar-thin">
           {loading ? (
-            <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading employee directory...</div>
+            <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading employee directory…</div>
           ) : error ? (
             <div role="alert" className="p-4 text-center text-xs text-danger">{errorMessageOf(error, 'Could not load employees')}</div>
           ) : filtered.length === 0 ? (

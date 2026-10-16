@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { warningIcon } from '../utils/toastIcons';
 import {
   bulkAssignSelectedAssets, bulkReturnAssets, bulkUpdateAssets, exportAssetsExcel,
 } from '../api/assetsApi';
@@ -34,7 +35,7 @@ export default function useBulkAssetActions() {
       const data = res.data?.data || {};
       const skipped = Array.isArray(data.skipped) ? data.skipped : [];
       const text = returnSummary({ returned: data.returned ?? 0, skipped });
-      if (skipped.length) toast(text, { icon: '⚠️', duration: 8000 });
+      if (skipped.length) toast(text, { icon: warningIcon(), duration: 8000 });
       else toast.success(text);
       return data;
     } catch (err) {

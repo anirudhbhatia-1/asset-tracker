@@ -196,6 +196,8 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
             <Field id="onb-new-email" label="Personal Email">
               <Input
                 type="email"
+                autoComplete="off"
+                spellCheck={false}
                 value={newHireEmail}
                 onChange={(e) => setNewHireEmail(e.target.value)}
               />
@@ -205,7 +207,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
               >
-                <option value="">Select Department...</option>
+                <option value="">Select Department…</option>
                 {departments.map(dep => (
                   <option key={dep} value={dep}>{dep}</option>
                 ))}
@@ -216,7 +218,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               >
-                <option value="">Select Location...</option>
+                <option value="">Select Location…</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.name}>
                     {loc.name}
@@ -234,7 +236,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                   >
-                    <option value="">Select Address...</option>
+                    <option value="">Select Address…</option>
                     {addrs.map((addr, idx) => (
                       <option key={idx} value={addr}>{addr}</option>
                     ))}
@@ -293,7 +295,7 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
                       value={item.categoryId}
                       onChange={(e) => handleItemChange(idx, 'categoryId', e.target.value)}
                     >
-                      <option value="">Select Category...</option>
+                      <option value="">Select Category…</option>
                       {categories.map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}

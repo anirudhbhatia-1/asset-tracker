@@ -20,7 +20,7 @@ export default function OfflineBanner() {
   if (isOnline) return null;
 
   return (
-    <div className="bg-danger text-on-accent px-6 py-2.5 text-xs font-semibold flex items-center justify-center gap-2.5 shadow-md z-50 transition-all animate-pulse">
+    <div className="bg-danger text-on-accent px-6 py-2.5 text-xs font-semibold flex items-center justify-center gap-2.5 shadow-md z-50 transition animate-pulse">
       <WifiOff className="w-4 h-4 shrink-0" />
       <span>
         You are currently offline. Changes will not be saved to the database until network connectivity is restored.

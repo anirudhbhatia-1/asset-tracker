@@ -73,7 +73,7 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
       <div className="relative z-10 w-full max-w-md p-6 sm:p-8 bg-surface/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl">
         <div className="flex flex-col items-center mb-8">
           {/* Light chip behind the logo in dark mode keeps its dark lettering legible. */}
-          <div className="w-20 h-20 flex items-center justify-center mb-4 dark:bg-white dark:rounded-2xl dark:p-2 dark:shadow-sm">
+          <div className="w-20 h-20 flex items-center justify-center mb-4 dark:bg-white dark:rounded-xl dark:p-2 dark:shadow-sm">
             <img 
               src="/logo.png" 
               alt="Thinkvibes Logo" 
@@ -99,7 +99,7 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
                 autoComplete="username"
-                className="w-full pl-10 pr-4 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition duration-200"
                 required
               />
             </div>
@@ -117,7 +117,7 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={formError ? true : undefined}
                 aria-describedby={formError ? 'login-error' : undefined}
-                className="w-full pl-10 pr-12 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition-all duration-200"
+                className="w-full pl-10 pr-12 py-3 bg-base/50 border border-border rounded-xl text-primary placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/50 transition duration-200"
                 required
               />
               <button
@@ -139,7 +139,7 @@ const Login = ({ googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID }) => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-accent hover:bg-accent/90 text-on-accent rounded-xl font-semibold shadow-lg shadow-accent/25 hover:shadow-accent/40 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 mt-4"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-accent hover:bg-accent/90 text-on-accent rounded-xl font-semibold shadow-lg shadow-accent/25 hover:shadow-accent/40 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed transition duration-200 mt-4"
           >
             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
           </button>

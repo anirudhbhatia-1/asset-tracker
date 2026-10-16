@@ -4,6 +4,7 @@ import { invalidateQueries, setQueryData } from '../utils/queryCache';
 import useQuery, { errorMessageOf } from './useQuery';
 import { listOf } from './useAssets';
 import toast from 'react-hot-toast';
+import { warningIcon } from '../utils/toastIcons';
 
 const EMPTY = [];
 export const EMPLOYEES_KEY = 'employees';
@@ -57,7 +58,7 @@ export default function useEmployees() {
       toast.success('Employee profile created successfully');
       // e.g. the onboarding request could not be linked; the employee exists.
       const warnings = Array.isArray(res.data?.warnings) ? res.data.warnings : [];
-      warnings.forEach((warning) => toast(warning, { icon: '⚠️', duration: 8000 }));
+      warnings.forEach((warning) => toast(warning, { icon: warningIcon(), duration: 8000 }));
       // Return full response so caller can access temporaryPassword if present
       return res.data;
     } catch (err) {

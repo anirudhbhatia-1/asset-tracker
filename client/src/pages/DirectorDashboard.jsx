@@ -33,14 +33,14 @@ export default function DirectorDashboard() {
     <div className="space-y-6 max-w-7xl mx-auto pb-10 animate-fadeIn">
       {/* Header Banner */}
       <PageHeader
-        className="bg-gradient-to-r from-accent/20 via-surface to-raised border border-accent/30 rounded-2xl p-6 shadow-xl"
+        className="bg-gradient-to-r from-accent/20 via-surface to-raised border border-accent/30 rounded-xl p-6 shadow-xl"
         icon={ShieldCheck}
         title="Executive Super-Dashboard"
         subtitle="Cross-team summary, per-team dashboard views, and access control."
         actions={(
           <Link
             to="/settings/roles"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-on-accent text-sm font-semibold rounded-xl transition-all shadow-md shadow-accent/20 shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-on-accent text-sm font-semibold rounded-xl transition shadow-md shadow-accent/20 shrink-0"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Role Matrix Builder</span>

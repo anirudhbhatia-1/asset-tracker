@@ -14,7 +14,7 @@ export default function AssetCard({ asset, selectable = false, selected = false,
   const card = (
     <Link
       to={`/inventory/${asset.id}`}
-      className={`group block h-full bg-surface border rounded-2xl hover:border-accent hover:shadow-lg hover:shadow-accent/5 transition-all overflow-hidden flex flex-col ${selected ? 'border-accent ring-2 ring-accent/30' : 'border-border/80'}`}
+      className={`group block h-full bg-surface border rounded-xl hover:border-accent hover:shadow-lg hover:shadow-accent/5 transition overflow-hidden flex flex-col ${selected ? 'border-accent ring-2 ring-accent/30' : 'border-border/80'}`}
     >
       <div className="p-5 flex-1 space-y-4">
         {/* Header: Badge & Statuses */}

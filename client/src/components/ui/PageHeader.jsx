@@ -17,9 +17,9 @@ export default function PageHeader({ icon: Icon, title, subtitle, actions, leadi
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-primary tracking-tight flex items-center gap-2.5">
             {Icon && <Icon className="w-6 h-6 text-accent shrink-0" aria-hidden="true" />}
-            <span className="min-w-0">{title}</span>
+            <span className="min-w-0 text-balance">{title}</span>
           </h1>
-          {subtitle && <p className="text-sm text-secondary mt-1">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-secondary mt-1 text-pretty">{subtitle}</p>}
           {children}
         </div>
       </div>

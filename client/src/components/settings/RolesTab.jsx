@@ -64,7 +64,7 @@ export default function RolesTab() {
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-surface border border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl bg-surface border border-border">
         <div>
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-accent" />
@@ -86,13 +86,13 @@ export default function RolesTab() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-40 rounded-2xl bg-surface border border-border animate-pulse" />
+            <div key={i} className="h-40 rounded-xl bg-surface border border-border animate-pulse" />
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {roles.map(role => (
-            <div key={role.id} className="p-5 rounded-2xl bg-surface border border-border shadow-sm hover:border-border/80 transition-all space-y-4">
+            <div key={role.id} className="p-5 rounded-xl bg-surface border border-border shadow-sm hover:border-border/80 transition space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">

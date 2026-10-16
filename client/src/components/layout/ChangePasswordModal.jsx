@@ -238,7 +238,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
             form="change-password-form"
             loading={loading}
           >
-            {loading ? 'Updating...' : 'Change Password'}
+            {loading ? 'Updating…' : 'Change Password'}
           </Button>
         </div>
       </div>

@@ -66,7 +66,7 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting || !formData.name.trim()}>
-            {isSubmitting ? 'Saving...' : 'Save Category'}
+            {isSubmitting ? 'Saving…' : 'Save Category'}
           </Button>
         </>
       )}
@@ -129,7 +129,7 @@ export default function CategoryBuilder({ isOpen, onClose, onSave, initialData }
                 key={c.value}
                 type="button"
                 onClick={() => setFormData({ ...formData, color: c.value })}
-                className={`h-10 rounded-xl flex items-center justify-center transition-all ${
+                className={`h-10 rounded-xl flex items-center justify-center transition ${
                   formData.color === c.value ? 'ring-2 ring-primary ring-offset-2 ring-offset-base scale-105' : 'hover:scale-105'
                 }`}
                 style={{ backgroundColor: c.value }}

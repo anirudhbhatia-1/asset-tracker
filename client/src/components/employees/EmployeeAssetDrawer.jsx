@@ -216,7 +216,7 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
               description="This employee does not currently have any active company devices allocated to them."
             />
           ) : (
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-1 scrollbar-thin">
+            <div className="space-y-3 max-h-80 overflow-y-auto overscroll-contain pr-1 scrollbar-thin">
               {safeAssets.map((asset) => (
                 <div
                   key={asset.id}

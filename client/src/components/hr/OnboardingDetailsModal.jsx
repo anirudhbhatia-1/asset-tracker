@@ -230,7 +230,7 @@ const OnboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, o
                               aria-label={`Asset for ${item.category_name || 'item'}`}
                               className="sm:w-48"
                             >
-                              <option value="">{loadingAssets ? 'Loading assets...' : 'Select Asset...'}</option>
+                              <option value="">{loadingAssets ? 'Loading assets…' : 'Select Asset…'}</option>
                               {getFulfilmentCandidates(assets, item)
                                 .filter(a => !linkedAssetIds.has(a.id))
                                 .map(a => (

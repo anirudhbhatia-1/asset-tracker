@@ -75,7 +75,12 @@
       linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 38%, transparent), transparent 18rem);
   }
 
-  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  /* Our own pressed/focus styles replace the grey tap flash, and
+     manipulation removes the double-tap-to-zoom delay on controls. */
+  button, a, input, select, textarea, [role="button"], [role="tab"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 
   /* Keyboard focus ring for every interactive element; :focus-visible keeps
      it off for mouse clicks. */
@@ -84,10 +89,16 @@
     outline-offset: 2px;
   }
 
-  /* Placeholders read as hints, visibly lighter than typed values. */
+  /* Numbers in tables line up digit for digit (counts, costs, dates). */
+  td, th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Placeholders read as hints: the secondary colour is already lighter than
+     typed text, and full opacity keeps them readable (4.5:1) in both themes. */
   ::placeholder {
     color: var(--theme-text-secondary);
-    opacity: 0.7;
+    opacity: 1;
   }
 }
 
@@ -192,5 +203,26 @@ html {
 
   .animate-scanline {
     animation: none !important;
+  }
+}
+
+/* Touch screens: every control is at least 44px tall, and icon-only buttons
+   44px wide, so they're easy to hit with a finger. Mouse layouts keep their
+   compact sizes. Deliberately outside Tailwind's layers, so it also wins over
+   component size utilities (e.g. Button's sm:min-h-[32px] on tablets); a
+   control that must be smaller needs an inline style. */
+@media (pointer: coarse) {
+  :where(button, [role="button"], [role="tab"], select, textarea,
+    input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"]),
+    header a[href], nav a[href]) {
+    min-height: 44px;
+  }
+  :where(button, [role="button"], header a[href]):has(> svg:only-child) {
+    min-width: 44px;
+  }
+  /* iOS zooms the page in on focus when a field's text is under 16px. */
+  :where(select, textarea,
+    input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"])) {
+    font-size: 16px;
   }
 }

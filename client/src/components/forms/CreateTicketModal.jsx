@@ -10,8 +10,8 @@ import Field, { Input, Select, Textarea } from '../ui/Field';
 import { DEFAULT_PRIORITY, PRIORITIES, QUEUE_HINTS, defaultQueueFor, queueLabel, resolveRequestedItem } from '../../utils/ticketMeta';
 
 const TYPES = [
-  { value: 'issue', label: 'Report a problem', hint: 'Something is broken or not working', icon: Wrench },
-  { value: 'request', label: 'Request something', hint: 'New equipment or accessories', icon: PackagePlus },
+  { value: 'issue', label: 'Report a Problem', hint: 'Something is broken or not working', icon: Wrench },
+  { value: 'request', label: 'Request Something', hint: 'New equipment or accessories', icon: PackagePlus },
 ];
 
 const PRIORITY_HINT = 'High and Urgent tickets go to another team if nobody starts on them within 10 minutes. Choose Urgent only if you can’t work.';
@@ -135,11 +135,11 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Raise a ticket"
+      title="Raise a Ticket"
       footer={!loadingContext && (
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="create-ticket-form" loading={submitting}>Submit ticket</Button>
+          <Button type="submit" form="create-ticket-form" loading={submitting}>Submit Ticket</Button>
         </>
       )}
     >
@@ -219,7 +219,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit, initialType = 'issue', i
               maxLength={2000}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What happened, since when, anything you already tried..."
+              placeholder="What happened, since when, anything you already tried…"
             />
           </Field>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, MapPin, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Loader2, MapPin, ShieldCheck } from 'lucide-react';
 import { getLocations } from '../../api/locationsApi';
 import { getEmployees } from '../../api/employeesApi';
 import { useAuth } from '../../context/AuthContext';
@@ -140,7 +140,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
       {loadingContext ? (
         <div className="py-12 flex flex-col items-center gap-3 text-secondary">
           <Loader2 className="w-6 h-6 animate-spin text-accent" />
-          <p className="text-sm">Loading location & department data...</p>
+          <p className="text-sm">Loading location & department data…</p>
         </div>
       ) : (
         <form id="edit-employee-form" onSubmit={handleSubmit} className="space-y-4">
@@ -175,7 +175,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
                 {department && !departments.includes(department) && (
                   <option value={department}>{department} (current)</option>
                 )}
-                <option value="__custom__">+ Add new department...</option>
+                <option value="__custom__">+ Add new department…</option>
               </Select>
             </Field>
             {/* Show text input if user picked "custom" */}
@@ -184,7 +184,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
                 type="text"
                 autoFocus
                 aria-label="New department name"
-                placeholder="Type department name..."
+                placeholder="Type department name…"
                 onChange={e => setDepartment(e.target.value)}
                 className="mt-2"
               />
@@ -249,7 +249,7 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
                 {roles.map(r => (
                   <label
                     key={r.value}
-                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${
                       role === r.value
                         ? 'border-accent bg-accent/8'
                         : 'border-border bg-base/60 hover:bg-raised/30'
@@ -273,7 +273,8 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
                 ))}
               </div>
               <p className="text-xs text-warning mt-2 flex items-start gap-1">
-                ⚠️ Changing role takes effect on next login.
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
+                Changing role takes effect on next login.
               </p>
             </div>
           )}

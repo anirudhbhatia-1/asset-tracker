@@ -90,7 +90,7 @@ export default function Modal({
         </div>
 
         {/* Body */}
-        <div className={`p-6 overflow-y-auto ${shown.footer ? 'max-h-[calc(90dvh-13rem)]' : 'max-h-[calc(90dvh-9rem)]'}`}>{shown.children}</div>
+        <div className={`p-6 overflow-y-auto overscroll-contain ${shown.footer ? 'max-h-[calc(90dvh-13rem)]' : 'max-h-[calc(90dvh-9rem)]'}`}>{shown.children}</div>
         {shown.footer && (
           <div className="flex flex-wrap items-center justify-end gap-3 px-6 py-4 border-t border-border bg-base/50">
             {shown.footer}

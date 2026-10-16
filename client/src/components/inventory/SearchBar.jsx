@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { controlClass } from '../ui/fieldStyles';
 
-export default function SearchBar({ initialValue = '', onSearch, placeholder = 'Search by asset name, model, or serial number...', label = 'Search' }) {
+export default function SearchBar({ initialValue = '', onSearch, placeholder = 'Search by asset name, model, or serial number…', label = 'Search' }) {
   const [searchTerm, setSearchTerm] = useState(initialValue);
 
   // Sync state if initialValue changes from outside (e.g. clear filters)

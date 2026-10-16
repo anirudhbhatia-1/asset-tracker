@@ -101,14 +101,14 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Filter employees by name, email, or department..."
+              placeholder="Filter employees by name, email, or department…"
               className={`${controlClass()} pl-9 pr-4`}
             />
           </div>
 
           <div className="max-h-52 overflow-y-auto rounded-xl border border-border bg-base/60 divide-y divide-border/60 scrollbar-thin">
             {loadingEmployees ? (
-              <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading employee directory...</div>
+              <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading employee directory…</div>
             ) : filteredEmployees.length === 0 ? (
               <div className="p-6 text-center text-xs text-secondary">No matching employees found.</div>
             ) : (

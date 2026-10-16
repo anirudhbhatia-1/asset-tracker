@@ -140,7 +140,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, serial number, or model..."
+              placeholder="Search by name, serial number, or model…"
               className={`${controlClass()} pl-9 pr-4`}
             />
           </div>
@@ -156,7 +156,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
           {loading ? (
             <div className="py-12 flex items-center justify-center gap-3 text-secondary">
               <Loader2 className="w-5 h-5 animate-spin text-accent" />
-              <span className="text-sm">Loading available assets...</span>
+              <span className="text-sm">Loading available assets…</span>
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState size="sm" icon={Package} title="No available assets found." description="" />
@@ -244,7 +244,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
           <Textarea
             value={note}
             onChange={e => setNote(e.target.value)}
-            placeholder="Assignment note (e.g., Standard onboarding kit)..."
+            placeholder="Assignment note (e.g., Standard onboarding kit)…"
             rows={2}
           />
           <div className="flex items-center justify-end gap-3">

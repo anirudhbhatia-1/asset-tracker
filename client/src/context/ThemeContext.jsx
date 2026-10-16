@@ -25,6 +25,10 @@ export function ThemeProvider({ children }) {
     } else {
       root.classList.remove('dark');
     }
+    // The browser's own bar follows the chosen theme, not just the OS one.
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.setAttribute('content', theme === 'dark' ? '#0E1728' : '#F5F7FB');
+    });
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {

@@ -157,7 +157,7 @@ const AssetTableRow = memo(function AssetTableRow({ asset, selectable = false, s
           onClick={stop}
           aria-label={`Open ${asset.name}`}
           title="Open details"
-          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-surface group-hover:bg-accent/20 text-secondary group-hover:text-accent border border-border group-hover:border-accent/40 transition-all"
+          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-surface group-hover:bg-accent/20 text-secondary group-hover:text-accent border border-border group-hover:border-accent/40 transition"
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </Link>

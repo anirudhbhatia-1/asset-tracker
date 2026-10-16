@@ -166,9 +166,9 @@ const Tickets = () => {
               onChange={(view) => setQuery({ view })}
               options={[
                 // No admin type means no queue is assigned; don't guess one.
-                { value: 'my_queue', label: user?.adminType ? `My queue (${QUEUE_SHORT_LABELS[user.adminType] || user.adminType})` : 'My queue' },
-                { value: 'all', label: 'All tickets' },
-                ...(isHr ? [{ value: 'my_tickets', label: 'Raised by me' }] : []),
+                { value: 'my_queue', label: user?.adminType ? `My Queue (${QUEUE_SHORT_LABELS[user.adminType] || user.adminType})` : 'My Queue' },
+                { value: 'all', label: 'All Tickets' },
+                ...(isHr ? [{ value: 'my_tickets', label: 'Raised by Me' }] : []),
               ]}
             />
           )}
@@ -188,7 +188,7 @@ const Tickets = () => {
             initialValue={query.q}
             onSearch={handleSearch}
             label="Search tickets"
-            placeholder={showEmployee ? 'Search by title, person, device or TK number...' : 'Search by title, device or TK number...'}
+            placeholder={showEmployee ? 'Search by title, person, device or TK number…' : 'Search by title, device or TK number…'}
           />
           <Select aria-label="Priority" value={query.priority} onChange={(e) => setQuery({ priority: e.target.value })} className="sm:w-44">
             {PRIORITY_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -212,11 +212,11 @@ const Tickets = () => {
       {!loading && visibleTickets.length === 0 ? (
         <EmptyState
           icon={TicketIcon}
-          title="No tickets found"
+          title="No Tickets Found"
           description={isFiltered
             ? 'No tickets match these filters.'
             : (canRaiseTicket ? 'Nothing here yet. Raise a ticket to report a problem or request something.' : 'There are no tickets in this view.')}
-          actionText={isFiltered ? 'Clear filters' : (canRaiseTicket ? 'Raise Ticket' : undefined)}
+          actionText={isFiltered ? 'Clear Filters' : (canRaiseTicket ? 'Raise Ticket' : undefined)}
           onAction={isFiltered
             ? () => setQuery({ status: 'all', priority: undefined, q: undefined, queue: undefined })
             : (canRaiseTicket ? () => setIsCreateModalOpen(true) : undefined)}

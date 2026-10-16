@@ -8,7 +8,7 @@ export default function RecentScans({ scans = [], activeId = null, onSelect, onC
   if (scans.length === 0) return null;
 
   return (
-    <div className="w-full max-w-xl mx-auto bg-surface rounded-2xl border border-border/60 p-4 shadow-sm text-left">
+    <div className="w-full max-w-xl mx-auto bg-surface rounded-xl border border-border/60 p-4 shadow-sm text-left">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-accent" />

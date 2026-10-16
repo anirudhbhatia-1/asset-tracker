@@ -7,7 +7,7 @@ export default function LinkedAccessoriesCard({ childAssets: items, parentAsset 
   // parentAsset = the parent this asset belongs to (if this IS a sub-asset)
   if (parentAsset && parentAsset.id) {
     return (
-      <div className="bg-surface border border-accent/30 rounded-2xl p-5 shadow-sm flex items-start gap-4">
+      <div className="bg-surface border border-accent/30 rounded-xl p-5 shadow-sm flex items-start gap-4">
         <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
           <Package className="w-5 h-5" />
         </div>

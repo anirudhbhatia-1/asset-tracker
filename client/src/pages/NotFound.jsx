@@ -9,7 +9,7 @@ export default function NotFound() {
 
   return (
     <div className="max-w-xl mx-auto py-12 sm:py-20 text-center">
-      <div className="w-14 h-14 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent mb-5">
+      <div className="w-14 h-14 mx-auto rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent mb-5">
         <Compass className="w-7 h-7" aria-hidden="true" />
       </div>
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent mb-2">Page not found</p>

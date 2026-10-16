@@ -75,7 +75,7 @@ const Sidebar = ({ isOpen = true }) => {
       {/* Mobile: bottom tab bar. md+: left sidebar. */}
       <aside
         aria-label="Main navigation"
-        className={`fixed z-50 flex bg-surface/95 backdrop-blur-xl select-none transition-all duration-300 ease-in-out
+        className={`fixed z-50 flex bg-surface/95 backdrop-blur-xl select-none transition-[width,transform] duration-300 ease-in-out
           bottom-0 left-0 right-0 w-full flex-row items-stretch
           h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] border-t border-border
           md:top-0 md:bottom-auto md:right-auto md:h-screen ${isOpen ? 'md:w-64' : 'md:w-20'}
@@ -100,7 +100,7 @@ const Sidebar = ({ isOpen = true }) => {
                 <span className="font-bold text-lg tracking-tight text-primary flex items-center gap-1.5">
                   Thinkvibes
                 </span>
-                <span className="block text-[10px] text-secondary uppercase font-semibold tracking-wider -mt-1">
+                <span className="block text-[11px] text-secondary uppercase font-semibold tracking-wider -mt-1">
                   Asset Management
                 </span>
               </div>
@@ -123,7 +123,7 @@ const Sidebar = ({ isOpen = true }) => {
                 {...prefetchHandlers(item.path)}
                 className={({ isActive }) =>
                   `relative flex flex-col md:flex-row items-center ${isOpen ? 'md:justify-start' : 'md:justify-center'} gap-1 md:gap-3
-                   w-full px-2 md:px-3 py-2 md:py-2.5 rounded-lg text-[10px] md:text-sm transition-all duration-150 group active:scale-[0.97]
+                   w-full px-2 md:px-3 py-2 md:py-2.5 rounded-lg text-[11px] md:text-sm transition duration-150 group active:scale-[0.97]
                    ${isMobileHidden ? 'hidden md:flex' : 'flex'}
                    ${isActive
                       ? 'md:bg-accent/10 text-accent font-semibold md:shadow-[inset_3px_0_0_var(--theme-accent)]'
@@ -153,7 +153,7 @@ const Sidebar = ({ isOpen = true }) => {
                 aria-expanded={moreOpen}
                 aria-haspopup="true"
                 aria-controls="mobile-more-menu"
-                className={`flex flex-col items-center gap-1 w-full px-2 py-2 rounded-lg text-[10px] transition-all duration-150 active:scale-[0.97] cursor-pointer ${
+                className={`flex flex-col items-center gap-1 w-full px-2 py-2 rounded-lg text-[11px] transition duration-150 active:scale-[0.97] cursor-pointer ${
                   moreActive || moreOpen ? 'text-accent font-semibold' : 'text-secondary hover:text-primary'
                 }`}
               >

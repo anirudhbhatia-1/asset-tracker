@@ -4,12 +4,12 @@
 import { PRIORITY_RANK, ticketRef } from './ticketMeta';
 
 export const STATUS_FILTERS = [
-  { value: 'active', label: 'Open & in progress' },
+  { value: 'active', label: 'Open & In Progress' },
   { value: 'done', label: 'Done' },
   { value: 'all', label: 'All' },
 ];
 export const PRIORITY_FILTERS = [
-  { value: 'all', label: 'Any priority' },
+  { value: 'all', label: 'Any Priority' },
   { value: 'urgent_high', label: 'Urgent & High' },
   { value: 'urgent', label: 'Urgent' },
   { value: 'high', label: 'High' },
@@ -17,9 +17,9 @@ export const PRIORITY_FILTERS = [
   { value: 'low', label: 'Low' },
 ];
 export const SORTS = [
-  { value: 'priority', label: 'Most urgent first' },
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
+  { value: 'priority', label: 'Most Urgent First' },
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
 ];
 export const VIEWS = ['my_queue', 'all', 'my_tickets'];
 export const QUEUES = ['it', 'hardware', 'hr'];

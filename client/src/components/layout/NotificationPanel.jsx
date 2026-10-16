@@ -60,7 +60,7 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
       id="notification-panel"
       role="dialog"
       aria-label="Notifications"
-      className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-surface border border-border/80 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn origin-top-right"
+      className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-surface border border-border/80 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeIn origin-top-right"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-base/50">
@@ -87,7 +87,7 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
       </div>
 
       {/* Body */}
-      <div className="max-h-[min(400px,calc(100dvh-10rem))] overflow-y-auto divide-y divide-border/40">
+      <div className="max-h-[min(400px,calc(100dvh-10rem))] overflow-y-auto overscroll-contain divide-y divide-border/40">
         {loading ? (
           <div className="p-4 space-y-3 animate-pulse">
             {[1, 2, 3].map((i) => (
@@ -120,7 +120,7 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
                   <ExternalLink className="w-3 h-3 text-secondary opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 transition-opacity" />
                 </div>
                 <p className="text-xs text-secondary mt-0.5 leading-relaxed">{n.message}</p>
-                <span className="text-[10px] text-secondary mt-1 block">
+                <span className="text-xs text-secondary mt-1 block">
                   {formatDateTime(n.createdAt)}
                 </span>
               </div>
@@ -132,7 +132,7 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
       {/* Footer */}
       {notifications.length > 0 && (
         <div className="px-4 py-2.5 border-t border-border/60 bg-base/30">
-          <p className="text-[10px] text-secondary text-center">
+          <p className="text-xs text-secondary text-center">
             Showing last 7 days · Refreshes every 30s
           </p>
         </div>

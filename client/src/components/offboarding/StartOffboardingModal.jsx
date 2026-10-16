@@ -176,7 +176,7 @@ const StartOffboardingModal = ({ isOpen, onClose, onSubmit, onCreated, onOpenExi
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search employees"
-                placeholder="Search by name, email or department..."
+                placeholder="Search by name, email or department…"
                 className={`${controlClass()} pl-9`}
               />
             </div>
@@ -188,7 +188,7 @@ const StartOffboardingModal = ({ isOpen, onClose, onSubmit, onCreated, onOpenExi
               disabled={loadingEmployees}
             >
               <option value="">
-                {loadingEmployees ? 'Loading employees...' : (options.length ? 'Select an employee...' : 'No matching employees')}
+                {loadingEmployees ? 'Loading employees…' : (options.length ? 'Select an employee…' : 'No matching employees')}
               </option>
               {options.map(emp => (
                 <option key={emp.id} value={emp.id}>
@@ -232,7 +232,7 @@ const StartOffboardingModal = ({ isOpen, onClose, onSubmit, onCreated, onOpenExi
             maxLength={2000}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Handover details, collection arrangements..."
+            placeholder="Handover details, collection arrangements…"
           />
         </Field>
 

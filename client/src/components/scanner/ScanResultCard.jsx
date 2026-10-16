@@ -13,7 +13,7 @@ export default function ScanResultCard({ asset, error, onClear, canOpenDetails =
 
   if (error) {
     return (
-      <div className="w-full max-w-xl mx-auto bg-danger/10 border border-danger/30 rounded-2xl p-6 shadow-lg animate-fadeIn text-left">
+      <div className="w-full max-w-xl mx-auto bg-danger/10 border border-danger/30 rounded-xl p-6 shadow-lg animate-fadeIn text-left">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-danger/20 border border-danger/30 flex items-center justify-center text-danger shrink-0">
@@ -40,7 +40,7 @@ export default function ScanResultCard({ asset, error, onClear, canOpenDetails =
   const showReturn = canAssign && onReturn && asset.status === 'in-use';
 
   return (
-    <div className="w-full max-w-xl mx-auto bg-surface/90 backdrop-blur-md rounded-2xl border border-success/40 p-6 shadow-xl animate-fadeIn relative overflow-hidden text-left">
+    <div className="w-full max-w-xl mx-auto bg-surface/90 backdrop-blur-md rounded-xl border border-success/40 p-6 shadow-xl animate-fadeIn relative overflow-hidden text-left">
       {/* Top green accent bar */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-success to-success" />
 
@@ -125,7 +125,7 @@ export default function ScanResultCard({ asset, error, onClear, canOpenDetails =
           {canOpenDetails && (
             <Link
               to={`/inventory/${asset.id}`}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent text-on-accent text-xs font-semibold transition-all shadow-lg shadow-accent/20 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent text-on-accent text-xs font-semibold transition shadow-lg shadow-accent/20 cursor-pointer"
             >
               <span>Open details</span>
               <ArrowRight className="w-4 h-4" />

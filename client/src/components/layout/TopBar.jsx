@@ -121,7 +121,7 @@ const TopBar = ({ toggleSidebar }) => {
             {hasPermission('assets:create') && (
               <Link
                 to="/inventory/new"
-                className="bg-accent hover:bg-accent-hover text-on-accent p-2.5 md:px-4 md:py-2 rounded-xl font-medium shadow-sm shadow-accent/20 transition-all flex items-center justify-center gap-2 text-sm"
+                className="bg-accent hover:bg-accent-hover text-on-accent p-2.5 md:px-4 md:py-2 rounded-xl font-medium shadow-sm shadow-accent/20 transition flex items-center justify-center gap-2 text-sm"
                 aria-label="Add Asset"
               >
                 <Plus className="w-5 h-5 md:w-4 md:h-4" />
@@ -205,7 +205,7 @@ const TopBar = ({ toggleSidebar }) => {
 
               {/* Dropdown Menu */}
               {isUserMenuOpen && (
-                <div id="user-menu" className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-surface border border-border/80 rounded-2xl shadow-xl overflow-hidden z-50 animate-fadeIn origin-top-right">
+                <div id="user-menu" className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-surface border border-border/80 rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn origin-top-right">
                   {/* Dropdown Header (Full Email & Role) */}
                   <div className="px-4 py-4 border-b border-border/60 bg-base/50">
                     <p className="text-sm font-bold text-primary truncate" title={user?.email}>

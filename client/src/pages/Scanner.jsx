@@ -198,7 +198,7 @@ export default function Scanner() {
             type="text"
             value={manualSerial}
             onChange={(e) => setManualSerial(e.target.value)}
-            placeholder="Enter serial number..."
+            placeholder="Enter serial number…"
             autoComplete="off"
             className="flex-1 min-w-0 font-mono placeholder:font-sans"
           />
@@ -210,7 +210,7 @@ export default function Scanner() {
 
         {/* Loading Indicator when resolving decoded serial against backend */}
         {loading && (
-          <div className="w-full max-w-xl mx-auto bg-surface/80 rounded-2xl border border-border p-6 animate-pulse space-y-4 text-center">
+          <div className="w-full max-w-xl mx-auto bg-surface/80 rounded-xl border border-border p-6 animate-pulse space-y-4 text-center">
             <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin mx-auto" />
             <p className="text-xs font-mono text-accent">Looking up asset…</p>
           </div>

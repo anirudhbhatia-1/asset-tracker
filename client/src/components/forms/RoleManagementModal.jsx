@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { Key, Edit3 } from 'lucide-react';
+import { Key, KeyRound, Edit3 } from 'lucide-react';
 import useRoles, { findRoleValue, defaultRoleValue } from '../../hooks/useRoles';
 
 export default function RoleManagementModal({ isOpen, onClose, employee, onGrantAccess, onChangeRole, onGrantGoogleAccess }) {
@@ -80,7 +80,7 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
               {roles.map((r) => (
                 <label
                   key={r.value}
-                  className={`flex items-start p-3 border rounded-xl cursor-pointer transition-all ${
+                  className={`flex items-start p-3 border rounded-xl cursor-pointer transition ${
                     role === r.value
                       ? 'border-accent bg-accent/5'
                       : 'border-border bg-base hover:border-border/80'
@@ -125,7 +125,7 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
                 }}
                 className="w-full"
               >
-                <span aria-hidden="true">🔑</span>
+                <KeyRound className="w-4 h-4" aria-hidden="true" />
                 <span>Grant Google Login (Testing Only)</span>
               </Button>
             )}

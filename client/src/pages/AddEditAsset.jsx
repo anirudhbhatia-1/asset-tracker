@@ -42,7 +42,7 @@ export default function AddEditAsset() {
   if (isEdit && (error || !asset)) {
     return (
       <div className="max-w-4xl mx-auto py-12 text-center">
-        <div className="bg-surface border border-border rounded-2xl p-8">
+        <div className="bg-surface border border-border rounded-xl p-8">
           <h3 className="text-lg font-bold text-primary">Asset Not Found</h3>
           <p className="text-sm text-secondary mt-1">We couldn't load the asset to edit.</p>
           <Link

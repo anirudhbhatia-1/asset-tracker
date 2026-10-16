@@ -14,7 +14,7 @@ export function ErrorFallback({ error, onReload, onGoHome, fullScreen = false, s
   const newBuild = isChunkLoadError(error);
   return (
     <div className={`flex items-center justify-center p-6 ${fullScreen ? 'min-h-screen bg-base' : 'min-h-[60vh]'}`}>
-      <div role="alert" className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-sm p-6 sm:p-8 text-center">
+      <div role="alert" className="w-full max-w-md bg-surface border border-border rounded-xl shadow-sm p-6 sm:p-8 text-center">
         <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-warning/10 border border-warning/20 flex items-center justify-center">
           <AlertTriangle className="w-6 h-6 text-warning" aria-hidden="true" />
         </div>

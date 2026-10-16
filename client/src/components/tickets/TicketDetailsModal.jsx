@@ -268,7 +268,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
         {/* Owner confirm/reopen for a resolved ticket they can also work */}
         {isHandlingAdmin && showOwnerActions && (
           <div className="space-y-2 bg-accent/5 border border-accent/15 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-accent">Your ticket was resolved</h3>
+            <h3 className="text-sm font-semibold text-accent">Your Ticket Was Resolved</h3>
             {ticket.resolution_notes && <p className="text-sm text-primary">{ticket.resolution_notes}</p>}
             {ownerActions}
           </div>
@@ -280,7 +280,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
             {!inTransferMode ? (
               <>
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-primary">Work on this ticket</h3>
+                  <h3 className="text-sm font-semibold text-primary">Work on This Ticket</h3>
                   {canTransfer && canUpdate && (
                     <Button variant="ghost" size="sm" onClick={() => { setShowTransferMode(true); setFormError(null); }}>
                       <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden="true" />
@@ -329,23 +329,23 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                     maxLength={2000}
                     value={resolutionNotes}
                     onChange={(e) => setResolutionNotes(e.target.value)}
-                    placeholder="Explain how this was resolved..."
+                    placeholder="Explain how this was resolved…"
                   />
                 </Field>
               </>
             ) : (
               <>
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-primary">Transfer ticket</h3>
+                  <h3 className="text-sm font-semibold text-primary">Transfer Ticket</h3>
                   {!transferOnly && (
                     <Button variant="ghost" size="sm" onClick={() => { setShowTransferMode(false); setFormError(null); }}>
-                      Cancel transfer
+                      Cancel Transfer
                     </Button>
                   )}
                 </div>
                 <Field id="ticket-transfer-to" label="Transfer to" required>
                   <Select value={targetAdminType} onChange={(e) => setTargetAdminType(e.target.value)}>
-                    <option value="" disabled>Select department...</option>
+                    <option value="" disabled>Select department…</option>
                     {['it', 'hardware', 'hr'].filter((queue) => queue !== ticket.current_admin_type).map((queue) => (
                       <option key={queue} value={queue}>{queueLabel(queue)}</option>
                     ))}
@@ -357,7 +357,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
                     maxLength={1000}
                     value={transferNote}
                     onChange={(e) => setTransferNote(e.target.value)}
-                    placeholder="Explain why this ticket is being transferred..."
+                    placeholder="Explain why this ticket is being transferred…"
                   />
                 </Field>
               </>
@@ -367,7 +367,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
           // Employee view of the resolution
           ticket.status !== 'open' && (
             <div className="space-y-2 bg-accent/5 border border-accent/15 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-accent">Resolution details</h3>
+              <h3 className="text-sm font-semibold text-accent">Resolution Details</h3>
               {ticket.resolution_notes ? (
                 <p className="text-sm text-primary">{ticket.resolution_notes}</p>
               ) : (
@@ -398,7 +398,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
           </h3>
           {loadingHistory ? (
             <div className="flex items-center gap-2 text-secondary text-sm">
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Loading timeline...
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Loading timeline…
             </div>
           ) : (
             <ol className="relative pl-6 space-y-5 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-raised">

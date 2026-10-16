@@ -393,7 +393,7 @@ export default function Inventory() {
               ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
               : <Upload className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">
-              {importing ? (pendingImportFile ? 'Importing...' : 'Checking...') : 'Import Excel'}
+              {importing ? (pendingImportFile ? 'Importing…' : 'Checking…') : 'Import Excel'}
             </span>
           </button>
         </>

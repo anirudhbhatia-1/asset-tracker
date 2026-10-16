@@ -7,7 +7,7 @@ export default function CategoryCard({ category, onEdit, onDelete, canManage = t
   const assetCount = category.assetCount || 0;
 
   return (
-    <div className="bg-surface/80 border border-border/60 rounded-2xl p-5 shadow-lg flex flex-col justify-between transition-all hover:bg-surface hover:border-border">
+    <div className="bg-surface/80 border border-border/60 rounded-xl p-5 shadow-lg flex flex-col justify-between transition hover:bg-surface hover:border-border">
       <div>
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-3">

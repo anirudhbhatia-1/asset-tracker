@@ -24,7 +24,7 @@ export default function SerialSimulator({ onSimulateScan, disabled }) {
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto bg-surface border border-border/80 rounded-2xl p-6 shadow-xl space-y-6 text-left">
+    <div className="w-full max-w-xl mx-auto bg-surface border border-border/80 rounded-xl p-6 shadow-xl space-y-6 text-left">
       <div className="flex items-center justify-between border-b border-border/60 pb-4">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">

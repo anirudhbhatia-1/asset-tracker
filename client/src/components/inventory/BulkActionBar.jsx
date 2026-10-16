@@ -45,7 +45,7 @@ export default function BulkActionBar({
       <div
         role="toolbar"
         aria-label="Actions for selected assets"
-        className="bg-surface/95 backdrop-blur-xl border border-accent/30 rounded-2xl shadow-xl shadow-black/10 p-2 sm:p-2.5 space-y-2"
+        className="bg-surface/95 backdrop-blur-xl border border-accent/30 rounded-xl shadow-xl shadow-black/10 p-2 sm:p-2.5 space-y-2"
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
           <p className="pl-1.5 text-sm font-semibold text-primary whitespace-nowrap" aria-live="polite">

@@ -411,7 +411,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
   });
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 bg-surface rounded-2xl border border-border/80 p-6 sm:p-8 shadow-sm max-w-4xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-8 bg-surface rounded-xl border border-border/80 p-6 sm:p-8 shadow-sm max-w-4xl mx-auto">
       {/* Section index */}
       <nav aria-label="Form sections" className="flex flex-wrap items-center gap-2 -mt-1">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-secondary mr-1">Jump to:</span>
@@ -463,7 +463,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
               }}
               disabled={categoriesLoading}
             >
-              <option value="">Select hardware category...</option>
+              <option value="">Select hardware category…</option>
               {safeCategories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.badgeChar ? `[${cat.badgeChar}] ` : ''}
@@ -519,7 +519,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 if (errors.location) setErrors((prev) => ({ ...prev, location: null }));
               }}
             >
-              <option value="">Select location...</option>
+              <option value="">Select location…</option>
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.name}>
                   {loc.name}
@@ -539,7 +539,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                 >
-                  <option value="">Select address...</option>
+                  <option value="">Select address…</option>
                   {addrs.map((addr, idx) => (
                     <option key={idx} value={addr}>
                       {addr}
@@ -695,7 +695,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Enter warranty notes, serial verification, vendor receipt IDs, or repair history..."
+              placeholder="Enter warranty notes, serial verification, vendor receipt IDs, or repair history…"
               rows={3}
             />
           </Field>
@@ -808,12 +808,12 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 onChange={(e) => setAssignImmediately(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-raised peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent" />
+              <div className="w-11 h-6 bg-raised peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition peer-checked:bg-accent" />
             </label>
           </div>
 
           {assignImmediately && (
-            <div className="bg-base/60 p-5 rounded-2xl border border-accent/30 space-y-5 animate-fadeIn">
+            <div className="bg-base/60 p-5 rounded-xl border border-accent/30 space-y-5 animate-fadeIn">
               {/* Employee Selector with Search */}
               <div>
                 <label htmlFor="employeeSearch" className={`${LABEL_CLASS} mb-1.5`}>
@@ -826,7 +826,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                     type="text"
                     value={employeeSearch}
                     onChange={(e) => setEmployeeSearch(e.target.value)}
-                    placeholder="Search employee directory by name, email, or department..."
+                    placeholder="Search employee directory by name, email, or department…"
                     aria-describedby={errors.selectedEmployeeId ? 'employeeSearch-error' : undefined}
                     className={`${controlClass(Boolean(errors.selectedEmployeeId))} pl-9 pr-4`}
                   />
@@ -834,7 +834,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
 
                 <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-base divide-y divide-border/60 scrollbar-thin">
                   {employeesLoading ? (
-                    <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading employee directory...</div>
+                    <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading employee directory…</div>
                   ) : filteredEmployees.length === 0 ? (
                     <div className="p-4 text-center text-xs text-secondary">No matching employees found.</div>
                   ) : (
@@ -923,7 +923,7 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
                 value={sub.categoryId}
                 onChange={e => updateSubAsset(i, 'categoryId', e.target.value)}
               >
-                <option value="">Select Category...</option>
+                <option value="">Select Category…</option>
                 {safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
               <Input
@@ -988,10 +988,10 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
             )}
 
             {scanChecking && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-base/60 backdrop-blur-sm rounded-2xl">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-base/60 backdrop-blur-sm rounded-xl">
                 <div className="bg-surface border border-border p-4 rounded-xl flex items-center gap-3 shadow-xl">
                   <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-                  <span className="text-sm font-medium text-primary">Verifying serial...</span>
+                  <span className="text-sm font-medium text-primary">Verifying serial…</span>
                 </div>
               </div>
             )}
@@ -1036,10 +1036,10 @@ export default function AddAssetForm({ initialData, isEdit = false, onSaveSucces
             )}
 
             {subScanChecking && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-base/60 backdrop-blur-sm rounded-2xl">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-base/60 backdrop-blur-sm rounded-xl">
                 <div className="bg-surface border border-border p-4 rounded-xl flex items-center gap-3 shadow-xl">
                   <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-                  <span className="text-sm font-medium text-primary">Capturing serial...</span>
+                  <span className="text-sm font-medium text-primary">Capturing serial…</span>
                 </div>
               </div>
             )}

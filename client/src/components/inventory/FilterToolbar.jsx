@@ -28,7 +28,7 @@ export default function FilterToolbar({
         <button
           type="button"
           onClick={() => onSelectCategory('all')}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 active:scale-[0.97] shrink-0 cursor-pointer ${
+          className={`px-3 py-1 rounded-full text-xs font-medium transition duration-150 active:scale-[0.97] shrink-0 cursor-pointer ${
             selectedCategoryId === 'all'
               ? 'bg-accent text-on-accent shadow-sm ring-2 ring-accent/30 font-semibold'
               : 'bg-surface text-secondary border border-border hover:bg-raised/70 hover:text-primary active:bg-raised'
@@ -44,7 +44,7 @@ export default function FilterToolbar({
               key={cat.id}
               type="button"
               onClick={() => onSelectCategory(cat.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 active:scale-[0.97] shrink-0 inline-flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-medium transition duration-150 active:scale-[0.97] shrink-0 inline-flex items-center gap-1.5 cursor-pointer ${
                 isActive
                   ? 'bg-accent text-on-accent shadow-sm ring-2 ring-accent/30 font-semibold'
                   : 'bg-surface text-secondary border border-border hover:bg-raised/70 hover:text-primary active:bg-raised'
@@ -73,7 +73,7 @@ export default function FilterToolbar({
             >
               <option value="all">All Statuses</option>
               {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </div>
@@ -111,7 +111,7 @@ export default function FilterToolbar({
             >
               <option value="all">All Warranty</option>
               {WARRANTY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </div>

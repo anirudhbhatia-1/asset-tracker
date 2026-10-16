@@ -84,12 +84,12 @@ export default function LocationsTab() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-secondary animate-pulse">Loading locations...</div>;
+    return <div className="p-8 text-center text-secondary animate-pulse">Loading locations…</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-surface border border-border p-5 rounded-2xl">
+      <div className="flex justify-between items-center bg-surface border border-border p-5 rounded-xl">
         <div>
           <h3 className="text-lg font-bold text-primary flex items-center gap-2">
             <MapPin className="w-5 h-5 text-accent" />
@@ -201,7 +201,7 @@ export default function LocationsTab() {
                   <Textarea
                     value={addr}
                     onChange={(e) => updateAddressField(idx, e.target.value)}
-                    placeholder="Enter full street address..."
+                    placeholder="Enter full street address…"
                     rows={2}
                   />
                   <button

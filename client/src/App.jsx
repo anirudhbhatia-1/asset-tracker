@@ -94,7 +94,7 @@ const App = () => {
             <div className="flex h-screen w-full items-center justify-center bg-base">
               <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-secondary text-sm font-medium animate-pulse">Loading AssetTrack...</p>
+                <p className="text-secondary text-sm font-medium animate-pulse">Loading AssetTrack…</p>
               </div>
             </div>
           }>

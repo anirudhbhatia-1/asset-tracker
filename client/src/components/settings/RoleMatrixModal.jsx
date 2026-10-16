@@ -153,7 +153,7 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe capabilities of this role..."
+            placeholder="Describe capabilities of this role…"
           />
         </Field>
 
@@ -208,7 +208,7 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
                           />
                           <div>
                             <span className="block font-medium text-primary font-mono">{p.key}</span>
-                            <span className="block text-[10px] text-secondary mt-0.5">{p.description}</span>
+                            <span className="block text-xs text-secondary mt-0.5">{p.description}</span>
                           </div>
                         </label>
                       );

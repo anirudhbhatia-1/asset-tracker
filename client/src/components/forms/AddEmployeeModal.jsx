@@ -146,6 +146,8 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, departments =
           <Field id="add-emp-email" label="Email Address" required>
             <Input
               type="email"
+                autoComplete="off"
+                spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="E.g., priya.patel@company.com"
@@ -167,7 +169,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, departments =
 
             <Field id="add-emp-location" label="Office">
               <Select value={location} onChange={(e) => setLocation(e.target.value)}>
-                <option value="">Select location...</option>
+                <option value="">Select location…</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.name}>
                     {loc.name}
@@ -184,7 +186,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, departments =
             return (
               <Field id="add-emp-address" label="Office Address" className="mb-4">
                 <Select value={address} onChange={(e) => setAddress(e.target.value)}>
-                  <option value="">Select address...</option>
+                  <option value="">Select address…</option>
                   {addrs.map((addr, idx) => (
                     <option key={idx} value={addr}>
                       {addr}
