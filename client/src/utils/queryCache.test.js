@@ -198,6 +198,32 @@ describe('invalidateAfterMutation', () => {
     expect(getQueryData('locations')).toEqual([3]);
   });
 
+  it('reloads categories (assetCount) when assets are added, removed or edited', async () => {
+    const changes = [
+      ['post', '/assets'],
+      ['post', '/api/assets/import'],
+      ['post', '/assets/import-csv'],
+      ['delete', '/assets/7'],
+      ['patch', '/assets/7'],
+      ['post', '/assets/bulk/update'],
+    ];
+    for (const [method, url] of changes) {
+      await fetchQuery('categories', () => Promise.resolve([2]));
+      await fetchQuery('locations', () => Promise.resolve([3]));
+      await invalidateAfterMutation(method, url);
+      expect(getQueryData('categories'), `${method} ${url}`).toBeUndefined();
+      expect(getQueryData('locations'), `${method} ${url}`).toEqual([3]);
+    }
+  });
+
+  it('keeps categories for asset lifecycle actions', async () => {
+    for (const url of ['/assets/7/retire', '/assets/7/return', '/assets/bulk/assign', '/assets/bulk/return']) {
+      await fetchQuery('categories', () => Promise.resolve([2]));
+      await invalidateAfterMutation('post', url);
+      expect(getQueryData('categories'), url).toEqual([2]);
+    }
+  });
+
   it('reloads categories and the lists showing them after a category change', async () => {
     await fetchQuery('categories', () => Promise.resolve([2]));
     await fetchQuery('assets', () => Promise.resolve([1]));

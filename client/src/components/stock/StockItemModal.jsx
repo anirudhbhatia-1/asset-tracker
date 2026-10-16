@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Field, { Input, Select, Textarea } from '../ui/Field';
+import { controlClass } from '../ui/fieldStyles';
 import useCategories from '../../hooks/useCategories';
 import useLocations from '../../hooks/useLocations';
 import { Package, Save } from 'lucide-react';
@@ -8,8 +10,6 @@ import {
   MAX_STOCK_QUANTITY, validateQuantity, parseQuantity, rupeesToPaise, paiseToRupeesInput,
 } from '../../utils/stock';
 
-const inputClass = 'w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent';
-const labelClass = 'block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5';
 
 /**
  * Add or edit a bulk item. `item` given = edit (quantities are changed from
@@ -105,12 +105,26 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
   };
 
   const fieldError = (key) => errors[key] && (
-    <p id={`stock-item-${key}-error`} role="alert" className="text-xs text-danger mt-1.5">{errors[key]}</p>
+    <p id={`stock-item-${key}-error`} role="alert" className="text-xs text-error">{errors[key]}</p>
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? `Edit ${item.name}` : 'Add bulk item'} maxWidth="max-w-lg">
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEdit ? `Edit ${item.name}` : 'Add bulk item'}
+      maxWidth="max-w-lg"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button type="submit" form="stock-item-form" variant="primary" loading={submitting}>
+            <Save className="w-4 h-4" />
+            <span>{isEdit ? 'Save changes' : 'Add bulk item'}</span>
+          </Button>
+        </>
+      )}
+    >
+      <form id="stock-item-form" onSubmit={handleSubmit} className="space-y-4" noValidate>
         {!isEdit && (
           <p className="text-xs text-secondary bg-base/60 border border-border/60 rounded-xl p-3 flex items-start gap-2">
             <Package className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />
@@ -118,73 +132,57 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
           </p>
         )}
 
-        <div>
-          <label htmlFor="stock-item-name" className={labelClass}>Name <span className="text-danger">*</span></label>
-          <input
-            id="stock-item-name"
+        <Field id="stock-item-name" label="Name" required error={errors.name}>
+          <Input
             type="text"
             value={name}
             onChange={(e) => { setName(e.target.value); clearError('name'); }}
             maxLength={150}
             placeholder="E.g., Laptop Bag"
-            aria-invalid={Boolean(errors.name)}
-            aria-describedby={errors.name ? 'stock-item-name-error' : undefined}
-            className={inputClass}
           />
-          {fieldError('name')}
-        </div>
+        </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="stock-item-category" className={labelClass}>Category</label>
-            <select
-              id="stock-item-category"
+          <Field id="stock-item-category" label="Category">
+            <Select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className={`${inputClass} cursor-pointer`}
             >
               <option value="">No category</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
               ))}
-            </select>
-          </div>
+            </Select>
+          </Field>
 
-          <div>
-            <label htmlFor="stock-item-location" className={labelClass}>Location</label>
+          <Field id="stock-item-location" label="Location">
             {useLocationText ? (
-              <input
-                id="stock-item-location"
+              <Input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 maxLength={100}
                 placeholder="E.g., Bengaluru"
-                className={inputClass}
               />
             ) : (
-              <select
-                id="stock-item-location"
+              <Select
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className={`${inputClass} cursor-pointer`}
               >
                 <option value="">No location</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.name}>{loc.name}</option>
                 ))}
                 {!locationInList && <option value={location}>{location} (current)</option>}
-              </select>
+              </Select>
             )}
-          </div>
+          </Field>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {!isEdit && (
-            <div>
-              <label htmlFor="stock-item-quantity" className={labelClass}>Starting quantity <span className="text-danger">*</span></label>
-              <input
-                id="stock-item-quantity"
+            <Field id="stock-item-quantity" label="Starting quantity" required error={errors.quantity}>
+              <Input
                 type="number"
                 inputMode="numeric"
                 min="0"
@@ -192,16 +190,13 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
                 step="1"
                 value={quantity}
                 onChange={(e) => { setQuantity(e.target.value); clearError('quantity'); }}
-                aria-invalid={Boolean(errors.quantity)}
-                aria-describedby={errors.quantity ? 'stock-item-quantity-error' : undefined}
-                className={`${inputClass} font-mono`}
+                className="font-mono"
               />
-              {fieldError('quantity')}
-            </div>
+            </Field>
           )}
 
-          <div>
-            <label htmlFor="stock-item-cost" className={labelClass}>Cost per unit (₹)</label>
+          <div className="space-y-1.5">
+            <label htmlFor="stock-item-cost" className="block text-sm font-medium text-primary">Cost per unit (₹)</label>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary font-medium" aria-hidden="true">₹</span>
               <input
@@ -215,28 +210,28 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
                 placeholder="450.00"
                 aria-invalid={Boolean(errors.cost)}
                 aria-describedby={errors.cost ? 'stock-item-cost-error' : undefined}
-                className={`${inputClass} pl-8 font-mono`}
+                className={`${controlClass(Boolean(errors.cost))} pl-8 font-mono`}
               />
             </div>
             {fieldError('cost')}
           </div>
 
-          <div>
-            <label htmlFor="stock-item-purchase-date" className={labelClass}>Purchase date</label>
-            <input
-              id="stock-item-purchase-date"
+          <Field id="stock-item-purchase-date" label="Purchase date">
+            <Input
               type="date"
               value={purchaseDate}
               onChange={(e) => setPurchaseDate(e.target.value)}
-              className={inputClass}
             />
-          </div>
+          </Field>
         </div>
 
-        <div>
-          <label htmlFor="stock-item-threshold" className={labelClass}>Warn when stock is at or below</label>
-          <input
-            id="stock-item-threshold"
+        <Field
+          id="stock-item-threshold"
+          label="Warn when stock is at or below"
+          error={errors.threshold}
+          hint='Shows a "Low stock" badge when this few are left on the shelf.'
+        >
+          <Input
             type="number"
             inputMode="numeric"
             min="0"
@@ -245,35 +240,19 @@ export default function StockItemModal({ isOpen, onClose, item, onSave }) {
             value={threshold}
             onChange={(e) => { setThreshold(e.target.value); clearError('threshold'); }}
             placeholder="Leave blank for no warning"
-            aria-invalid={Boolean(errors.threshold)}
-            aria-describedby={errors.threshold ? 'stock-item-threshold-error' : 'stock-item-threshold-hint'}
-            className={`${inputClass} font-mono`}
+            className="font-mono"
           />
-          {errors.threshold
-            ? fieldError('threshold')
-            : <p id="stock-item-threshold-hint" className="text-xs text-secondary mt-1.5">Shows a "Low stock" badge when this few are left on the shelf.</p>}
-        </div>
+        </Field>
 
-        <div>
-          <label htmlFor="stock-item-notes" className={labelClass}>Notes</label>
-          <textarea
-            id="stock-item-notes"
+        <Field id="stock-item-notes" label="Notes">
+          <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={2000}
             rows={2}
             placeholder="Supplier, size, colour…"
-            className={inputClass}
           />
-        </div>
-
-        <div className="pt-3 border-t border-border flex flex-wrap items-center justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>
-          <Button type="submit" variant="primary" loading={submitting}>
-            <Save className="w-4 h-4" />
-            <span>{isEdit ? 'Save changes' : 'Add bulk item'}</span>
-          </Button>
-        </div>
+        </Field>
       </form>
     </Modal>
   );

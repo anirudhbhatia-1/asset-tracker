@@ -43,7 +43,21 @@ export default function QrLabelsModal({ isOpen, onClose, assets = [] }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`QR labels (${assets.length})`} maxWidth="max-w-2xl">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`QR labels (${assets.length})`}
+      maxWidth="max-w-2xl"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose}>Close</Button>
+          <Button onClick={handlePrint} disabled={assets.length === 0}>
+            <Printer className="w-4 h-4" aria-hidden="true" />
+            <span>Print labels</span>
+          </Button>
+        </>
+      )}
+    >
       <div className="space-y-4">
         <p className="text-sm text-secondary">Each code encodes the asset’s serial number; scanning it in the Scanner opens the asset.</p>
         <div ref={previewRef} className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[50dvh] overflow-y-auto p-1">
@@ -58,13 +72,6 @@ export default function QrLabelsModal({ isOpen, onClose, assets = [] }) {
               {asset.serialNumber && <p className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded break-all">{asset.serialNumber}</p>}
             </div>
           ))}
-        </div>
-        <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>Close</Button>
-          <Button onClick={handlePrint} disabled={assets.length === 0}>
-            <Printer className="w-4 h-4" aria-hidden="true" />
-            <span>Print labels</span>
-          </Button>
         </div>
       </div>
     </Modal>

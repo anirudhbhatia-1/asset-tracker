@@ -70,6 +70,13 @@ if (sslCaProblem) {
   require('./logger').warn(`WARNING: ${sslCaProblem.message}`);
 }
 
+// A pooled connection that drops while idle (pooler recycle, network blip,
+// database restart) is reported here; without a listener Node would treat it
+// as an unhandled error and stop the API. The pool replaces the connection.
+pool.on('error', (err) => {
+  require('./logger').error({ err: err.message }, 'Database connection lost; the pool will reconnect');
+});
+
 const sslOptions = buildSslOptions();
 if (sslOptions) {
   pool.options.ssl = sslOptions;
@@ -78,17 +85,25 @@ if (sslOptions) {
 // Optional helper for running transactions simply
 async function withTransaction(callback) {
   const client = await pool.connect();
+  let result;
   try {
     await client.query('BEGIN');
-    const result = await callback(client);
+    result = await callback(client);
     await client.query('COMMIT');
-    return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    // If the connection itself died, ROLLBACK fails too: keep the original
+    // error and throw the broken connection away instead of reusing it.
+    let broken;
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      broken = rollbackError;
+    }
+    client.release(broken);
     throw error;
-  } finally {
-    client.release();
   }
+  client.release();
+  return result;
 }
 
 // For health checks: resolves when the database answers `SELECT 1`, rejects

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import Button from '../ui/Button';
+import Pill from '../ui/Pill';
+import Field, { Input, Select, Textarea } from '../ui/Field';
 import { Copy, Check, Edit2, MapPin, DollarSign, Calendar, ShieldCheck, Building2, Briefcase, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getWarrantyStatus, formatDate, getWarrantyDaysLeft } from '../../utils/formatters';
@@ -92,18 +94,12 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-xl font-bold text-primary tracking-tight line-clamp-2 break-words min-w-0" title={asset.name}>{asset.name}</h2>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-raised/80 text-secondary border border-border/70">
+              <Pill size="md">
                 {asset.categoryName || 'Uncategorized'}
-              </span>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
-                  asset.assetType === 'client'
-                    ? 'bg-accent/10 text-accent border-accent/20'
-                    : 'bg-surface text-secondary border-border'
-                }`}
-              >
+              </Pill>
+              <Pill tone={asset.assetType === 'client' ? 'accent' : 'neutral'} className="uppercase tracking-wider">
                 {asset.assetType === 'client' ? 'Client Asset' : 'Company Asset'}
-              </span>
+              </Pill>
             </div>
             {asset.model && <p className="text-sm text-secondary mt-1">Model: {asset.model}</p>}
           </div>
@@ -112,25 +108,21 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
         <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
           <StatusPill status={asset.status} />
           {asset.serialNumber && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setIsQrModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 text-xs font-medium bg-raised hover:bg-raised/80 text-secondary hover:text-primary border border-border rounded-lg transition-colors cursor-pointer"
               title="Generate & Print QR Asset Tag"
             >
               <QrCode className="w-3.5 h-3.5" />
               <span>QR Tag</span>
-            </button>
+            </Button>
           )}
           {!isEditing && asset.status !== 'retired' && !readOnly && (
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 text-xs font-medium bg-raised hover:bg-raised/80 text-accent border border-accent/20 rounded-lg transition-colors cursor-pointer"
-            >
+            <Button variant="secondary" size="sm" onClick={() => setIsEditing(true)}>
               <Edit2 className="w-3.5 h-3.5" />
               <span>Edit Details</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -149,7 +141,7 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Asset Type (Client vs Company) */}
             <div>
-              <span className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+              <span className="block text-sm font-medium text-primary mb-1.5">
                 Asset Type Tag
               </span>
               <div className="flex bg-surface border border-border rounded-lg p-1 gap-1">
@@ -181,15 +173,10 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
             </div>
 
             {/* Office Location */}
-            <div>
-              <label htmlFor="edit-location-select" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-                Office Location
-              </label>
-              <select
-                id="edit-location-select"
+            <Field id="edit-location-select" label="Office Location">
+              <Select
                 value={locationName}
                 onChange={handleLocationSelect}
-                className="w-full rounded-lg bg-surface border border-border px-3 py-2 text-sm text-primary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
               >
                 <option value="">Select Office Location...</option>
                 {locations.map((loc) => (
@@ -197,52 +184,38 @@ export default function SpecsProfile({ asset, onUpdateAssetData, readOnly }) {
                     {loc.name}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </Field>
 
             {/* Location Address Details */}
-            <div className="sm:col-span-2">
-              <label htmlFor="edit-address-input" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-                Full Address / Specific Room
-              </label>
-              <input
-                id="edit-address-input"
+            <Field id="edit-address-input" label="Full Address / Specific Room" className="sm:col-span-2">
+              <Input
                 type="text"
                 value={addressValue}
                 onChange={(e) => setAddressValue(e.target.value)}
                 placeholder="Building, street address, or room number..."
-                className="w-full rounded-lg bg-surface border border-border px-3 py-2 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent"
               />
-            </div>
+            </Field>
 
             {/* Warranty Expiry Date */}
-            <div>
-              <label htmlFor="edit-warranty-input" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-                Warranty Expiry Date
-              </label>
-              <input
-                id="edit-warranty-input"
+            <Field id="edit-warranty-input" label="Warranty Expiry Date">
+              <Input
                 type="date"
                 value={warrantyValue}
                 onChange={(e) => setWarrantyValue(e.target.value)}
-                className="w-full rounded-lg bg-surface border border-border px-3 py-2 text-sm text-primary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                className="cursor-pointer"
               />
-            </div>
+            </Field>
 
             {/* Operational & Audit Notes */}
-            <div className="sm:col-span-2">
-              <label htmlFor="edit-notes-input" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-                Operational & Audit Notes
-              </label>
-              <textarea
-                id="edit-notes-input"
+            <Field id="edit-notes-input" label="Operational & Audit Notes" className="sm:col-span-2">
+              <Textarea
                 value={notesValue}
                 onChange={(e) => setNotesValue(e.target.value)}
                 placeholder="Add tracking notes, maintenance history, or special considerations..."
                 rows={3}
-                className="w-full rounded-lg bg-surface border border-border p-3 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent"
               />
-            </div>
+            </Field>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">

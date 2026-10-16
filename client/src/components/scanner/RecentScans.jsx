@@ -1,6 +1,7 @@
 import React from 'react';
 import { History, ChevronRight } from 'lucide-react';
 import StatusPill from '../ui/StatusPill';
+import Button from '../ui/Button';
 
 // Last few successful lookups this session; clicking one re-opens its card.
 export default function RecentScans({ scans = [], activeId = null, onSelect, onClear, disabled = false }) {
@@ -14,13 +15,9 @@ export default function RecentScans({ scans = [], activeId = null, onSelect, onC
           <h4 className="text-sm font-semibold text-primary">Recent scans</h4>
         </div>
         {onClear && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-lg hover:bg-raised/60 transition-colors cursor-pointer"
-          >
+          <Button variant="ghost" size="sm" onClick={onClear}>
             Clear
-          </button>
+          </Button>
         )}
       </div>
       <ul className="space-y-1.5">

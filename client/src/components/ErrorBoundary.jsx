@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import { reportError } from '../utils/monitoring';
 import { isChunkLoadError, reloadOnceForNewBuild } from '../utils/chunkReload';
+import Button from './ui/Button';
 
 /**
  * What people see instead of a blank page when rendering fails.
@@ -24,22 +25,14 @@ export function ErrorFallback({ error, onReload, onGoHome, fullScreen = false, s
             : 'This page hit an unexpected problem. Reloading usually fixes it; your saved data is safe.'}
         </p>
         <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-center">
-          <button
-            type="button"
-            onClick={onReload}
-            className="inline-flex items-center justify-center gap-2 h-10 min-h-[44px] sm:min-h-[40px] px-4 rounded-lg text-sm font-medium bg-accent hover:bg-accent-hover text-on-accent shadow-sm cursor-pointer"
-          >
+          <Button onClick={onReload}>
             <RefreshCw className="w-4 h-4" aria-hidden="true" />
             Reload
-          </button>
-          <button
-            type="button"
-            onClick={onGoHome}
-            className="inline-flex items-center justify-center gap-2 h-10 min-h-[44px] sm:min-h-[40px] px-4 rounded-lg text-sm font-medium bg-surface hover:bg-raised text-primary border border-border shadow-sm cursor-pointer"
-          >
+          </Button>
+          <Button variant="secondary" onClick={onGoHome}>
             <Home className="w-4 h-4" aria-hidden="true" />
             Go to dashboard
-          </button>
+          </Button>
         </div>
         {showDetails && error && (
           <details className="mt-6 text-left">

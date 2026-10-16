@@ -227,12 +227,25 @@ const RESOURCE_EFFECTS = {
 };
 const SHARED_LOOKUPS = ['categories', 'locations'];
 
-export const resourceOfUrl = (url = '') => {
+const segmentsOfUrl = (url = '') => {
   const path = String(url).replace(/^[a-z]+:\/\/[^/]+/i, '').split(/[?#]/)[0];
   const segments = path.split('/').filter(Boolean);
   // Skip an API prefix such as /api.
   if (segments[0] === 'api') segments.shift();
-  return segments[0] || '';
+  return segments;
+};
+
+export const resourceOfUrl = (url = '') => segmentsOfUrl(url)[0] || '';
+
+// Asset changes that alter a category's assetCount: create, import, delete,
+// and edits (which can move an asset to another category). Lifecycle actions
+// (assign/return/retire) leave the counts alone.
+const changesCategoryCounts = (verb, url) => {
+  const [, first, second] = segmentsOfUrl(url);
+  if (!first) return verb === 'post';
+  if (first === 'import' || first === 'import-csv') return true;
+  if (first === 'bulk') return second === 'update';
+  return !second && (verb === 'delete' || verb === 'patch' || verb === 'put');
 };
 
 /** Invalidates what a successful change request may have made out of date. */
@@ -245,5 +258,8 @@ export const invalidateAfterMutation = (method, url) => {
   if (affected) {
     return invalidateQueries((key) => affected.some((prefix) => key === prefix || key.startsWith(prefix)));
   }
-  return invalidateQueries((key) => !SHARED_LOOKUPS.some((prefix) => key.startsWith(prefix)));
+  const kept = resource === 'assets' && changesCategoryCounts(verb, url)
+    ? SHARED_LOOKUPS.filter((prefix) => prefix !== 'categories')
+    : SHARED_LOOKUPS;
+  return invalidateQueries((key) => !kept.some((prefix) => key.startsWith(prefix)));
 };

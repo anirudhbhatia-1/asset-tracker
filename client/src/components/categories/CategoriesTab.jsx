@@ -5,6 +5,7 @@ import { getCategories, createCategory, updateCategory, deleteCategoryApi } from
 import CategoryCard from './CategoryCard';
 import CategoryBuilder from './CategoryBuilder';
 import EmptyState from '../ui/EmptyState';
+import Button from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
 export default function CategoriesTab() {
@@ -89,13 +90,10 @@ export default function CategoriesTab() {
           </p>
         </div>
         {canManageCategories && (
-          <button
-            onClick={() => handleOpenBuilder()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent text-on-accent text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-accent/20"
-          >
+          <Button onClick={() => handleOpenBuilder()}>
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add Category</span>
-          </button>
+          </Button>
         )}
       </div>
 

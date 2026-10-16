@@ -121,3 +121,50 @@ describe('unattended urgent tickets', () => {
     expect(await escalate(moved.id)).toEqual([]);
   });
 });
+
+describe('escalation after people act on a ticket', () => {
+  it('restarts the clock when an in-progress ticket goes back to open', async () => {
+    const t = await raise({});
+    await request(app).patch(`/api/tickets/${t.id}`).set(headers.it).send({ status: 'in_progress' }).expect(200);
+    await wait(t.id, 60);
+    await request(app).patch(`/api/tickets/${t.id}`).set(headers.it).send({ status: 'open' }).expect(200);
+    expect(await escalate(t.id)).toEqual([]);
+  });
+
+  it('does not bounce a ticket a person moved between IT Admin and Admin', async () => {
+    const t = await raise({});
+    await request(app).patch(`/api/tickets/${t.id}/transfer`).set(headers.it).send({ targetAdminType: 'hardware' }).expect(200);
+    await wait(t.id, 11);
+    expect(await escalate(t.id)).toEqual([{ id: t.id, action: 'directors_alerted' }]);
+    expect((await ticket(t.id)).current_admin_type).toBe('hardware');
+  });
+
+  it('gives HR its own 10 minutes after an auto-moved ticket is sent there', async () => {
+    const t = await raise({});
+    await wait(t.id, 11);
+    await escalate(t.id);
+    await request(app).patch(`/api/tickets/${t.id}/transfer`).set(headers.hardware).send({ targetAdminType: 'hr' }).expect(200);
+    await wait(t.id, 11);
+    expect(await escalate(t.id)).toEqual([{ id: t.id, action: 'employee_notified' }]);
+  });
+
+  it('drops the "contact management" notice once the ticket leaves HR, and escalates again there', async () => {
+    const t = await raise({ targetAdminType: 'hr' });
+    await wait(t.id, 11);
+    await escalate(t.id);
+    await request(app).patch(`/api/tickets/${t.id}/transfer`).set(headers.hr).send({ targetAdminType: 'it' }).expect(200);
+    expect(await notificationIds('employee')).not.toContain(`ticket-hr-unanswered-${t.id}`);
+    await wait(t.id, 11);
+    expect(await escalate(t.id)).toEqual([{ id: t.id, action: 'moved', to: 'hardware' }]);
+  });
+
+  it('keeps escalation notes out of the employee\'s view of the timeline', async () => {
+    const t = await raise({ targetAdminType: 'hr' });
+    await wait(t.id, 11);
+    await escalate(t.id);
+    const own = (await request(app).get(`/api/tickets/${t.id}/history`).set(headers.employee)).body.data;
+    expect(own.some((e) => e.event_type === 'escalated')).toBe(false);
+    const asHr = (await request(app).get(`/api/tickets/${t.id}/history`).set(headers.hr)).body.data;
+    expect(asHr.some((e) => e.event_type === 'escalated')).toBe(true);
+  });
+});

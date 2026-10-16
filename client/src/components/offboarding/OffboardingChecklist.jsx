@@ -1,14 +1,13 @@
 import React, { useState, useId } from 'react';
-import { Package, CheckCircle2, AlertTriangle, Loader2, CornerDownRight } from 'lucide-react';
+import { Package, CheckCircle2, AlertTriangle, CornerDownRight } from 'lucide-react';
 import { groupChecklistItems } from '../../utils/offboarding';
 import { formatDateTime } from '../../utils/formatters';
-
-const controlClass = 'w-full px-2.5 py-1.5 bg-surface border border-border rounded-md text-xs text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent';
+import Button from '../ui/Button';
+import Pill from '../ui/Pill';
+import Field, { Input } from '../ui/Field';
 
 const ClientTag = () => (
-  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-accent/10 text-accent border border-accent/20">
-    Client
-  </span>
+  <Pill tone="accent" className="uppercase tracking-wider">Client</Pill>
 );
 
 const ResolvedOutcome = ({ item }) => {
@@ -18,20 +17,18 @@ const ResolvedOutcome = ({ item }) => {
     <div className="space-y-1 sm:text-right">
       <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
         {returned ? (
-          <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-1 rounded-md border border-success/20">
-            <CheckCircle2 className="w-3.5 h-3.5" />
+          <Pill tone="success" size="md" icon={CheckCircle2}>
             {isClient ? 'Returned to client' : 'Returned'}
-          </span>
+          </Pill>
         ) : (
-          <span className="inline-flex items-center gap-1 text-xs text-error bg-error/10 px-2 py-1 rounded-md border border-error/20">
-            <AlertTriangle className="w-3.5 h-3.5" />
+          <Pill tone="danger" size="md" icon={AlertTriangle}>
             Missing
-          </span>
+          </Pill>
         )}
         {returned && item.condition && (
-          <span className={`text-xs px-2 py-1 rounded-md border ${item.condition === 'damaged' ? 'text-warning bg-warning/10 border-warning/20' : 'text-secondary bg-raised border-border'}`}>
+          <Pill tone={item.condition === 'damaged' ? 'warning' : 'neutral'} size="md">
             {item.condition === 'damaged' ? 'Damaged' : 'Good condition'}
-          </span>
+          </Pill>
         )}
       </div>
       {item.notes && <div className="text-xs text-primary break-words">{item.notes}</div>}
@@ -75,30 +72,22 @@ const ReturnForm = ({ item, busy, onConfirm, onCancel }) => {
           ))}
         </div>
       </fieldset>
-      <div>
-        <label htmlFor={`${id}-notes`} className="block text-xs font-medium text-primary mb-1">Note (optional)</label>
-        <input
-          id={`${id}-notes`}
+      <Field id={`${id}-notes`} label="Note (optional)">
+        <Input
           type="text"
           maxLength={1000}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder={condition === 'damaged' ? 'What is damaged?' : 'e.g. collected at front desk'}
-          className={controlClass}
         />
-      </div>
+      </Field>
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" onClick={onCancel} disabled={busy} className="px-2 py-1.5 text-secondary hover:text-primary text-xs font-medium">
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-on-accent text-xs font-medium rounded-md disabled:opacity-50 transition-colors"
-        >
-          {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+        </Button>
+        <Button type="submit" size="sm" loading={busy}>
           {isClient ? 'Confirm returned to client' : 'Confirm returned'}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -164,29 +153,32 @@ export default function OffboardingChecklist({ items, canCollect = false, canRet
               />
             ) : (
               <div className="flex items-center gap-2">
-                {canReturn && <button
-                  type="button"
+                {canReturn && <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setReturningItemId(item.id)}
                   disabled={busyItemId != null}
                   aria-label={`Mark ${item.assetName || 'asset'} returned`}
-                  className="flex-1 sm:flex-none px-3 py-1.5 border border-accent text-accent hover:bg-accent/5 text-xs font-medium rounded-md transition-colors disabled:opacity-50"
+                  className="flex-1 sm:flex-none"
                 >
                   Returned
-                </button>}
+                </Button>}
                 {/* Client-owned assets are settled with the client, never written off. */}
-                {canWriteOff && !isClient && <button
-                  type="button"
+                {canWriteOff && !isClient && <Button
+                  variant="danger-outline"
+                  size="sm"
                   onClick={() => onRequestMissing(item)}
                   disabled={busyItemId != null}
+                  loading={busy}
                   aria-label={`Report ${item.assetName || 'asset'} missing`}
-                  className="flex-1 sm:flex-none px-3 py-1.5 border border-border text-error hover:bg-error/10 text-xs font-medium rounded-md transition-colors disabled:opacity-50"
+                  className="flex-1 sm:flex-none"
                 >
-                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : 'Missing'}
-                </button>}
+                  Missing
+                </Button>}
               </div>
             )
           ) : (
-            <div className="text-xs text-warning bg-warning/10 px-2 py-1 rounded-md border border-warning/20 w-max">Pending return</div>
+            <Pill tone="warning">Pending return</Pill>
           )}
         </div>
       </div>

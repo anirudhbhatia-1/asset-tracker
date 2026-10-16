@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Package, ExternalLink } from 'lucide-react';
+import Card, { CardHeader } from '../ui/Card';
 
 export default function LinkedAccessoriesCard({ childAssets: items, parentAsset }) {
   // parentAsset = the parent this asset belongs to (if this IS a sub-asset)
@@ -30,14 +31,13 @@ export default function LinkedAccessoriesCard({ childAssets: items, parentAsset 
   if (!items || items.length === 0) return null;
 
   return (
-    <div className="bg-surface border border-border/80 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-border/80 bg-base/40 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Package className="w-4.5 h-4.5 text-accent" />
-          <h3 className="text-sm font-bold text-primary uppercase tracking-wider">Linked Accessories ({items.length})</h3>
-        </div>
-        <span className="text-xs text-secondary font-medium">Sub-assets</span>
-      </div>
+    <Card>
+      <CardHeader
+        icon={Package}
+        level={3}
+        title={`Linked Accessories (${items.length})`}
+        actions={<span className="text-xs text-secondary font-medium">Sub-assets</span>}
+      />
 
       <div className="divide-y divide-border/60">
         {items.map((sub) => (
@@ -61,6 +61,6 @@ export default function LinkedAccessoriesCard({ childAssets: items, parentAsset 
           </Link>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

@@ -14,6 +14,7 @@ import { formatDate } from '../utils/formatters';
 import { describeChecklistProgress } from '../utils/offboardingProgress';
 import SegmentedControl from '../components/ui/SegmentedControl';
 import EmptyState from '../components/ui/EmptyState';
+import Button from '../components/ui/Button';
 import {
   OFFBOARDING_FILTERS,
   matchesOffboardingFilter,
@@ -145,14 +146,10 @@ const Offboarding = () => {
             ? 'Track employee exits and collect their assets.'
             : 'Start and track employee exits; IT collects their assets.'}
         actions={hasPermission('offboarding:create') && (
-          <button
-            type="button"
-            onClick={() => setIsStartModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-on-accent rounded-lg font-medium shadow-sm transition-all"
-          >
-            <UserMinus className="w-4 h-4" />
+          <Button onClick={() => setIsStartModalOpen(true)}>
+            <UserMinus className="w-4 h-4" aria-hidden="true" />
             Start Offboarding
-          </button>
+          </Button>
         )}
       />
 

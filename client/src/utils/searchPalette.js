@@ -3,6 +3,7 @@
 // navigation commands a user may run, recently opened results and the
 // shortcut label.
 import { formatDate } from './formatters';
+import { ticketRef, ticketStatusTone } from './ticketMeta';
 
 export const MIN_QUERY_LENGTH = 2;
 export const MAX_QUERY_LENGTH = 100;
@@ -18,14 +19,19 @@ const joinParts = (...parts) => parts
   .join(' · ');
 
 // Pill colour for a status, per kind of record.
+// Pill tones (components/ui/Pill), the same as each record's badge elsewhere.
+// Red is kept for things that need action now, so cancelled stays neutral.
 const TONES = {
-  asset: { available: 'success', 'in-use': 'info', retired: 'muted', returned: 'accent' },
-  ticket: { open: 'warning', in_progress: 'info', resolved: 'success', closed: 'muted', rejected: 'danger' },
-  onboarding: { pending: 'muted', in_progress: 'warning', arranged: 'info', completed: 'success', cancelled: 'danger' },
-  offboarding: { pending: 'muted', in_progress: 'warning', completed: 'success', cancelled: 'danger' },
+  asset: { available: 'success', 'in-use': 'info', retired: 'neutral', returned: 'accent' },
+  onboarding: { pending: 'neutral', in_progress: 'warning', arranged: 'info', completed: 'success', cancelled: 'neutral' },
+  offboarding: { pending: 'neutral', in_progress: 'warning', completed: 'success', cancelled: 'neutral' },
 };
 
-export const statusTone = (kind, status) => TONES[kind]?.[String(status || '').toLowerCase()] || 'muted';
+export const statusTone = (kind, status) => {
+  const key = String(status || '').toLowerCase();
+  if (kind === 'ticket') return ticketStatusTone(key);
+  return TONES[kind]?.[key] || 'neutral';
+};
 
 const ASSET_STATUS_LABELS = { 'in-use': 'In use', returned: 'Returned to client' };
 export const statusLabel = (kind, status) => {
@@ -81,8 +87,8 @@ export const SEARCH_GROUPS = [
     kind: 'ticket',
     label: 'Tickets',
     toItem: (t) => ({
-      label: t.title || `Ticket #${t.id}`,
-      sublabel: joinParts(`#${t.id}`, humanize(t.type), t.employeeName, t.createdAt && formatDate(t.createdAt)),
+      label: t.title || ticketRef(t),
+      sublabel: joinParts(ticketRef(t), humanize(t.type), t.employeeName, t.createdAt && formatDate(t.createdAt)),
       status: t.status,
       href: `/tickets?ticket=${encodeURIComponent(t.id)}`,
     }),

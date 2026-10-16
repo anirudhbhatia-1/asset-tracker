@@ -95,7 +95,9 @@ router.get('/:id/assets', [
     if (!hasPermission(req.user, 'employees:read') && req.user.id !== requestedId) {
       return res.status(403).json({ error: true, message: 'Forbidden - Can only view own assets', code: 403 });
     }
-    const assets = await employeeService.getEmployeeAssets(requestedId);
+    const assets = await employeeService.getEmployeeAssets(requestedId, {
+      showCompanyCost: hasPermission(req.user, 'assets:read'),
+    });
     res.status(200).json({
       data: assets,
       total: assets.length,

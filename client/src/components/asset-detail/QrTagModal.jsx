@@ -2,6 +2,7 @@ import React, { useRef, useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, Printer } from 'lucide-react';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import Button from '../ui/Button';
 import { escapeHtml } from '../../utils/html';
 import { closeAfterPrint } from '../../utils/qrLabels';
 
@@ -157,21 +158,13 @@ export default function QrTagModal({ isOpen, onClose, asset }) {
 
         {/* Footer Actions */}
         <div className="flex items-center gap-3 px-5 py-4 border-t border-border bg-base/50 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 rounded-lg transition-colors border border-border"
-          >
+          <Button variant="secondary" onClick={onClose} className="flex-1">
             Close
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors"
-          >
+          </Button>
+          <Button onClick={handlePrint} className="flex-1">
             <Printer className="w-4 h-4" />
             Print Tag
-          </button>
+          </Button>
         </div>
       </div>
     </div>

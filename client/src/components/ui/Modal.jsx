@@ -19,7 +19,11 @@ export default function Modal({
   onClose,
   title,
   children,
-  maxWidth = 'max-w-lg', // 'max-w-md' | 'max-w-lg' | 'max-w-xl' | 'max-w-2xl'
+  maxWidth = 'max-w-lg', // 'max-w-md' | 'max-w-lg' | 'max-w-xl' | 'max-w-2xl' | 'max-w-3xl'
+  // Optional actions bar pinned under the scrolling body (Save/Cancel…).
+  footer,
+  // Extra content beside the title (status pills…).
+  headerExtra,
 }) {
   const modalRef = useRef(null);
   const titleId = useId();
@@ -39,12 +43,12 @@ export default function Modal({
 
   // Keep showing the last open content during the fade, in case the parent
   // clears the data the body was built from as it closes.
-  const lastContent = useRef({ title, children });
-  if (isOpen) lastContent.current = { title, children };
+  const lastContent = useRef({ title, children, footer, headerExtra });
+  if (isOpen) lastContent.current = { title, children, footer, headerExtra };
 
   if (!isRendered) return null;
   const isClosing = !isOpen;
-  const shown = isClosing ? lastContent.current : { title, children };
+  const shown = isClosing ? lastContent.current : { title, children, footer, headerExtra };
 
   return createPortal(
     <div
@@ -68,10 +72,13 @@ export default function Modal({
         className={`relative w-full ${maxWidth} bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${isClosing ? 'animate-scaleDown' : 'animate-scaleUp'} z-10`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-surface/90">
-          <h3 id={titleId} className="text-base font-semibold text-primary">
-            {shown.title}
-          </h3>
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border/80 bg-surface/90">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
+            <h2 id={titleId} className="text-base font-semibold text-primary">
+              {shown.title}
+            </h2>
+            {shown.headerExtra}
+          </div>
           <button
             type="button"
             onClick={isClosing ? undefined : onClose}
@@ -83,7 +90,12 @@ export default function Modal({
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90dvh-9rem)]">{shown.children}</div>
+        <div className={`p-6 overflow-y-auto ${shown.footer ? 'max-h-[calc(90dvh-13rem)]' : 'max-h-[calc(90dvh-9rem)]'}`}>{shown.children}</div>
+        {shown.footer && (
+          <div className="flex flex-wrap items-center justify-end gap-3 px-6 py-4 border-t border-border bg-base/50">
+            {shown.footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body

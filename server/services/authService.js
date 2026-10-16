@@ -55,10 +55,13 @@ const getSessionUser = async (employeeId) => {
   return buildSessionUser(rows[0]);
 };
 
+// A sign-in lasts this long (password and Google alike), then the person signs in again.
+const SESSION_HOURS = 12;
+
 const createSessionForEmployee = async (employeeId) => {
   const user = await getSessionUser(employeeId);
   const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000);
 
   await db.pool.query(
     'INSERT INTO sessions (token, employee_id, expires_at) VALUES ($1, $2, $3)',
@@ -293,5 +296,5 @@ const changePassword = async (userId, currentPassword, newPassword, { ip } = {})
 };
 
 module.exports = {
-  login, logout, changePassword, createSessionForEmployee, MAX_FAILED_LOGINS, FAILURE_WINDOW_MINUTES, LOCKOUT_MINUTES,
+  login, logout, changePassword, createSessionForEmployee, SESSION_HOURS, MAX_FAILED_LOGINS, FAILURE_WINDOW_MINUTES, LOCKOUT_MINUTES,
 };

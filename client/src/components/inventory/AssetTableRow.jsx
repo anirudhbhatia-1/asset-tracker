@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import WarrantyBadge from '../ui/WarrantyBadge';
+import Pill from '../ui/Pill';
 import { ChevronRight, MapPin, User } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
 import { onActivateKey } from '../../utils/a11y';
@@ -73,9 +74,9 @@ const AssetTableRow = memo(function AssetTableRow({ asset, selectable = false, s
             >
               {asset.name}
               {asset.assetType === 'client' && (
-                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-accent/10 text-accent uppercase tracking-wider border border-accent/20 align-middle">
+                <Pill tone="accent" className="ml-2 uppercase tracking-wider align-middle">
                   Client
-                </span>
+                </Pill>
               )}
             </Link>
             {asset.model && <span className="text-xs text-secondary block truncate">{asset.model}</span>}

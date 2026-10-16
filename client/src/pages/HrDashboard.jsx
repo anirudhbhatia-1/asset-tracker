@@ -5,7 +5,7 @@ import { useOnboarding } from '../hooks/useOnboarding';
 import AttentionPanel from '../components/dashboard/AttentionPanel';
 import Badge from '../components/ui/Badge';
 import StatusPill from '../components/ui/StatusPill';
-import { Laptop, Users, Calendar, Plus, PackageX, Target } from 'lucide-react';
+import { Laptop, Users, Calendar, Plus, PackageX, Target, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CreateOnboardingModal from '../components/forms/CreateOnboardingModal';
 import EditOnboardingModal from '../components/forms/EditOnboardingModal';
@@ -13,21 +13,11 @@ import OnboardingDetailsModal from '../components/hr/OnboardingDetailsModal';
 import { parseDateValue } from '../utils/dates';
 import { formatDate } from '../utils/formatters';
 import SegmentedControl from '../components/ui/SegmentedControl';
-
-const OnboardingStatusBadge = ({ status }) => {
-  const styles = {
-    pending: 'bg-raised text-secondary border-border',
-    in_progress: 'bg-warning/10 text-warning border-warning/20',
-    arranged: 'bg-success/10 text-success border-success/20',
-    completed: 'bg-success text-on-accent border-success',
-    cancelled: 'bg-error/10 text-error border-error/20'
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wider ${styles[status] || styles.pending}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-};
+import MyAssetModal from '../components/asset-detail/MyAssetModal';
+import OnboardingStatusBadge from '../components/hr/OnboardingStatusBadge';
+import Card, { CardBody, CardHeader } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
 
 // `embedded` hides the page title when rendered inside another dashboard (Director view).
 export default function HrDashboard({ embedded = false }) {
@@ -36,24 +26,37 @@ export default function HrDashboard({ embedded = false }) {
   const canUpdateOnboarding = hasPermission('onboarding:update');
   const [assets, setAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
+  const [assetsError, setAssetsError] = useState(null);
+  // Bumped by Retry to run the assets load again.
+  const [assetsAttempt, setAssetsAttempt] = useState(0);
   
   const { requests, hrMetrics, loading: requestsLoading, fetchRequests, fetchHrMetrics, createRequest, updateStatus, updateRequestDetails, fulfillItem, getRequestDetails } = useOnboarding();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [viewingAsset, setViewingAsset] = useState(null);
   const [requestToEdit, setRequestToEdit] = useState(null);
   const [filter, setFilter] = useState('All');
 
+  const userId = user?.id;
   useEffect(() => {
-    if (user?.id) {
-      getEmployeeAssets(user.id)
-        .then(res => setAssets(res.data?.data || []))
-        .catch(err => console.error("Failed to fetch assets", err))
-        .finally(() => setAssetsLoading(false));
-    } else {
+    if (!userId) {
       setAssetsLoading(false);
+      return undefined;
     }
-  }, [user]);
+    let cancelled = false;
+    setAssetsLoading(true);
+    setAssetsError(null);
+    getEmployeeAssets(userId)
+      .then(res => { if (!cancelled) setAssets(res.data?.data || []); })
+      .catch(err => {
+        console.error("Failed to fetch assets", err);
+        // Shown in the card, so a failed load doesn't read as "No Assets Assigned".
+        if (!cancelled) setAssetsError(err.response?.data?.message || err.message || 'Failed to load assets');
+      })
+      .finally(() => { if (!cancelled) setAssetsLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId, assetsAttempt]);
 
   useEffect(() => {
     fetchRequests();
@@ -118,22 +121,17 @@ export default function HrDashboard({ embedded = false }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* My Onboarding Requests */}
-        <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-border bg-base/50 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
-              <Users className="w-4 h-4 text-accent" />
-              My Onboarding Requests
-            </h2>
-            {canCreateOnboarding && (
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 bg-accent text-on-accent text-xs font-medium rounded-lg hover:bg-accent/90 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" /> New Hire
-              </button>
+        <Card aria-labelledby="my-onboarding-requests-title">
+          <CardHeader
+            id="my-onboarding-requests-title"
+            icon={Users}
+            title="My Onboarding Requests"
+            actions={canCreateOnboarding && (
+              <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" /> New Hire
+              </Button>
             )}
-          </div>
+          />
           <div className="px-4 pt-3">
             <SegmentedControl
               label="Filter my onboarding requests"
@@ -143,17 +141,18 @@ export default function HrDashboard({ embedded = false }) {
               options={['All', 'Pending', 'Completed'].map((f) => ({ value: f, label: f }))}
             />
           </div>
-          <div className="p-4 flex-1 max-h-[500px] overflow-y-auto">
+          <CardBody className="max-h-[500px] overflow-y-auto">
              {requestsLoading ? (
                <div className="animate-pulse space-y-3">
                  {[1,2,3].map(i => <div key={i} className="h-14 bg-base rounded-xl border border-border" />)}
                </div>
              ) : recentRequests.length === 0 ? (
-               <div className="py-10 bg-base/40 rounded-xl border border-border/40 text-center space-y-2">
-                 <p className="text-sm font-medium text-secondary">
-                   {filter === 'Pending' ? 'No pending onboarding requests' : filter === 'Completed' ? 'No completed onboarding requests' : 'No onboarding requests yet'}
-                 </p>
-               </div>
+               <EmptyState
+                 size="sm"
+                 icon={Users}
+                 title={filter === 'Pending' ? 'No pending onboarding requests' : filter === 'Completed' ? 'No completed onboarding requests' : 'No onboarding requests yet'}
+                 description={null}
+               />
              ) : (
                <div className="space-y-3">
                   {recentRequests.map(req => (
@@ -172,22 +171,20 @@ export default function HrDashboard({ embedded = false }) {
                          </div>
                        )}
                        <div className="pt-2 border-t border-border/50 flex justify-end gap-2">
-                         <button
-                           onClick={() => setSelectedRequest(req)}
-                           className="px-3 py-1.5 bg-info-blue/10 hover:bg-info-blue/20 text-info-blue text-xs font-medium rounded-lg transition-colors border border-info-blue/20"
-                         >
+                         <Button variant="secondary" size="sm" onClick={() => setSelectedRequest(req)}>
                            View Items
-                         </button>
+                         </Button>
                          {canUpdateOnboarding && ['pending', 'in_progress'].includes(req.status) && (
-                           <button 
+                           <Button
+                             variant="secondary"
+                             size="sm"
                              onClick={() => {
                                setRequestToEdit(req);
                                setIsEditModalOpen(true);
                              }}
-                             className="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent text-xs font-medium rounded-lg transition-colors border border-accent/20"
                            >
                              Edit Request
-                           </button>
+                           </Button>
                          )}
                        </div>
                     </div>
@@ -199,55 +196,59 @@ export default function HrDashboard({ embedded = false }) {
                  )}
                </div>
              )}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
 
         {/* My Assets */}
-        <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-border bg-base/50 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
-              <Laptop className="w-4 h-4 text-accent" />
-              My Assigned Assets
-            </h2>
-          </div>
-          <div className="p-4 flex-1 max-h-[500px] overflow-y-auto">
+        <Card aria-labelledby="hr-my-assets-title">
+          <CardHeader id="hr-my-assets-title" icon={Laptop} title="My assets" />
+          <CardBody className="lg:max-h-[500px] lg:overflow-y-auto">
             {assetsLoading ? (
                <div className="animate-pulse space-y-3">
                  {[1,2].map(i => <div key={i} className="h-16 bg-base rounded-xl border border-border" />)}
                </div>
-            ) : safeAssets.length === 0 ? (
-               <div className="py-10 bg-base/40 rounded-xl border border-border/40 text-center space-y-2">
-                 <PackageX className="w-8 h-8 text-secondary mx-auto" />
-                 <p className="text-sm font-medium text-secondary">No Assets Assigned</p>
+            ) : assetsError ? (
+               <div role="alert" className="py-6 bg-base/40 rounded-xl border border-border/40 text-center space-y-2">
+                 <AlertCircle className="w-6 h-6 text-danger mx-auto" aria-hidden="true" />
+                 <p className="text-sm font-medium text-secondary">Couldn't load your assets.</p>
+                 <Button variant="ghost" size="sm" onClick={() => setAssetsAttempt(n => n + 1)}>Retry</Button>
                </div>
+            ) : safeAssets.length === 0 ? (
+               <EmptyState size="sm" icon={PackageX} title="No assets assigned" description="Devices IT gives you will show up here." />
             ) : (
-               <div className="space-y-3">
+               <ul className="space-y-3">
                  {safeAssets.map(asset => (
-                   <div key={asset.id} className="bg-base/80 p-3.5 rounded-xl border border-border/80 flex items-center justify-between gap-3">
-                     <div className="flex items-center gap-3 min-w-0">
+                   <li key={asset.id} className="bg-base/80 p-3.5 rounded-xl border border-border/80 flex items-center justify-between gap-3 min-w-0">
+                     {/* Opens the person's own view: specs, and price + policy for client assets. */}
+                     <button
+                       type="button"
+                       onClick={() => setViewingAsset(asset)}
+                       aria-label={`View details of ${asset.name}`}
+                       className="flex items-center gap-3 min-w-0 flex-1 group text-left cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                     >
                        <Badge badgeChar={asset.categoryBadgeChar || asset.categoryName?.[0] || '?'} color={asset.categoryColor} title={asset.categoryName} />
-                       <div className="min-w-0">
-                         <div className="text-sm font-bold text-primary truncate">{asset.name}</div>
+                       <div className="min-w-0 flex-1">
+                         <div className="text-sm font-semibold text-primary truncate group-hover:text-accent transition-colors">{asset.name}</div>
                          <div className="flex items-center gap-2.5 text-xs text-secondary mt-0.5">
-                           <span className="font-mono text-accent/90">{asset.serialNumber}</span>
+                           <span className="font-mono text-accent">{asset.serialNumber}</span>
                            {asset.model && <span className="truncate">· {asset.model}</span>}
                          </div>
                        </div>
-                     </div>
+                     </button>
                      <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">
                        <StatusPill status={asset.status} />
                        {asset.assignedDate && (
-                         <span className="text-[11px] text-secondary flex items-center gap-1">
+                         <span className="text-xs text-secondary flex items-center gap-1">
                            <Calendar className="w-3 h-3" aria-hidden="true" /> {formatDate(asset.assignedDate)}
                          </span>
                        )}
                      </div>
-                   </div>
+                   </li>
                  ))}
-               </div>
+               </ul>
             )}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
       <CreateOnboardingModal
         isOpen={isCreateModalOpen}
@@ -265,6 +266,11 @@ export default function HrDashboard({ embedded = false }) {
         request={requestToEdit}
       />
 
+      <MyAssetModal
+        asset={viewingAsset}
+        onClose={() => setViewingAsset(null)}
+        canOpenFullPage={hasPermission('assets:read')}
+      />
       <OnboardingDetailsModal
         isOpen={!!selectedRequest} request={selectedRequest} onClose={() => setSelectedRequest(null)} getRequestDetails={getRequestDetails} onUpdateStatus={updateStatus} onFulfillItem={fulfillItem} />
     </div>

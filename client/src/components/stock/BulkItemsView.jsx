@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useStock } from '../../hooks/useStock';
 import Button from '../ui/Button';
+import { controlClass } from '../ui/fieldStyles';
 import EmptyState from '../ui/EmptyState';
 import { SkeletonTable } from '../ui/Skeleton';
 import StockItemModal from './StockItemModal';
@@ -62,7 +63,7 @@ export default function BulkItemsView({ createOpen, onCreateOpen, onCreateClose,
           onChange={(e) => onSearchChange(e.target.value)}
           aria-label="Search bulk items by name"
           placeholder="Search bulk items by name…"
-          className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+          className={`${controlClass()} pl-10 pr-4`}
         />
       </div>
 

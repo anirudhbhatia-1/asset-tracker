@@ -3,6 +3,7 @@ import { ShieldCheck, Plus, Edit2, Trash2, Lock, Users } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
+import Pill from '../ui/Pill';
 import RoleMatrixModal from './RoleMatrixModal';
 import toast from 'react-hot-toast';
 
@@ -97,17 +98,11 @@ export default function RolesTab() {
                   <div className="flex items-center gap-2">
                     <h4 className="text-base font-bold text-primary">{role.name}</h4>
                     {role.isDirector ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-info-purple/10 text-info-purple border border-info-purple/30">
-                        Director
-                      </span>
+                      <Pill tone="purple">Director</Pill>
                     ) : role.isSystem ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-info-blue/10 text-info-blue border border-info-blue/30 flex items-center gap-1">
-                        <Lock className="w-2.5 h-2.5" /> System Role
-                      </span>
+                      <Pill tone="info" icon={Lock}>System Role</Pill>
                     ) : (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/30">
-                        Custom Role
-                      </span>
+                      <Pill tone="accent">Custom Role</Pill>
                     )}
                   </div>
                   <p className="text-xs text-secondary mt-1">{role.description || 'No description provided.'}</p>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { Key, Edit3, ShieldCheck } from 'lucide-react';
+import { Key, Edit3 } from 'lucide-react';
 import useRoles, { findRoleValue, defaultRoleValue } from '../../hooks/useRoles';
 
 export default function RoleManagementModal({ isOpen, onClose, employee, onGrantAccess, onChangeRole, onGrantGoogleAccess }) {
@@ -75,10 +75,7 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
           </div>
 
           <div>
-            <span className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-accent" />
-              <span>System Role</span>
-            </span>
+            <span className="block text-sm font-medium text-primary mb-2">System Role</span>
             <div className="space-y-2">
               {roles.map((r) => (
                 <label
@@ -111,8 +108,8 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
             {!employee.hasLogin && (
               // TESTING ONLY — Grant Google Access button
               // WHEN GOING TO PRODUCTION: Remove this button entirely.
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 disabled={submitting}
                 onClick={async () => {
                   setSubmitting(true);
@@ -126,18 +123,18 @@ export default function RoleManagementModal({ isOpen, onClose, employee, onGrant
                     setSubmitting(false);
                   }
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold border border-border bg-base hover:bg-raised text-secondary transition-colors"
+                className="w-full"
               >
-                <span>🔑</span>
+                <span aria-hidden="true">🔑</span>
                 <span>Grant Google Login (Testing Only)</span>
-              </button>
+              </Button>
             )}
             <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={onClose} disabled={submitting}>
+              <Button variant="ghost" onClick={onClose} disabled={submitting}>
                 Cancel
               </Button>
               <Button type="submit" variant="primary" loading={submitting}>
-                {employee.hasLogin ? <Edit3 className="w-4 h-4" /> : <Key className="w-4 h-4" />}
+                {employee.hasLogin ? <Edit3 className="w-4 h-4" aria-hidden="true" /> : <Key className="w-4 h-4" aria-hidden="true" />}
                 <span>{employee.hasLogin ? 'Save Role Changes' : 'Grant Password Access'}</span>
               </Button>
             </div>

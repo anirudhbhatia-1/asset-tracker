@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import { ticketRef } from '../../utils/ticketMeta';
 
 // Asks why a resolved ticket is being reopened. The reason is optional on
 // the API, so Reopen stays enabled with an empty note.
@@ -33,7 +34,7 @@ export default function ReopenTicketModal({ ticket, onClose, onReopen }) {
     <Modal
       isOpen={!!ticket}
       onClose={handleClose}
-      title={`Reopen ${ticket?.human_readable_id || `Ticket #${ticket?.id ?? ''}`}`}
+      title={`Reopen ${ticketRef(ticket)}`}
       maxWidth="max-w-md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">

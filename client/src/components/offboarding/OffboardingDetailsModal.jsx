@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useId, useCallback } from 'react';
-import { X, Loader2, Pencil, CheckCircle2, Ban, AlertTriangle, Info } from 'lucide-react';
+import { Loader2, Pencil, CheckCircle2, Ban, AlertTriangle, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import useFocusTrap from '../../hooks/useFocusTrap';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Field, { Input, Select, Textarea } from '../ui/Field';
 import OffboardingStatusBadge from './OffboardingStatusBadge';
 import OffboardingChecklist from './OffboardingChecklist';
 import { formatDate, formatDateTime } from '../../utils/formatters';
@@ -17,8 +17,6 @@ import {
   getChecklistProgress,
   getCompleteBlocker,
 } from '../../utils/offboarding';
-
-const inputClass = 'w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent';
 
 const InfoCell = ({ label, children }) => (
   <div className="min-w-0">
@@ -213,228 +211,196 @@ const OffboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, 
     }
   };
 
-  const dialogRef = useRef(null);
-  const titleId = useId();
   const idPrefix = useId();
   const field = (name) => `${idPrefix}-${name}`;
-  // Traps Tab inside the dialog and closes it on Escape
-  useFocusTrap(dialogRef, isOpen && !!request, onClose);
 
   if (!isOpen || !request) return null;
 
   const missingIsClient = missingItem?.assetType === 'client';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
-
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90dvh] animate-scaleUp">
-
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border bg-base/50 shrink-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-            <h2 id={titleId} className="text-lg font-semibold text-primary truncate">
-              Offboarding: {data.employeeName || `#${request.id}`}
-            </h2>
-            {data.status && <OffboardingStatusBadge status={data.status} />}
-          </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors shrink-0">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
-          {loading && !fullData ? (
-            <div className="py-12 flex justify-center">
-              <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            </div>
-          ) : fullData ? (
-            <div className="space-y-6">
-
-              {/* Summary */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-base p-4 rounded-lg border border-border">
-                <InfoCell label="Employee">
-                  <div className="text-sm font-semibold text-primary break-words">{fullData.employeeName}</div>
-                  {fullData.employeeEmail && <div className="text-xs text-secondary mt-0.5 break-all">{fullData.employeeEmail}</div>}
-                  {fullData.employeeDeleted && <div className="text-xs text-secondary italic mt-0.5">Removed from directory</div>}
-                </InfoCell>
-                <InfoCell label="Department">
-                  <div className="text-sm text-primary">{fullData.employeeDepartment || '—'}</div>
-                </InfoCell>
-                <InfoCell label="Last Working Day">
-                  <div className="text-sm text-primary font-medium">{formatDate(fullData.lastWorkingDate)}</div>
-                  {urgency && urgency.tone !== 'upcoming' && (
-                    <div className={`text-xs font-medium mt-0.5 ${urgencyClass[urgency.tone]}`}>{urgency.label}</div>
-                  )}
-                </InfoCell>
-                <InfoCell label="Reason">
-                  <div className="text-sm text-primary">{getReasonLabel(fullData.reason) || '—'}</div>
-                </InfoCell>
-                <InfoCell label="Requested By">
-                  <div className="text-sm text-primary break-words">{fullData.requestedByName || '—'}</div>
-                  {fullData.createdAt && <div className="text-xs text-secondary mt-0.5">{formatDate(fullData.createdAt)}</div>}
-                </InfoCell>
-                <InfoCell label="Login Access">
-                  <div className="text-sm text-primary">
-                    {!fullData.employeeHasLogin
-                      ? 'No login'
-                      : fullData.revokeAccess ? 'Revoke on completion' : 'Keep'}
-                  </div>
-                </InfoCell>
-                {fullData.status === 'completed' && (
-                  <InfoCell label="Completed">
-                    <div className="text-sm text-primary break-words">{fullData.completedByName || '—'}</div>
-                    {fullData.completedAt && <div className="text-xs text-secondary mt-0.5">{formatDateTime(fullData.completedAt)}</div>}
-                  </InfoCell>
-                )}
-              </div>
-
-              {/* Edit form / notes */}
-              {editing ? (
-                <form onSubmit={handleSave} className="space-y-4 p-4 rounded-lg border border-border">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor={field('date')} className="text-sm font-medium text-primary">Last working day <span className="text-error">*</span></label>
-                      <input
-                        id={field('date')}
-                        type="date"
-                        required
-                        value={form.lastWorkingDate}
-                        onChange={(e) => setForm(f => ({ ...f, lastWorkingDate: e.target.value }))}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor={field('reason')} className="text-sm font-medium text-primary">Reason</label>
-                      <select
-                        id={field('reason')}
-                        value={form.reason}
-                        onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
-                        className={inputClass}
-                      >
-                        <option value="">Not specified</option>
-                        {OFFBOARDING_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor={field('notes')} className="text-sm font-medium text-primary">Notes</label>
-                    <textarea
-                      id={field('notes')}
-                      rows={3}
-                      maxLength={2000}
-                      value={form.notes}
-                      onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-                      className={`${inputClass} resize-none`}
-                    />
-                  </div>
-                  {fullData.employeeHasLogin && (
-                    <div className="flex items-start gap-3">
-                      <input
-                        id={field('revoke')}
-                        type="checkbox"
-                        checked={form.revokeAccess}
-                        onChange={(e) => setForm(f => ({ ...f, revokeAccess: e.target.checked }))}
-                        className="mt-0.5 w-4 h-4 rounded text-accent border-border focus:ring-accent cursor-pointer"
-                      />
-                      <label htmlFor={field('revoke')} className="text-sm text-primary cursor-pointer">Revoke login access when completed</label>
-                    </div>
-                  )}
-                  <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
-                    <Button type="submit" size="sm" loading={saving} disabled={!form.lastWorkingDate}>Save changes</Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-xs font-medium text-secondary uppercase tracking-wider">Notes</h3>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={startEditing}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/10 rounded-md transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        Edit details
-                      </button>
-                    )}
-                  </div>
-                  {fullData.notes ? (
-                    <div className="text-sm text-primary bg-base p-3 rounded-lg border border-border whitespace-pre-wrap break-words">{fullData.notes}</div>
-                  ) : (
-                    <p className="text-sm text-secondary italic">No notes.</p>
-                  )}
-                </div>
-              )}
-
-              <hr className="border-border" />
-
-              {/* Checklist */}
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <h3 className="text-sm font-semibold text-primary">Assets to collect</h3>
-                  {progress.total > 0 && (
-                    <div className="flex items-center gap-2 text-xs text-secondary">
-                      <span>{describeChecklistProgress(progress)}</span>
-                      <div className="w-24 h-1.5 rounded-full bg-raised overflow-hidden" aria-hidden="true">
-                        <div className="h-full bg-success rounded-full transition-all" style={{ width: `${progress.percent}%` }} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {canCollect && isOpenRequest && progress.total > 0 && (
-                  <p className="flex items-start gap-2 text-xs text-secondary mb-3">
-                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <span>Returned assets go back to stock (client assets go back to the client); accessories return with their asset. Missing assets are retired.</span>
-                  </p>
-                )}
-                <OffboardingChecklist
-                  items={items}
-                  canCollect={canCollect && isOpenRequest}
-                  canReturn={canReturnAssets}
-                  canWriteOff={canWriteOffAssets}
-                  busyItemId={busyItemId}
-                  onReturn={handleReturn}
-                  onRequestMissing={openMissing}
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Footer */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-t border-border bg-base/50 shrink-0">
-          {canEdit && fullData ? (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-              <Button variant="secondary" onClick={() => setConfirmCancel(true)} className="text-error">
-                <Ban className="w-4 h-4" />
-                Cancel offboarding
-              </Button>
-              <Button
-                variant="primary"
-                onClick={openComplete}
-                disabled={!!completeBlocker}
-                title={completeBlocker || undefined}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Complete
-              </Button>
-            </div>
-          ) : <div />}
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-on-accent bg-secondary hover:bg-secondary/90 rounded-lg shadow-sm transition-colors"
+  // Footer: cancel / complete on the left, Close on the right.
+  const footer = (
+    <>
+      {canEdit && fullData && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto sm:mr-auto">
+          <Button variant="danger-outline" onClick={() => setConfirmCancel(true)}>
+            <Ban className="w-4 h-4" aria-hidden="true" />
+            Cancel offboarding
+          </Button>
+          <Button
+            variant="primary"
+            onClick={openComplete}
+            disabled={!!completeBlocker}
+            title={completeBlocker || undefined}
           >
-            Close
-          </button>
+            <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+            Complete
+          </Button>
         </div>
-        {canEdit && fullData && completeBlocker && (
-          <p className="px-6 pb-3 -mt-2 bg-base/50 text-xs text-secondary">{completeBlocker}</p>
-        )}
-      </div>
+      )}
+      <Button variant="secondary" onClick={onClose} className="w-full sm:w-auto">
+        Close
+      </Button>
+      {canEdit && fullData && completeBlocker && (
+        <p className="w-full text-xs text-secondary">{completeBlocker}</p>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={`Offboarding: ${data.employeeName || `#${request.id}`}`}
+        headerExtra={data.status && <OffboardingStatusBadge status={data.status} />}
+        maxWidth="max-w-3xl"
+        footer={footer}
+      >
+        {loading && !fullData ? (
+          <div className="py-12 flex justify-center">
+            <Loader2 className="w-8 h-8 text-accent animate-spin" />
+          </div>
+        ) : fullData ? (
+          <div className="space-y-6">
+
+            {/* Summary */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-base p-4 rounded-lg border border-border">
+              <InfoCell label="Employee">
+                <div className="text-sm font-semibold text-primary break-words">{fullData.employeeName}</div>
+                {fullData.employeeEmail && <div className="text-xs text-secondary mt-0.5 break-all">{fullData.employeeEmail}</div>}
+                {fullData.employeeDeleted && <div className="text-xs text-secondary italic mt-0.5">Removed from directory</div>}
+              </InfoCell>
+              <InfoCell label="Department">
+                <div className="text-sm text-primary">{fullData.employeeDepartment || '—'}</div>
+              </InfoCell>
+              <InfoCell label="Last Working Day">
+                <div className="text-sm text-primary font-medium">{formatDate(fullData.lastWorkingDate)}</div>
+                {urgency && urgency.tone !== 'upcoming' && (
+                  <div className={`text-xs font-medium mt-0.5 ${urgencyClass[urgency.tone]}`}>{urgency.label}</div>
+                )}
+              </InfoCell>
+              <InfoCell label="Reason">
+                <div className="text-sm text-primary">{getReasonLabel(fullData.reason) || '—'}</div>
+              </InfoCell>
+              <InfoCell label="Requested By">
+                <div className="text-sm text-primary break-words">{fullData.requestedByName || '—'}</div>
+                {fullData.createdAt && <div className="text-xs text-secondary mt-0.5">{formatDate(fullData.createdAt)}</div>}
+              </InfoCell>
+              <InfoCell label="Login Access">
+                <div className="text-sm text-primary">
+                  {!fullData.employeeHasLogin
+                    ? 'No login'
+                    : fullData.revokeAccess ? 'Revoke on completion' : 'Keep'}
+                </div>
+              </InfoCell>
+              {fullData.status === 'completed' && (
+                <InfoCell label="Completed">
+                  <div className="text-sm text-primary break-words">{fullData.completedByName || '—'}</div>
+                  {fullData.completedAt && <div className="text-xs text-secondary mt-0.5">{formatDateTime(fullData.completedAt)}</div>}
+                </InfoCell>
+              )}
+            </div>
+
+            {/* Edit form / notes */}
+            {editing ? (
+              <form onSubmit={handleSave} className="space-y-4 p-4 rounded-lg border border-border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field id={field('date')} label="Last working day" required>
+                    <Input
+                      type="date"
+                      value={form.lastWorkingDate}
+                      onChange={(e) => setForm(f => ({ ...f, lastWorkingDate: e.target.value }))}
+                    />
+                  </Field>
+                  <Field id={field('reason')} label="Reason">
+                    <Select
+                      value={form.reason}
+                      onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
+                    >
+                      <option value="">Not specified</option>
+                      {OFFBOARDING_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </Select>
+                  </Field>
+                </div>
+                <Field id={field('notes')} label="Notes">
+                  <Textarea
+                    rows={3}
+                    maxLength={2000}
+                    value={form.notes}
+                    onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                  />
+                </Field>
+                {fullData.employeeHasLogin && (
+                  <div className="flex items-start gap-3">
+                    <input
+                      id={field('revoke')}
+                      type="checkbox"
+                      checked={form.revokeAccess}
+                      onChange={(e) => setForm(f => ({ ...f, revokeAccess: e.target.checked }))}
+                      className="mt-0.5 w-4 h-4 rounded text-accent border-border focus:ring-accent cursor-pointer"
+                    />
+                    <label htmlFor={field('revoke')} className="text-sm text-primary cursor-pointer">Revoke login access when completed</label>
+                  </div>
+                )}
+                <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
+                  <Button type="submit" size="sm" loading={saving} disabled={!form.lastWorkingDate}>Save changes</Button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-medium text-secondary uppercase tracking-wider">Notes</h3>
+                  {canEdit && (
+                    <Button variant="ghost" size="sm" onClick={startEditing}>
+                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                      Edit details
+                    </Button>
+                  )}
+                </div>
+                {fullData.notes ? (
+                  <div className="text-sm text-primary bg-base p-3 rounded-lg border border-border whitespace-pre-wrap break-words">{fullData.notes}</div>
+                ) : (
+                  <p className="text-sm text-secondary italic">No notes.</p>
+                )}
+              </div>
+            )}
+
+            <hr className="border-border" />
+
+            {/* Checklist */}
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-primary">Assets to collect</h3>
+                {progress.total > 0 && (
+                  <div className="flex items-center gap-2 text-xs text-secondary">
+                    <span>{describeChecklistProgress(progress)}</span>
+                    <div className="w-24 h-1.5 rounded-full bg-raised overflow-hidden" aria-hidden="true">
+                      <div className="h-full bg-success rounded-full transition-all" style={{ width: `${progress.percent}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              {canCollect && isOpenRequest && progress.total > 0 && (
+                <p className="flex items-start gap-2 text-xs text-secondary mb-3">
+                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>Returned assets go back to stock (client assets go back to the client); accessories return with their asset. Missing assets are retired.</span>
+                </p>
+              )}
+              <OffboardingChecklist
+                items={items}
+                canCollect={canCollect && isOpenRequest}
+                canReturn={canReturnAssets}
+                canWriteOff={canWriteOffAssets}
+                busyItemId={busyItemId}
+                onReturn={handleReturn}
+                onRequestMissing={openMissing}
+              />
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       {/* Missing confirmation */}
       <Modal
@@ -453,18 +419,15 @@ const OffboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, 
                 : ' The asset will be retired and removed from available stock.'}
               {' '}Accessories attached to it stay on the checklist. This can't be undone from the checklist.
             </p>
-            <div className="space-y-2">
-              <label htmlFor={field('missing-notes')} className="text-sm font-medium text-primary">Note (optional)</label>
-              <textarea
-                id={field('missing-notes')}
+            <Field id={field('missing-notes')} label="Note (optional)">
+              <Textarea
                 rows={2}
                 maxLength={1000}
                 value={missingNotes}
                 onChange={(e) => setMissingNotes(e.target.value)}
                 placeholder="e.g. employee says it was lost"
-                className={`${inputClass} resize-none`}
               />
-            </div>
+            </Field>
             <div className="pt-4 border-t border-border flex flex-col-reverse sm:flex-row justify-end gap-3">
               <Button variant="secondary" onClick={() => setMissingItem(null)} disabled={!!busyItemId}>Cancel</Button>
               <Button variant="danger" onClick={handleConfirmMissing} loading={!!busyItemId}>
@@ -553,7 +516,7 @@ const OffboardingDetailsModal = ({ isOpen, onClose, request, getRequestDetails, 
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 };
 

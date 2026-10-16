@@ -75,13 +75,9 @@ export default function ImportResultsPanel({ result, onDismiss, onConfirm, onCan
           <span>{title}</span>
         </div>
         {!isCheck && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-lg hover:bg-surface transition-colors cursor-pointer shrink-0"
-          >
+          <Button variant="ghost" size="sm" onClick={onDismiss}>
             Dismiss
-          </button>
+          </Button>
         )}
       </div>
 
@@ -120,14 +116,10 @@ export default function ImportResultsPanel({ result, onDismiss, onConfirm, onCan
             tone="text-warning"
             defaultOpen={isCheck}
           />
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer"
-          >
+          <Button variant="secondary" size="sm" onClick={handleDownload}>
             <Download className="w-3.5 h-3.5" />
             Download problem rows (CSV)
-          </button>
+          </Button>
         </div>
       )}
 

@@ -14,6 +14,8 @@ import { useOffboarding } from '../hooks/useOffboarding';
 import { formatDate, formatDateTime } from '../utils/formatters';
 import RoleManagementPanel from '../components/dashboard/RoleManagementPanel';
 import Button from '../components/ui/Button';
+import Pill from '../components/ui/Pill';
+import { controlClass } from '../components/ui/fieldStyles';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
 import { Users, Search, UserPlus, RefreshCw, Archive, Filter, CheckCircle2, XCircle, ShieldCheck, Package, KeyRound, UserX, UserMinus, LogOut, Home, Shuffle, MapPin, Pencil, Lock, LockOpen } from 'lucide-react';
@@ -36,12 +38,10 @@ const FROM_LG = 'hidden lg:table-cell';
 // Remote and Hybrid get a small badge next to the name; Office has none.
 function WorkModeBadge({ mode }) {
   if (mode !== 'remote' && mode !== 'hybrid') return null;
-  const Icon = mode === 'remote' ? Home : Shuffle;
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-info-blue bg-info-blue/10 border border-info-blue/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-      <Icon className="w-3 h-3" aria-hidden="true" />
+    <Pill tone="info" icon={mode === 'remote' ? Home : Shuffle}>
       {mode === 'remote' ? 'Remote' : 'Hybrid'}
-    </span>
+    </Pill>
   );
 }
 
@@ -264,14 +264,14 @@ export default function Employees() {
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="font-medium text-primary">{emp.name}</span>
       {isSignInLocked(emp) && (
-        <span
+        <Pill
+          tone="danger"
+          icon={Lock}
           title={`Sign-in locked after too many failed attempts, until ${formatDateTime(emp.lockedUntil)}`}
-          className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded-full whitespace-nowrap"
+          srSuffix={`: sign-in locked until ${formatDateTime(emp.lockedUntil)}`}
         >
-          <Lock className="w-3 h-3" aria-hidden="true" />
           Locked
-          <span className="sr-only">: sign-in locked until {formatDateTime(emp.lockedUntil)}</span>
-        </span>
+        </Pill>
       )}
       <WorkModeBadge mode={emp.workMode} />
       {emp.offboarding && (canReadOffboarding ? (
@@ -279,16 +279,16 @@ export default function Employees() {
           to={`/offboarding?request=${emp.offboarding.id}`}
           onClick={(e) => e.stopPropagation()}
           title="Open offboarding"
-          className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full hover:underline whitespace-nowrap"
+          className="inline-flex rounded-full hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <LogOut className="w-3 h-3" aria-hidden="true" />
-          Leaving {formatDate(emp.offboarding.lastWorkingDate)}
+          <Pill tone="warning" icon={LogOut}>
+            Leaving {formatDate(emp.offboarding.lastWorkingDate)}
+          </Pill>
         </Link>
       ) : (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-          <LogOut className="w-3 h-3" aria-hidden="true" />
+        <Pill tone="warning" icon={LogOut}>
           Leaving {formatDate(emp.offboarding.lastWorkingDate)}
-        </span>
+        </Pill>
       ))}
     </div>
   );
@@ -296,16 +296,14 @@ export default function Employees() {
   const renderAccess = (emp) => (
     <>
       {emp.hasLogin ? (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-          <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+        <Pill tone="success" icon={CheckCircle2}>
           {roleLabel(emp, 'Has access')}
-        </span>
+        </Pill>
       ) : (
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-secondary bg-base border border-border px-2 py-0.5 rounded-full">
-            <XCircle className="w-3 h-3" />
+          <Pill icon={XCircle}>
             No Access
-          </span>
+          </Pill>
           {canGrantAccess && (
             <button
               type="button"
@@ -323,15 +321,16 @@ export default function Employees() {
 
   const renderActions = (emp) => (
     <div className="flex items-center justify-end gap-2">
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        size="sm"
         onClick={(e) => handleAssetsClick(e, emp)}
         aria-label={`Assets for ${emp.name}`}
-        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-primary bg-base hover:bg-surface border border-border transition-colors shadow-sm whitespace-nowrap cursor-pointer"
+        className="whitespace-nowrap"
       >
         <Archive className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
         Assets
-      </button>
+      </Button>
       <RowActionsMenu
         label={`More actions for ${emp.name}`}
         items={rowMenuItems(emp)}
@@ -403,7 +402,7 @@ export default function Employees() {
               onChange={(e) => setSearchTerm(e.target.value)}
               aria-label="Search employees"
               placeholder="Search by name, corporate email, office, or department..."
-              className="w-full pl-10 pr-4 py-2.5 bg-base border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className={`${controlClass()} pl-10 pr-4`}
             />
           </div>
 

@@ -15,6 +15,7 @@ const buildTicketListQuery = (user, filters = {}) => {
            a.name as asset_name,
            e.name as employee_name,
            e.email as employee_email,
+           e.department as employee_department,
            'TK-' || LPAD(t.id::text, 4, '0') as human_readable_id{{total}}
     FROM tickets t 
     LEFT JOIN categories c ON t.category_id = c.id 
@@ -83,6 +84,7 @@ const getTicketById = async (id, user) => {
            a.name as asset_name,
            e.name as employee_name,
            e.email as employee_email,
+           e.department as employee_department,
            'TK-' || LPAD(t.id::text, 4, '0') as human_readable_id
     FROM tickets t
     LEFT JOIN categories c ON t.category_id = c.id
@@ -199,6 +201,13 @@ const updateTicket = async (id, payload, adminUser) => {
       err.statusCode = 403;
       throw err;
     }
+    // Closed is final: the employee confirmed it. Nothing on it changes any
+    // more (notes, asset, priority), so the record of who resolved it stays.
+    if (current.status === 'closed') {
+      const err = new Error('This ticket is closed and can no longer be changed. Raise a new ticket instead.');
+      err.statusCode = 400;
+      throw err;
+    }
     if (newStatus !== current.status && !ALLOWED_STATUS_CHANGES[current.status]?.includes(newStatus)) {
       const err = new Error(`A ${current.status.replace('_', ' ')} ticket cannot be moved to ${newStatus.replace('_', ' ')}.`);
       err.statusCode = 400;
@@ -215,21 +224,27 @@ const updateTicket = async (id, payload, adminUser) => {
       err.statusCode = 400;
       throw err;
     }
-    // Priority: changed by whoever works the ticket (checked above); not on
-    // a closed ticket.
+    // Priority: changed by whoever works the ticket (checked above).
     const newPriority = priority || current.priority;
-    if (newPriority !== current.priority && current.status === 'closed') {
-      const err = new Error('A closed ticket\'s priority cannot be changed.');
+    const isResolving = newStatus === 'resolved' && current.status !== 'resolved';
+    const resolvedBy = isResolving ? adminUser.id : (newStatus === 'resolved' ? current.resolved_by : null);
+    // A rejected ticket hands nothing out, so it can't name a fulfilling asset.
+    if (newStatus === 'rejected' && resolvedAssetId !== undefined
+        && Number(resolvedAssetId || 0) !== Number(current.resolved_asset_id || 0)) {
+      const err = new Error('A rejected ticket cannot be fulfilled with an asset.');
       err.statusCode = 400;
       throw err;
     }
-    const isResolving = newStatus === 'resolved' && current.status !== 'resolved';
-    const resolvedBy = isResolving ? adminUser.id : (newStatus === 'resolved' ? current.resolved_by : null);
 
     // Fulfilling a request hands the chosen asset to the requester, in the
     // same transaction: it must be in stock, and a failure fails the update.
     if (isResolving && newAssetId) {
-      const { rows: [asset] } = await client.query('SELECT status, assigned_to FROM assets WHERE id = $1', [newAssetId]);
+      const { rows: [asset] } = await client.query('SELECT status, assigned_to, asset_type FROM assets WHERE id = $1', [newAssetId]);
+      if (asset?.asset_type === 'client') {
+        const err = new Error('Requests are fulfilled from company stock; a client-owned asset cannot be used.');
+        err.statusCode = 400;
+        throw err;
+      }
       const alreadyTheirs = asset && asset.status === 'in-use' && Number(asset.assigned_to) === Number(current.employee_id);
       if (!alreadyTheirs) {
         await assetService.assignAsset(
@@ -246,18 +261,22 @@ const updateTicket = async (id, payload, adminUser) => {
            resolved_asset_id = $3, 
            resolved_by = $4, 
            priority = $6,
-           -- Raised to High/Urgent now: the 10 minutes start now, not from
-           -- when the ticket arrived.
+           -- Raised to High/Urgent, or put back to Open: the 10 minutes
+           -- start now, not from when the ticket arrived.
            queue_entered_at = CASE WHEN $7 THEN NOW() ELSE queue_entered_at END,
+           -- Reopened after being resolved/rejected: a fresh escalation path.
+           escalation_stage = CASE WHEN $8 THEN NULL ELSE escalation_stage END,
            updated_at = NOW() 
        WHERE id = $5 RETURNING *`,
       [newStatus, newNotes, newAssetId, resolvedBy, id, newPriority,
-        ['high', 'urgent'].includes(newPriority) && !['high', 'urgent'].includes(current.priority)]
+        (['high', 'urgent'].includes(newPriority) && !['high', 'urgent'].includes(current.priority))
+          || (newStatus === 'open' && current.status !== 'open'),
+        newStatus === 'open' && ['resolved', 'rejected'].includes(current.status)]
     );
     if (newPriority !== current.priority) {
       await client.query(
         `INSERT INTO ticket_history (ticket_id, event_type, performed_by, note)
-         VALUES ($1, 'status_changed', $2, $3)`,
+         VALUES ($1, 'priority_changed', $2, $3)`,
         [id, adminUser.id, `Priority changed from ${current.priority} to ${newPriority}`]
       );
     }
@@ -297,10 +316,24 @@ const getTicketHistory = async (id, user) => {
      FROM ticket_history th 
      LEFT JOIN employees e ON th.performed_by = e.id 
      WHERE th.ticket_id = $1 
+       -- Escalation notes are for the people working tickets; the employee
+       -- hears about it through their notifications.
+       AND ($2 OR th.event_type <> 'escalated')
      ORDER BY th.created_at ASC`,
-    [id]
+    [id, isDirector || canResolve]
   );
   return rows;
+};
+
+// Where escalation stands after a person moves a ticket. Between IT Admin and
+// Admin the move is spent (next step: Directors, never a bounce back); into or
+// out of HR, the new queue's own path starts fresh.
+const escalationStageAfterTransfer = (current, targetAdminType) => {
+  const adminQueues = ['it', 'hardware'];
+  if (adminQueues.includes(current.current_admin_type) && adminQueues.includes(targetAdminType)) {
+    return current.escalation_stage === 'directors_alerted' ? 'directors_alerted' : 'moved';
+  }
+  return null;
 };
 
 const transferTicket = async (id, targetAdminType, note, adminUser) => {
@@ -326,6 +359,12 @@ const transferTicket = async (id, targetAdminType, note, adminUser) => {
       }
     }
 
+    if (!['open', 'in_progress'].includes(current.status)) {
+      const err = new Error('Only open or in-progress tickets can be transferred.');
+      err.statusCode = 400;
+      throw err;
+    }
+
     if (targetAdminType === current.current_admin_type) {
       const err = new Error('Ticket is already in the target queue.');
       err.statusCode = 400;
@@ -334,8 +373,9 @@ const transferTicket = async (id, targetAdminType, note, adminUser) => {
   
     const { rows } = await client.query(
       // A new queue gets its own 10 minutes before any automatic escalation.
-      `UPDATE tickets SET current_admin_type = $1, queue_entered_at = NOW(), updated_at = NOW() WHERE id = $2 RETURNING *`,
-      [targetAdminType, id]
+      `UPDATE tickets SET current_admin_type = $1, queue_entered_at = NOW(), escalation_stage = $3,
+         updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [targetAdminType, id, escalationStageAfterTransfer(current, targetAdminType)]
     );
   
     await client.query(

@@ -4,6 +4,9 @@ import Modal from '../ui/Modal';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import Button from '../ui/Button';
+import Pill from '../ui/Pill';
+import EmptyState from '../ui/EmptyState';
+import { Input } from '../ui/Field';
 import { getEmployeeAssets } from '../../api/employeesApi';
 import { useAuth } from '../../context/AuthContext';
 import { useStock, useStockHoldings } from '../../hooks/useStock';
@@ -60,7 +63,7 @@ function HoldingRow({ holding, employeeName, canReturn, onReturn }) {
             <label htmlFor={`${idBase}-qty`} className="block text-[11px] font-semibold text-secondary uppercase tracking-wider mb-1">
               Quantity
             </label>
-            <input
+            <Input
               id={`${idBase}-qty`}
               type="number"
               inputMode="numeric"
@@ -69,9 +72,9 @@ function HoldingRow({ holding, employeeName, canReturn, onReturn }) {
               step="1"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              aria-invalid={Boolean(error)}
+              invalid={Boolean(error)}
               aria-describedby={error ? `${idBase}-error` : undefined}
-              className="w-full rounded-lg bg-surface border border-border px-2.5 py-1.5 text-sm font-mono text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="font-mono"
             />
           </div>
           <Button size="sm" variant="secondary" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
@@ -131,6 +134,11 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
       onClose={onClose}
       title={`Hardware Assigned to: ${employee.name}`}
       maxWidth="max-w-2xl"
+      footer={(
+        <Button variant="secondary" onClick={onClose}>
+          Close
+        </Button>
+      )}
     >
       <div className="space-y-6">
         {/* Employee Profile Header */}
@@ -147,10 +155,7 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-primary">{employee.name}</h3>
                 {employee.isGoogleSynced === 1 && (
-                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-success/15 text-success border border-success/30 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>Google Synced</span>
-                  </span>
+                  <Pill tone="success" icon={ShieldCheck} className="uppercase">Google Synced</Pill>
                 )}
               </div>
               <p className="text-xs text-secondary flex items-center gap-2 mt-1">
@@ -204,13 +209,12 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
               {error}
             </div>
           ) : safeAssets.length === 0 ? (
-            <div className="py-10 bg-base/40 rounded-xl border border-border/40 text-center space-y-2">
-              <PackageX className="w-8 h-8 text-secondary mx-auto" />
-              <p className="text-sm font-medium text-secondary">No Hardware Currently Assigned</p>
-              <p className="text-xs text-secondary max-w-sm mx-auto">
-                This employee does not currently have any active company devices allocated to them.
-              </p>
-            </div>
+            <EmptyState
+              size="sm"
+              icon={PackageX}
+              title="No Hardware Currently Assigned"
+              description="This employee does not currently have any active company devices allocated to them."
+            />
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1 scrollbar-thin">
               {safeAssets.map((asset) => (
@@ -282,13 +286,6 @@ export default function EmployeeAssetDrawer({ isOpen, onClose, employee }) {
               ))}
             </ul>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="pt-3 border-t border-border flex justify-end">
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
         </div>
       </div>
     </Modal>

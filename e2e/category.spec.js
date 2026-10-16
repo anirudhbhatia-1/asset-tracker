@@ -26,6 +26,7 @@ test.describe('Category flow', () => {
 
     // Verify
     await expect(page.getByText('Category created successfully')).toBeVisible();
-    await expect(page.getByText(catName)).toBeVisible();
+    // The new card's heading (the closing dialog's copy is hidden from roles while it fades out).
+    await expect(page.getByRole('heading', { name: catName })).toBeVisible();
   });
 });

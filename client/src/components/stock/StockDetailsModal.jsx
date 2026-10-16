@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import Pill from '../ui/Pill';
+import Field, { Input } from '../ui/Field';
 import StockItemModal from './StockItemModal';
 import StockAssignModal from './StockAssignModal';
 import { useAuth } from '../../context/AuthContext';
@@ -15,8 +17,6 @@ import {
   AlertTriangle, MapPin, Pencil, Trash2, UserPlus, Undo2, PackageMinus, Users, History, Loader2, Plus, Minus,
 } from 'lucide-react';
 
-const inputClass = 'w-full rounded-xl bg-base border border-border px-3 py-2 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent';
-const labelClass = 'block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5';
 const sectionTitle = 'text-xs font-semibold text-secondary uppercase tracking-wider flex items-center gap-2';
 
 const TONE_DOT = {
@@ -75,10 +75,8 @@ function HolderActionForm({ holder, mode, itemName, onCancel, onSubmit }) {
         </p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-[8rem_1fr] gap-3">
-        <div>
-          <label htmlFor={`${idBase}-qty`} className={labelClass}>Quantity</label>
-          <input
-            id={`${idBase}-qty`}
+        <Field id={`${idBase}-qty`} label="Quantity">
+          <Input
             type="number"
             inputMode="numeric"
             min="1"
@@ -86,26 +84,23 @@ function HolderActionForm({ holder, mode, itemName, onCancel, onSubmit }) {
             step="1"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            aria-invalid={Boolean(error)}
+            invalid={Boolean(error)}
             aria-describedby={error ? `${idBase}-error` : `${idBase}-hint`}
-            className={`${inputClass} font-mono`}
+            className="font-mono"
           />
-        </div>
-        <div>
-          <label htmlFor={`${idBase}-note`} className={labelClass}>Note (optional)</label>
-          <input
-            id={`${idBase}-note`}
+        </Field>
+        <Field id={`${idBase}-note`} label="Note (optional)">
+          <Input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}
             placeholder={isWriteOff ? 'E.g., strap broken' : 'E.g., not needed any more'}
-            className={inputClass}
           />
-        </div>
+        </Field>
       </div>
       {error
-        ? <p id={`${idBase}-error`} role="alert" className="text-xs text-danger">{error}</p>
+        ? <p id={`${idBase}-error`} role="alert" className="text-xs text-error">{error}</p>
         : <p id={`${idBase}-hint`} className="text-xs text-secondary">{holder.name} has {holder.quantity}.</p>}
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onCancel} disabled={submitting}>Cancel</Button>
@@ -274,9 +269,7 @@ export default function StockDetailsModal({ isOpen, itemId, onClose, actions }) 
                 </p>
                 {item.notes && <p className="text-xs text-secondary mt-1 whitespace-pre-line break-words">{item.notes}</p>}
                 {warning && (
-                  <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full">
-                    <AlertTriangle className="w-3 h-3" aria-hidden="true" />{warning}
-                  </span>
+                  <Pill tone="warning" icon={AlertTriangle} className="mt-2">{warning}</Pill>
                 )}
               </div>
             </div>
@@ -299,11 +292,10 @@ export default function StockDetailsModal({ isOpen, itemId, onClose, actions }) 
               {canDelete && (
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="danger-outline"
                   onClick={() => setConfirmDelete(true)}
                   disabled={Boolean(blockedReason)}
                   title={blockedReason || 'Remove this item from the list'}
-                  className="text-danger"
                 >
                   <Trash2 className="w-3.5 h-3.5" />Delete
                 </Button>
@@ -362,37 +354,32 @@ export default function StockDetailsModal({ isOpen, itemId, onClose, actions }) 
                     </button>
                   ))}
                 </div>
-                <div className="sm:w-28">
-                  <label htmlFor="stock-adjust-amount" className={labelClass}>Amount</label>
-                  <input
-                    id="stock-adjust-amount"
+                <Field id="stock-adjust-amount" label="Amount" className="sm:w-28">
+                  <Input
                     type="number"
                     inputMode="numeric"
                     min="1"
                     step="1"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    aria-invalid={Boolean(adjustError)}
+                    invalid={Boolean(adjustError)}
                     aria-describedby={adjustError ? 'stock-adjust-error' : 'stock-adjust-hint'}
-                    className={`${inputClass} font-mono`}
+                    className="font-mono"
                   />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <label htmlFor="stock-adjust-note" className={labelClass}>Note (optional)</label>
-                  <input
-                    id="stock-adjust-note"
+                </Field>
+                <Field id="stock-adjust-note" label="Note (optional)" className="flex-1 min-w-0">
+                  <Input
                     type="text"
                     value={adjustNote}
                     onChange={(e) => setAdjustNote(e.target.value)}
                     maxLength={500}
                     placeholder={direction === 'add' ? 'E.g., PO-1042 delivered' : 'E.g., damaged in storage'}
-                    className={inputClass}
                   />
-                </div>
+                </Field>
                 <Button type="submit" size="sm" loading={adjusting} className="self-start sm:self-end">Save</Button>
               </div>
               {adjustError
-                ? <p id="stock-adjust-error" role="alert" className="text-xs text-danger">{adjustError}</p>
+                ? <p id="stock-adjust-error" role="alert" className="text-xs text-error">{adjustError}</p>
                 : (
                   <p id="stock-adjust-hint" className="text-xs text-secondary">
                     {direction === 'add'
@@ -423,14 +410,14 @@ export default function StockDetailsModal({ isOpen, itemId, onClose, actions }) 
                             <span className="text-sm font-semibold text-primary">{holder.name}</span>
                             <span className="text-sm font-mono font-bold text-accent">× {holder.quantity}</span>
                             {holder.hasLeft && (
-                              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/20">
+                              <Pill tone="warning" className="uppercase">
                                 Left company
-                              </span>
+                              </Pill>
                             )}
                             {showsWorkModeBadge(holder.workMode) && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-raised text-secondary border border-border">
+                              <Pill>
                                 {workModeLabel(holder.workMode)}
-                              </span>
+                              </Pill>
                             )}
                           </div>
                           <p className="text-xs text-secondary truncate">
@@ -446,7 +433,7 @@ export default function StockDetailsModal({ isOpen, itemId, onClose, actions }) 
                               </Button>
                             )}
                             {canDelete && (
-                              <Button size="sm" variant="ghost" className="text-error" onClick={() => setHolderAction({ employeeId: holder.employeeId, mode: 'writeoff' })}>
+                              <Button size="sm" variant="danger-outline" onClick={() => setHolderAction({ employeeId: holder.employeeId, mode: 'writeoff' })}>
                                 <PackageMinus className="w-3.5 h-3.5" />Write off
                               </Button>
                             )}

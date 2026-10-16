@@ -1,6 +1,7 @@
 import React from 'react';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
+import Pill from '../ui/Pill';
 import { lowStockText, stockCountLabel } from '../../utils/stock';
 import { onActivateKey } from '../../utils/a11y';
 import { AlertTriangle, MapPin, UserPlus } from 'lucide-react';
@@ -9,10 +10,9 @@ export function LowStockBadge({ item }) {
   const text = lowStockText(item);
   if (!text) return null;
   return (
-    <span title={text} className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-      <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+    <Pill tone="warning" icon={AlertTriangle} title={text}>
       {item.inStock <= 0 ? 'Out of stock' : 'Low stock'}
-    </span>
+    </Pill>
   );
 }
 

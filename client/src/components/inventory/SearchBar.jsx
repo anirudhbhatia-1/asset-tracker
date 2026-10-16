@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
+import { controlClass } from '../ui/fieldStyles';
 
-export default function SearchBar({ initialValue = '', onSearch, placeholder = 'Search by asset name, model, or serial number...' }) {
+export default function SearchBar({ initialValue = '', onSearch, placeholder = 'Search by asset name, model, or serial number...', label = 'Search' }) {
   const [searchTerm, setSearchTerm] = useState(initialValue);
 
   // Sync state if initialValue changes from outside (e.g. clear filters)
@@ -30,10 +31,12 @@ export default function SearchBar({ initialValue = '', onSearch, placeholder = '
       </div>
       <input
         type="text"
+        role="searchbox"
+        aria-label={label}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-surface/80 border border-border/80 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all shadow-sm"
+        className={`${controlClass()} pl-10 pr-10 shadow-sm`}
       />
       {searchTerm && (
         <button

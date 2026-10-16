@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Pill from '../ui/Pill';
 
 const prefersReducedMotion = () => {
   try {
@@ -60,16 +61,12 @@ export default function MetricCard({ title, subtitle, count = 0, icon: Icon, del
       <div className="mt-4 flex items-baseline justify-between">
         <span className="text-[2rem] leading-none font-bold text-primary tracking-[-0.04em]">{displayCount}</span>
         {delta && (
-          <span
-            className={`text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 ${
-              deltaPositive
-                ? 'bg-success/10 text-success border border-success/20'
-                : 'bg-danger/10 text-danger border border-danger/20'
-            }`}
-          >
-            <span>{deltaPositive ? '▲' : '▼'}</span>
-            <span>{delta}</span>
-          </span>
+          <Pill tone={deltaPositive ? 'success' : 'danger'} size="md">
+            <span className="inline-flex items-center gap-0.5">
+              <span>{deltaPositive ? '▲' : '▼'}</span>
+              <span>{delta}</span>
+            </span>
+          </Pill>
         )}
       </div>
       {subtitle && (

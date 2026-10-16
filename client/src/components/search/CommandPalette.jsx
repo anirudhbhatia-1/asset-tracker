@@ -14,6 +14,7 @@ import {
   defaultActiveIndex, enterTarget, flattenSections, loadRecentItems, nextActiveIndex, saveRecentItems,
   shortcutLabel, statusLabel, statusTone,
 } from '../../utils/searchPalette';
+import Pill from '../ui/Pill';
 
 const KIND_ICONS = {
   asset: Package,
@@ -37,14 +38,8 @@ const COMMAND_ICONS = {
   scanner: QrCode,
 };
 
-const TONE_CLASSES = {
-  success: 'bg-success/10 text-success border-success/30',
-  info: 'bg-info-blue/10 text-info-blue border-info-blue/30',
-  warning: 'bg-warning/10 text-warning border-warning/30',
-  danger: 'bg-danger/10 text-danger border-danger/30',
-  accent: 'bg-accent/10 text-accent border-accent/30',
-  muted: 'bg-raised text-secondary border-border',
-};
+// Status chip tone: the same as each record's badge elsewhere.
+const pillTone = statusTone;
 
 const iconFor = (item) => {
   if (item.type === 'result') return KIND_ICONS[item.kind] || Search;
@@ -245,7 +240,7 @@ export default function CommandPalette({ onClose }) {
                   const index = optionIndex;
                   const active = index === activeIndex;
                   const Icon = iconFor(item);
-                  const tone = item.status ? TONE_CLASSES[statusTone(item.kind, item.status)] : null;
+                  const tone = item.status ? pillTone(item.kind, item.status) : null;
                   return (
                     <div
                       key={item.id}
@@ -265,8 +260,8 @@ export default function CommandPalette({ onClose }) {
                         {item.sublabel && <span className="block text-xs text-secondary truncate">{item.sublabel}</span>}
                       </span>
                       {tone && (
-                        <span className={`hidden min-[400px]:inline-flex shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium border ${tone}`}>
-                          {statusLabel(item.kind, item.status)}
+                        <span className="hidden min-[400px]:inline-flex shrink-0">
+                          <Pill tone={tone}>{statusLabel(item.kind, item.status)}</Pill>
                         </span>
                       )}
                       {active && <CornerDownLeft className="hidden sm:block w-4 h-4 text-accent shrink-0" aria-hidden="true" />}

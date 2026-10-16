@@ -211,6 +211,31 @@ const fulfillItem = async (requestId, itemId, assetId, actorUser = null) => {
   const linkedEmployeeId = await resolveLinkedEmployee(req);
 
   return db.withTransaction(async (client) => {
+    // Lock the request and item, then re-check what was read above: two people
+    // fulfilling the same item at once must not both hand out a device.
+    const { rows: [lockedRequest] } = await client.query(
+      'SELECT status FROM onboarding_requests WHERE id = $1 FOR UPDATE', [requestId]
+    );
+    if (!lockedRequest || ['cancelled', 'completed'].includes(lockedRequest.status)) {
+      const err = new Error(`Items on a ${lockedRequest?.status || 'removed'} request cannot be changed`);
+      err.statusCode = 400;
+      throw err;
+    }
+    const { rows: [lockedItem] } = await client.query(
+      'SELECT fulfilled_asset_id FROM onboarding_request_items WHERE id = $1 AND onboarding_request_id = $2 FOR UPDATE',
+      [itemId, requestId]
+    );
+    if (!lockedItem) {
+      const err = new Error('Item not found in this request');
+      err.statusCode = 404;
+      throw err;
+    }
+    if (Number(lockedItem.fulfilled_asset_id || 0) !== Number(itemRow.fulfilled_asset_id || 0)) {
+      const err = new Error('This item was just updated by someone else. Refresh and try again.');
+      err.statusCode = 409;
+      throw err;
+    }
+
     if (assetId && itemRow.fulfilled_asset_id !== assetId) {
       const { rows: [asset] } = await client.query(
         'SELECT id, name, category_id, status, asset_type FROM assets WHERE id = $1 FOR UPDATE', [assetId]

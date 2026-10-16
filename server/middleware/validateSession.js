@@ -43,6 +43,8 @@ const PERMISSION_DEPENDENCIES = {
   // Assigning means choosing an employee.
   'assets:assign': ['assets:read', 'employees:read'],
   'assets:delete': ['assets:read'],
+  // A scan shows the whole asset record.
+  'scanner:read': ['assets:read'],
   'assets:export': ['assets:read'],
   'assets:import': ['assets:read'],
   'categories:manage': ['categories:read'],

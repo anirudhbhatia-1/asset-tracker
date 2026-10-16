@@ -7,6 +7,8 @@ import HrDashboard from './HrDashboard';
 import EmployeeDashboard from './EmployeeDashboard';
 import AttentionPanel from '../components/dashboard/AttentionPanel';
 import SegmentedControl from '../components/ui/SegmentedControl';
+import PageHeader from '../components/ui/PageHeader';
+import Pill from '../components/ui/Pill';
 import { withSearchParam } from '../utils/searchParams';
 
 const TABS = [
@@ -30,29 +32,24 @@ export default function DirectorDashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10 animate-fadeIn">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-accent/20 via-surface to-raised border border-accent/30 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-accent" />
-            <h1 className="text-2xl font-extrabold text-primary tracking-tight">Executive Super-Dashboard</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-accent/20 text-accent uppercase tracking-wider border border-accent/40">
-              System Director
-            </span>
-          </div>
-          <p className="text-sm text-secondary mt-1">
-            Cross-team summary, per-team dashboard views, and access control.
-          </p>
-        </div>
-
-        <Link
-          to="/settings/roles"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-on-accent text-sm font-semibold rounded-xl transition-all shadow-md shadow-accent/20 shrink-0"
-        >
-          <ShieldCheck className="w-4 h-4" />
-          <span>Role Matrix Builder</span>
-          <ChevronRight className="w-4 h-4" />
-        </Link>
-      </div>
+      <PageHeader
+        className="bg-gradient-to-r from-accent/20 via-surface to-raised border border-accent/30 rounded-2xl p-6 shadow-xl"
+        icon={ShieldCheck}
+        title="Executive Super-Dashboard"
+        subtitle="Cross-team summary, per-team dashboard views, and access control."
+        actions={(
+          <Link
+            to="/settings/roles"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-on-accent text-sm font-semibold rounded-xl transition-all shadow-md shadow-accent/20 shrink-0"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Role Matrix Builder</span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        )}
+      >
+        <Pill tone="accent" size="md" className="mt-2 uppercase tracking-wider">System Director</Pill>
+      </PageHeader>
 
       {/* Shown once for every tab (embedded dashboards leave theirs out). */}
       <AttentionPanel />

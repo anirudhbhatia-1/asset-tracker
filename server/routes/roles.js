@@ -267,6 +267,11 @@ router.put('/:id', [
         adminType !== undefined ? adminType : currentRole.admin_type,
         roleId
       ]);
+      // Everyone holding the role works the role's ticket queue.
+      const queueAfter = adminType !== undefined ? adminType : currentRole.admin_type;
+      if ((queueAfter || null) !== (lockedRole.admin_type || null)) {
+        await client.query('UPDATE employees SET admin_type = $1 WHERE role_id = $2', [queueAfter || null, roleId]);
+      }
 
       if (Array.isArray(permissionKeys)) {
         // Clear existing permissions and re-insert

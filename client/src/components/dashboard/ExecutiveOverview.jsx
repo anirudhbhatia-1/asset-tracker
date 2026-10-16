@@ -5,6 +5,9 @@ import { getAssets } from '../../api/assetsApi';
 import { ticketsApi } from '../../api/ticketsApi';
 import { onboardingApi } from '../../api/onboardingApi';
 import { useAuth } from '../../context/AuthContext';
+import { ticketsLink } from '../../utils/ticketQueue';
+import Button from '../ui/Button';
+import Card, { CardBody, CardHeader } from '../ui/Card';
 
 const QUEUES = [
   { key: 'it', label: 'IT' },
@@ -62,17 +65,17 @@ const loadOnboarding = () => onboardingApi.getHrMetrics();
 
 function Widget({ title, icon: Icon, to, linkLabel, loading, error, onRetry, children, footnote }) {
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm flex flex-col">
-      <div className="p-4 border-b border-border flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon className="w-4 h-4 text-accent shrink-0" />
-          <h2 className="text-sm font-semibold text-primary truncate">{title}</h2>
-        </div>
-        <Link to={to} className="text-xs text-accent hover:underline flex items-center gap-1 shrink-0">
-          {linkLabel} <ArrowRight className="w-3 h-3" />
-        </Link>
-      </div>
-      <div className="p-4 flex-1">
+    <Card>
+      <CardHeader
+        icon={Icon}
+        title={title}
+        actions={(
+          <Link to={to} className="text-xs text-accent hover:underline flex items-center gap-1 shrink-0">
+            {linkLabel} <ArrowRight className="w-3 h-3" />
+          </Link>
+        )}
+      />
+      <CardBody>
         {loading ? (
           <div className="grid grid-cols-3 gap-3 animate-pulse">
             {[0, 1, 2].map((i) => <div key={i} className="h-12 rounded-lg bg-raised" />)}
@@ -83,14 +86,14 @@ function Widget({ title, icon: Icon, to, linkLabel, loading, error, onRetry, chi
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{error}</span>
             </span>
-            <button type="button" onClick={onRetry} className="underline shrink-0 cursor-pointer">Retry</button>
+            <Button variant="ghost" size="sm" onClick={onRetry}>Retry</Button>
           </div>
         ) : (
           children
         )}
-      </div>
+      </CardBody>
       {footnote && <p className="px-4 pb-3 text-[11px] text-secondary">{footnote}</p>}
-    </div>
+    </Card>
   );
 }
 
@@ -125,14 +128,10 @@ export default function ExecutiveOverview() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={refreshAll}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors shadow-sm cursor-pointer"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${anyLoading ? 'animate-spin text-accent' : ''}`} />
+        <Button variant="secondary" size="sm" onClick={refreshAll}>
+          <RefreshCw className={`w-3.5 h-3.5 ${anyLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
           <span>Refresh Data</span>
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -158,7 +157,7 @@ export default function ExecutiveOverview() {
           <Widget
             title={`Open Tickets${tickets.data ? ` (${tickets.data.total})` : ''}`}
             icon={Ticket}
-            to="/tickets"
+            to={ticketsLink({ status: 'active' })}
             linkLabel="Tickets"
             loading={tickets.loading}
             error={tickets.error}
@@ -171,7 +170,7 @@ export default function ExecutiveOverview() {
                   key={q.key}
                   label={q.label}
                   value={tickets.data?.byQueue[q.key]}
-                  to="/tickets"
+                  to={ticketsLink({ status: 'active', view: 'all', queue: q.key })}
                   tone={tickets.data?.byQueue[q.key] ? 'text-warning' : 'text-primary'}
                 />
               ))}

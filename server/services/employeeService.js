@@ -50,15 +50,28 @@ const mapAssetMini = (row) => {
     categoryColor: row.category_color || null,
     model: row.model || null,
     serialNumber: row.serial_number,
+    assetType: row.asset_type || 'company',
     status: row.status,
     location: row.location || null,
     costCents: row.cost_cents || 0,
     purchaseDate: row.purchase_date || null,
+    warrantyExpiryDate: row.warranty_expiry_date || null,
     notes: row.notes || null,
     assignedTo: row.assigned_to,
     assignedDate: row.assigned_date || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    brand: row.brand || null,
+    processor: row.processor || null,
+    ram: row.ram || null,
+    storage: row.storage || null,
+    screenSize: row.screen_size || null,
+    graphicsCard: row.graphics_card || null,
+    os: row.os || null,
+    msOffice: row.ms_office || null,
+    antiVirus: row.anti_virus || null,
+    color: row.color || null,
+    clientName: row.client_name || null,
   };
 };
 
@@ -150,18 +163,33 @@ const getDepartments = async () => {
   return result.rows.map(row => row.department);
 };
 
-const getEmployeeAssets = async (id) => {
+// `showCompanyCost` false (the person looking at their own things without
+// asset access) hides what company assets cost; client assets keep their
+// price, since the employee is answerable for it.
+const getEmployeeAssets = async (id, { showCompanyCost = true } = {}) => {
   await getEmployeeById(id);
 
   const result = await pool.query(`
-    SELECT a.*, c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color
+    SELECT a.*, c.name AS category_name, c.badge_char AS category_badge_char, c.color AS category_color,
+      COALESCE((
+        SELECT json_agg(json_build_object('id', ch.id, 'name', ch.name, 'serialNumber', ch.serial_number) ORDER BY ch.name)
+        FROM assets ch WHERE ch.parent_id = a.id AND ch.assigned_to = a.assigned_to AND ch.status = 'in-use'
+      ), '[]') AS accessories
     FROM assets a
     LEFT JOIN categories c ON a.category_id = c.id
     WHERE a.assigned_to = $1 AND a.status = 'in-use'
     ORDER BY a.assigned_date DESC, a.name ASC
   `, [id]);
 
-  return result.rows.map(mapAssetMini);
+  return result.rows.map((row) => {
+    const asset = { ...mapAssetMini(row), accessories: row.accessories };
+    if (!showCompanyCost) {
+      if (asset.assetType !== 'client') asset.costCents = null;
+      // Admin notes ("previously held by…", import remarks) are internal.
+      asset.notes = null;
+    }
+    return asset;
+  });
 };
 
 // Domains whose addresses may get a login, from LOGIN_EMAIL_DOMAINS
@@ -351,8 +379,24 @@ const createEmployeeWithAccess = async (data, actingUser) => {
 
 const CREDENTIAL_FIELDS = ['password', 'canLogin', 'role', 'roleId', 'role_id'];
 
+// Removed employees keep their record for history, but nothing about them
+// can be changed any more.
+const assertNotRemoved = (employee) => {
+  if (employee.deletedAt) {
+    const err = new Error('This employee has been removed');
+    err.statusCode = 400;
+    throw err;
+  }
+};
+
 const updateEmployee = async (id, data, actingUser) => {
   const current = await getEmployeeById(id);
+  assertNotRemoved(current);
+  // Only a Director edits a Director's profile (their own excepted).
+  if (actingUser && Number(actingUser.id) !== Number(id)) {
+    const currentRole = await getCurrentRole(current);
+    if (currentRole?.isDirector) assertCanActOnRole(actingUser, currentRole, 'edit');
+  }
 
   const touchedCredentialFields = CREDENTIAL_FIELDS.filter(
     (f) => data[f] !== undefined && data[f] !== null && data[f] !== ''
@@ -427,6 +471,20 @@ const updateEmployee = async (id, data, actingUser) => {
   return getEmployeeById(id);
 };
 
+// Bulk items (bags, cables…) someone still holds, e.g. "Laptop Bag ×2".
+const heldStockItems = async (reader, employeeId) => {
+  const { rows } = await reader.query(
+    `SELECT si.name, sh.quantity FROM stock_holdings sh JOIN stock_items si ON si.id = sh.stock_item_id
+     WHERE sh.employee_id = $1 ORDER BY si.name`, [employeeId]
+  );
+  return rows.map((row) => `${row.name} ×${row.quantity}`);
+};
+
+const stockStillHeldError = (items) => Object.assign(
+  new Error(`Take back or write off their bulk items first: ${items.join(', ')}`),
+  { statusCode: 409, details: { stockItems: items } }
+);
+
 // options.client — run inside the caller's transaction (offboarding).
 const inTransaction = (client, fn) => (client ? fn(client) : withTransaction(fn));
 
@@ -440,7 +498,7 @@ const deleteEmployee = async (id, actingUser, options = {}) => {
     return { id: Number(id), deleted: true };
   }
 
-  assertCanActOnRole(actingUser, await getCurrentRole(current), 'remove');
+  assertCanActOnRole(actingUser, await getCurrentRole(current, reader), 'remove');
 
   // Hardware must be handed back first, or it would stay assigned to a
   // hidden, removed account.
@@ -470,6 +528,8 @@ const deleteEmployee = async (id, actingUser, options = {}) => {
       err.statusCode = 409;
       throw err;
     }
+    const stock = await heldStockItems(client, id);
+    if (stock.length > 0) throw stockStillHeldError(stock);
     await client.query('UPDATE employees SET deleted_at = NOW() WHERE id = $1', [id]);
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
     await auditEmployee(client, actingUser, 'employee.removed', current, {
@@ -501,22 +561,25 @@ const assertNotLastDirector = async (client, employeeId, action) => {
 };
 
 const applyRole = async (client, id, targetRole) => {
-  // Decision #2: Copy roles.admin_type into employees.admin_type at assignment time if present
-  if (targetRole.adminType) {
-    await client.query(
-      'UPDATE employees SET role = $1, role_id = $2, admin_type = $3 WHERE id = $4',
-      [targetRole.baseRole, targetRole.id, targetRole.adminType, id]
-    );
-  } else {
-    await client.query(
-      'UPDATE employees SET role = $1, role_id = $2 WHERE id = $3',
-      [targetRole.baseRole, targetRole.id, id]
-    );
-  }
+  // Decision #2: the role's ticket queue (roles.admin_type) is copied onto the
+  // employee. A role without a queue clears it, so someone moved out of IT
+  // Admin stops seeing and working the IT queue.
+  await client.query(
+    'UPDATE employees SET role = $1, role_id = $2, admin_type = $3 WHERE id = $4',
+    [targetRole.baseRole, targetRole.id, targetRole.adminType || null, id]
+  );
 };
 
 const updateEmployeeRole = async (id, roleOrRoleId, actingUser) => {
   const current = await getEmployeeById(id);
+  assertNotRemoved(current);
+  // A role is what lets someone sign in (Google too): giving one to a person
+  // without a login is granting access, which has its own permission and checks.
+  if (!current.hasLogin) {
+    const err = new Error('This employee has no login yet. Use Grant access to give them one with a role.');
+    err.statusCode = 400;
+    throw err;
+  }
   const targetRole = await resolveRole(roleOrRoleId);
   assertCanActOnRole(actingUser, await getCurrentRole(current), 'change the role of');
   assertCanActOnRole(actingUser, targetRole, 'assign');
@@ -543,6 +606,7 @@ const updateEmployeeRole = async (id, roleOrRoleId, actingUser) => {
 
 const grantEmployeeAccess = async (id, roleOrRoleId, passwordHash, actingUser) => {
   const current = await getEmployeeById(id);
+  assertNotRemoved(current);
 
   validateCorporateEmail(current.email);
 
@@ -600,20 +664,21 @@ const resetEmployeePassword = async (id, passwordHash, actingUser) => {
 // Removes the ability to log in (password and Google) while keeping the
 // directory entry and its asset history.
 const revokeEmployeeAccess = async (id, actingUser, options = {}) => {
-  const current = await getEmployeeById(id);
+  // Inside an exit's transaction, read through it (no second connection).
+  const current = await getEmployeeById(id, options.client || pool);
   if (!current.role && !current.hasLogin) {
     const err = new Error('This employee has no login access');
     err.statusCode = 400;
     throw err;
   }
-  assertCanActOnRole(actingUser, await getCurrentRole(current), 'revoke access for');
+  assertCanActOnRole(actingUser, await getCurrentRole(current, options.client || pool), 'revoke access for');
 
   await inTransaction(options.client, async (client) => {
     await client.query('SELECT id FROM employees WHERE id = $1 FOR UPDATE', [id]);
     await assertNotLastDirector(client, id, 'revoke access for');
     await client.query(`
       UPDATE employees
-      SET password_hash = NULL, role = NULL, role_id = NULL, google_id = NULL, must_change_password = false,
+      SET password_hash = NULL, role = NULL, role_id = NULL, admin_type = NULL, google_id = NULL, must_change_password = false,
           failed_login_count = 0, last_failed_login_at = NULL, locked_until = NULL
       WHERE id = $1`, [id]);
     await client.query('DELETE FROM sessions WHERE employee_id = $1', [id]);
@@ -627,6 +692,7 @@ const revokeEmployeeAccess = async (id, actingUser, options = {}) => {
 
 const grantGoogleAccess = async (id, actingUser = null) => {
   const current = await getEmployeeById(id);
+  assertNotRemoved(current);
   validateCorporateEmail(current.email);
   if (current.hasLogin) {
     const err = new Error('Employee already has a login account');
@@ -683,6 +749,8 @@ module.exports = {
   updateEmployee,
   deleteEmployee,
   updateEmployeeRole,
+  heldStockItems,
+  stockStillHeldError,
   grantEmployeeAccess,
   resolveRole,
   assertCanActOnRole,

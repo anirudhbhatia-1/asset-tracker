@@ -6,6 +6,12 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import useFocusTrap from '../../hooks/useFocusTrap';
 import { PASSWORD_MAX_LENGTH, passwordChecks, passwordRuleError } from '../../utils/passwordRules';
+import Button from '../ui/Button';
+import { controlClass } from '../ui/fieldStyles';
+
+// The eye toggle sits inside the input, so the text keeps clear of it.
+const passwordInputClass = `${controlClass(false)} pr-10`;
+const labelClass = 'block text-sm font-medium text-primary';
 
 // `required`: shown when the account must replace a temporary or shared
 // password; it cannot be dismissed and the only way out is changing it or
@@ -125,7 +131,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
           <form id="change-password-form" onSubmit={handleSubmit} className="space-y-4">
             
             <div className="space-y-1.5">
-              <label htmlFor={`${fieldId}-current`} className="text-sm font-semibold text-primary block">Current Password</label>
+              <label htmlFor={`${fieldId}-current`} className={labelClass}>Current Password</label>
               <div className="relative">
                 <input
                   type={showCurrent ? "text" : "password"}
@@ -134,7 +140,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
                   aria-describedby={error ? errorId : undefined}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full bg-base border border-border rounded-xl px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all pr-10"
+                  className={passwordInputClass}
                   placeholder="Enter current password"
                 />
                 <button
@@ -150,7 +156,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor={`${fieldId}-new`} className="text-sm font-semibold text-primary block">New Password</label>
+              <label htmlFor={`${fieldId}-new`} className={labelClass}>New Password</label>
               <div className="relative">
                 <input
                   type={showNew ? "text" : "password"}
@@ -160,7 +166,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
                   aria-describedby={error ? `${rulesId} ${errorId}` : rulesId}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full bg-base border border-border rounded-xl px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all pr-10"
+                  className={passwordInputClass}
                   placeholder="At least 10 characters"
                 />
                 <button
@@ -191,7 +197,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor={`${fieldId}-confirm`} className="text-sm font-semibold text-primary block">Confirm New Password</label>
+              <label htmlFor={`${fieldId}-confirm`} className={labelClass}>Confirm New Password</label>
               <div className="relative">
                 <input
                   type={showConfirm ? "text" : "password"}
@@ -200,7 +206,7 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
                   aria-describedby={error ? errorId : undefined}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-base border border-border rounded-xl px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all pr-10"
+                  className={passwordInputClass}
                   placeholder="Type new password again"
                 />
                 <button
@@ -220,29 +226,20 @@ const ChangePasswordModal = ({ isOpen, onClose, required = false }) => {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border/60 bg-base/50 flex justify-end gap-3 shrink-0 rounded-b-2xl">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={required ? logout : handleClose}
             disabled={loading}
-            className="px-4 py-2 text-sm font-semibold text-secondary hover:text-primary hover:bg-raised/60 rounded-xl transition-all disabled:opacity-50"
           >
             {required ? 'Sign out' : 'Cancel'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             form="change-password-form"
-            disabled={loading}
-            className="px-6 py-2 text-sm font-bold bg-accent hover:bg-accent/90 text-on-accent rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            loading={loading}
           >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-on-accent/30 border-t-on-accent rounded-full animate-spin" />
-                Updating...
-              </>
-            ) : (
-              'Change Password'
-            )}
-          </button>
+            {loading ? 'Updating...' : 'Change Password'}
+          </Button>
         </div>
       </div>
     </div>,

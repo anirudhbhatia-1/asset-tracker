@@ -463,17 +463,17 @@ export default function Inventory() {
       <div className="space-y-3">
         <SearchBar initialValue={searchQuery} onSearch={handleSearchChange} />
         {/* On phones the filters sit behind a disclosure button. */}
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={() => setFiltersOpen((open) => !open)}
           aria-expanded={filtersOpen}
           aria-controls="inventory-filters"
-          className="md:hidden inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-medium bg-surface border border-border text-primary cursor-pointer"
+          className="md:hidden"
         >
           <SlidersHorizontal className="w-4 h-4 text-secondary" aria-hidden="true" />
           <span>Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}</span>
           <ChevronDown className={`w-4 h-4 text-secondary transition-transform ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-        </button>
+        </Button>
         <div id="inventory-filters" className={filtersOpen ? 'block' : 'hidden md:block'}>
           <FilterToolbar
             categories={categories}

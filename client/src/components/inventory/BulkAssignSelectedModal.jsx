@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Search, UserPlus, FileText } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Field, { Textarea } from '../ui/Field';
+import { controlClass } from '../ui/fieldStyles';
 import useQuery, { errorMessageOf } from '../../hooks/useQuery';
 import { EMPLOYEES_KEY, fetchEmployeesList } from '../../hooks/useEmployees';
 
@@ -56,7 +58,7 @@ function AssignForm({ onClose, assets, onAssign }) {
       </p>
 
       <div>
-        <label htmlFor="bulk-assign-search" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+        <label htmlFor="bulk-assign-search" className="block text-sm font-medium text-primary mb-1.5">
           Select Employee
         </label>
         <div className="relative mb-2">
@@ -67,7 +69,7 @@ function AssignForm({ onClose, assets, onAssign }) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Filter employees by name, email, or department..."
-            className="w-full pl-9 pr-4 py-2 bg-base border border-border rounded-xl text-base sm:text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            className={`${controlClass()} pl-9 pr-4`}
           />
         </div>
 
@@ -109,21 +111,23 @@ function AssignForm({ onClose, assets, onAssign }) {
         </div>
       </div>
 
-      <div>
-        <label htmlFor="bulk-assign-note" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-          <FileText className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
-          <span>Note (Optional)</span>
-        </label>
-        <textarea
-          id="bulk-assign-note"
+      <Field
+        id="bulk-assign-note"
+        label={(
+          <span className="inline-flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-accent" aria-hidden="true" />
+            <span>Note (Optional)</span>
+          </span>
+        )}
+      >
+        <Textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
           maxLength={500}
           placeholder="E.g., Issued for the new project team."
-          className="w-full rounded-xl bg-base border border-border p-3 text-base sm:text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
         />
-      </div>
+      </Field>
 
       <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
         <Button variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>

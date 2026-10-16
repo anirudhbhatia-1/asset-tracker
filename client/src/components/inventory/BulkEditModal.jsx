@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Save } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Field, { Select } from '../ui/Field';
 import useLocations from '../../hooks/useLocations';
 
 const KEEP = '';
-const SELECT_CLASS = 'w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-base sm:text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer';
 
 /** Moves the selected assets to another location and/or category. */
 export default function BulkEditModal({ isOpen, onClose, count = 0, categories = [], onSave }) {
@@ -43,20 +43,18 @@ function EditForm({ onClose, categories, onSave }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <p className="text-sm text-secondary">Pick what to change. Fields left on “Keep current” stay as they are on each asset.</p>
-      <div>
-        <label htmlFor="bulk-edit-location" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">Location</label>
-        <select id="bulk-edit-location" value={location} onChange={(e) => setLocation(e.target.value)} className={SELECT_CLASS} disabled={locationsLoading && locations.length === 0}>
+      <Field id="bulk-edit-location" label="Location">
+        <Select value={location} onChange={(e) => setLocation(e.target.value)} disabled={locationsLoading && locations.length === 0}>
           <option value={KEEP}>Keep current</option>
           {locations.map((loc) => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
-        </select>
-      </div>
-      <div>
-        <label htmlFor="bulk-edit-category" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">Category</label>
-        <select id="bulk-edit-category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={SELECT_CLASS}>
+        </Select>
+      </Field>
+      <Field id="bulk-edit-category" label="Category">
+        <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           <option value={KEEP}>Keep current</option>
           {categories.map((cat) => <option key={cat.id} value={String(cat.id)}>{cat.name}</option>)}
-        </select>
-      </div>
+        </Select>
+      </Field>
       <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
         <Button variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>
         <Button type="submit" loading={submitting} disabled={!hasChanges}>

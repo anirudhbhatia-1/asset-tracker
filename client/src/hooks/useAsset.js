@@ -17,9 +17,13 @@ export default function useAsset(id) {
   // Id whose data is on screen; reloading it is a background refresh that
   // keeps the page up instead of swapping back to the skeleton.
   const loadedIdRef = useRef(null);
+  // Bumped per request so a slow response for a previous id can't overwrite
+  // the asset now in the URL.
+  const requestIdRef = useRef(0);
 
   const fetchAssetData = useCallback(async () => {
     if (!id) return;
+    const requestId = ++requestIdRef.current;
     const isRefresh = loadedIdRef.current === id;
     if (isRefresh) {
       setRefreshing(true);
@@ -29,16 +33,20 @@ export default function useAsset(id) {
     }
     try {
       const res = await getAsset(id);
+      if (requestId !== requestIdRef.current) return;
       setAsset(res.data?.data || res.data || null);
       setError(null);
       loadedIdRef.current = id;
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       const message = err.response?.data?.message || err.message || 'Failed to load asset details';
       if (isRefresh) toast.error(message);
       else setError(message);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [id]);
 

@@ -3,12 +3,16 @@ import { ShieldCheck, Key } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import { getInitials } from '../../utils/initials';
 import { roleLabel } from '../../utils/roleLabel';
+import Card, { CardHeader } from '../ui/Card';
+import Pill from '../ui/Pill';
+import { Select } from '../ui/Field';
 
-const roleStyles = {
-  director: 'bg-info-purple/10 text-info-purple border-info-purple/30',
-  admin: 'bg-danger/10 text-danger border-danger/30',
-  hr:    'bg-warning/10 text-warning border-warning/30',
-  employee: 'bg-info-blue/10 text-info-blue border-info-blue/30',
+// Role chip colours (red is kept for things that need action now).
+const ROLE_TONES = {
+  director: 'purple',
+  admin: 'accent',
+  hr: 'warning',
+  employee: 'info',
 };
 
 export default function RoleManagementPanel({ employees = [], onRoleChange }) {
@@ -46,17 +50,12 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
   };
 
   return (
-    <div className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden">
-      {/* Panel Header */}
-      <div className="p-4 border-b border-border bg-base/50 flex items-center gap-2">
-        <ShieldCheck className="w-4 h-4 text-accent" />
-        <h2 className="text-sm font-semibold text-primary uppercase tracking-wider">
-          User Role Management
-        </h2>
-        <span className="ml-auto text-xs text-secondary px-2 py-0.5 rounded-full bg-raised border border-border">
-          {loginUsers.length} active accounts
-        </span>
-      </div>
+    <Card>
+      <CardHeader
+        icon={ShieldCheck}
+        title="User Role Management"
+        actions={<Pill size="md">{loginUsers.length} active accounts</Pill>}
+      />
 
       {/* Table */}
       <div className="overflow-x-auto">
@@ -89,26 +88,24 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
                   <td className="px-5 py-3 text-secondary text-xs font-mono truncate max-w-[180px]">{emp.email}</td>
                   <td className="px-5 py-3 text-secondary">{emp.department || '—'}</td>
                   <td className="px-5 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize ${roleStyles[emp.role] || 'bg-base text-secondary border-border'}`}>
-                      <Key className="w-2.5 h-2.5" />
+                    <Pill tone={ROLE_TONES[emp.role] || 'neutral'} icon={Key} className="capitalize">
                       {emp.customRoleName || roleLabel(emp)}
-                    </span>
+                    </Pill>
                   </td>
                   <td className="px-5 py-3">
                     {savingId === emp.id ? (
                       <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <select
+                      <Select
                         value={emp.roleId || emp.role}
                         onChange={(e) => handleRoleChange(emp, e.target.value)}
-                        className="text-xs bg-base border border-border rounded-lg px-2 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                       >
                         {roles.map(r => (
                           <option key={r.id || r.name} value={r.id || r.name.toLowerCase()}>
                             {r.name}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     )}
                   </td>
                 </tr>
@@ -117,6 +114,6 @@ export default function RoleManagementPanel({ employees = [], onRoleChange }) {
           </table>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

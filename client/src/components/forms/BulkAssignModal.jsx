@@ -3,6 +3,10 @@ import { X, Loader2, Package, Search, CheckSquare, Square, ChevronDown, ChevronR
 import { getAssets, bulkAssignAssets } from '../../api/assetsApi';
 import toast from 'react-hot-toast';
 import useFocusTrap from '../../hooks/useFocusTrap';
+import Button from '../ui/Button';
+import EmptyState from '../ui/EmptyState';
+import { Textarea } from '../ui/Field';
+import { controlClass } from '../ui/fieldStyles';
 
 export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }) {
   const [assets, setAssets] = useState([]);
@@ -137,7 +141,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, serial number, or model..."
-              className="w-full pl-9 pr-4 py-2 bg-base border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent"
+              className={`${controlClass()} pl-9 pr-4`}
             />
           </div>
           {selectedIds.size > 0 && (
@@ -155,10 +159,7 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
               <span className="text-sm">Loading available assets...</span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-12 text-center">
-              <Package className="w-8 h-8 text-secondary mx-auto mb-2" />
-              <p className="text-sm text-secondary">No available assets found.</p>
-            </div>
+            <EmptyState size="sm" icon={Package} title="No available assets found." description="" />
           ) : (
             Object.entries(grouped).map(([cat, catAssets]) => {
               const allSelected = catAssets.every(a => selectedIds.has(a.id));
@@ -240,26 +241,23 @@ export default function BulkAssignModal({ isOpen, onClose, employee, onSuccess }
 
         {/* Note + Submit */}
         <div className="px-6 py-4 border-t border-border bg-base/50 space-y-3 shrink-0">
-          <textarea
+          <Textarea
             value={note}
             onChange={e => setNote(e.target.value)}
             placeholder="Assignment note (e.g., Standard onboarding kit)..."
             rows={2}
-            className="w-full px-3 py-2 bg-base border border-border rounded-lg text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent resize-none"
           />
           <div className="flex items-center justify-end gap-3">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 rounded-lg transition-colors">
+            <Button variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               onClick={handleSubmit}
-              disabled={submitting || selectedIds.size === 0 || loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+              loading={submitting}
+              disabled={selectedIds.size === 0 || loading}
             >
-              {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Assign {selectedIds.size > 0 ? `${selectedIds.size} Asset${selectedIds.size > 1 ? 's' : ''}` : 'Assets'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

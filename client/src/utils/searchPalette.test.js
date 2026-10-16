@@ -141,7 +141,7 @@ describe('recents and keys', () => {
     expect(isTextEntryTarget({ tagName: 'BUTTON' })).toBe(false);
     expect(shortcutLabel(true)).toBe('⌘K');
     expect(shortcutLabel(false)).toBe('Ctrl K');
-    expect(statusTone('ticket', 'open')).toBe('warning');
-    expect(statusTone('asset', 'weird')).toBe('muted');
+    expect(statusTone('ticket', 'open')).toBe('info');
+    expect(statusTone('asset', 'weird')).toBe('neutral');
   });
 });

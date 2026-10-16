@@ -1,5 +1,6 @@
 import React from 'react';
 import { Camera } from 'lucide-react';
+import Button from '../ui/Button';
 
 export default function WebcamFeed({ videoRef, onStop }) {
   return (
@@ -38,14 +39,10 @@ export default function WebcamFeed({ videoRef, onStop }) {
         </div>
 
         {onStop && (
-          <button
-            type="button"
-            onClick={onStop}
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-base/80 hover:bg-surface backdrop-blur-md border border-border/60 text-xs font-medium text-secondary hover:text-primary transition-colors cursor-pointer shadow-sm"
-          >
+          <Button variant="secondary" size="sm" onClick={onStop} className="pointer-events-auto">
             <Camera className="w-3.5 h-3.5 text-accent" />
             <span>Pause camera</span>
-          </button>
+          </Button>
         )}
       </div>
 

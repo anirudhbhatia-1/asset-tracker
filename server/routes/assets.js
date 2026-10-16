@@ -148,12 +148,9 @@ router.get('/export', requirePermission('assets:export'), async (req, res, next)
     await auditData(req, 'data.exported', {
       entity: 'assets',
       format: 'xlsx',
-      // A selection is recorded by size, not by listing every id.
-      filters: (() => {
-        const { ids: _ids, ...rest } = req.query;
-        const filters = { ...rest, ...(ids ? { ids: ids.length } : {}) };
-        return Object.keys(filters).length > 0 ? filters : null;
-      })(),
+      // The export ignores list filters (it is everything, or a selection);
+      // a selection is recorded by size, not by listing every id.
+      filters: ids ? { ids: ids.length } : null,
       count: workbook.exportedAssetCount ?? null,
     });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -322,7 +319,8 @@ router.get('/:id', [
 // GET /api/assets/:id/tickets — tickets linked to this asset (timeline)
 router.get('/:id/tickets', [
   requirePermission('assets:read'),
-  requirePermission('tickets:read'),
+  // Lists other people's tickets about the device: for those who work tickets.
+  requirePermission('tickets:resolve'),
   param('id').isInt({ min: 1 }).withMessage('ID must be a positive integer'),
   validateRequest,
 ], async (req, res, next) => {
@@ -384,6 +382,13 @@ router.post('/', [
   body('assetType').optional().isIn(['company', 'client']).withMessage('assetType must be company or client'),
   body('assignedTo').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   body('parentId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
+  // Accessories registered with the asset (charger, bag…).
+  body('subAssets').optional({ nullable: true }).isArray({ max: 20 }).withMessage('subAssets must be a list of at most 20 items'),
+  body('subAssets.*').isObject().withMessage('Each accessory must be an object'),
+  body('subAssets.*.serialNumber').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 100 }),
+  body('subAssets.*.name').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 150 }),
+  body('subAssets.*.model').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 150 }),
+  body('subAssets.*.categoryId').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }),
   validateRequest,
 ], async (req, res, next) => {
   try {

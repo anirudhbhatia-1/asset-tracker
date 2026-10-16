@@ -9,6 +9,7 @@ import AssigneeCard from '../components/asset-detail/AssigneeCard';
 import LifecycleActions from '../components/asset-detail/LifecycleActions';
 import LinkedAccessoriesCard from '../components/asset-detail/LinkedAccessoriesCard';
 import EmptyState from '../components/ui/EmptyState';
+import Button from '../components/ui/Button';
 import { ArrowLeft, RefreshCw, PackageX } from 'lucide-react';
 import { getChildAssets, getAssetTickets } from '../api/assetsApi';
 
@@ -45,7 +46,8 @@ export default function AssetDetail() {
   // The linked-tickets endpoint needs both permissions; it also decides
   // whether ticket entries link through to the Tickets page.
   const canReadTickets = hasPermission('tickets:read');
-  const canViewAssetTickets = hasPermission('assets:read') && canReadTickets;
+  // Other people's tickets about this device: only for those who work tickets.
+  const canViewAssetTickets = hasPermission('assets:read') && hasPermission('tickets:resolve');
 
   const [childAssets, setChildAssets] = useState([]);
   const [assetTickets, setAssetTickets] = useState([]);
@@ -133,16 +135,16 @@ export default function AssetDetail() {
           </Link>
         )}
 
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={refresh}
           disabled={refreshing}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer shadow-sm disabled:cursor-wait"
           title="Refresh asset state"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-accent' : ''}`} />
           <span>Refresh</span>
-        </button>
+        </Button>
       </div>
 
       {/* Main Grid Layout: Specs/Lifecycle on Left (2 cols), Timeline on Right (1 col) */}

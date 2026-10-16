@@ -4,6 +4,10 @@ import { formatDateTime } from '../../utils/formatters';
 import { buildAssetTimeline } from '../../utils/assetTimeline';
 import TicketStatusBadge from '../tickets/TicketStatusBadge';
 import { History, CheckCircle2, UserPlus, CornerDownLeft, Archive, Trash2, Ticket as TicketIcon, ChevronRight } from 'lucide-react';
+import { ticketRef } from '../../utils/ticketMeta';
+import Pill from '../ui/Pill';
+import Card, { CardHeader, CardBody } from '../ui/Card';
+import EmptyState from '../ui/EmptyState';
 
 const safeDateTime = (value) => {
   if (!value) return value;
@@ -21,9 +25,9 @@ function TicketEntry({ ticket, relation, linkable }) {
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-semibold px-2 py-0.5 rounded border bg-accent/10 text-accent border-accent/30 font-mono">
-            {ticket.human_readable_id || `#${ticket.id}`}
-          </span>
+          <Pill tone="accent" className="font-mono">
+            {ticketRef(ticket)}
+          </Pill>
           <TicketStatusBadge status={ticket.status} />
         </div>
         <span className="text-xs font-mono text-secondary" title={ticket.created_at}>
@@ -62,42 +66,42 @@ export default function HistoryTimeline({ history = [], tickets = [], assetId = 
       case 'created':
         return {
           title: 'Asset Registered',
-          color: 'bg-info-purple/10 text-info-purple border-info-purple/30',
+          tone: 'purple',
           dotColor: 'bg-info-purple',
           Icon: CheckCircle2,
         };
       case 'assigned':
         return {
           title: 'Assigned to Employee',
-          color: 'bg-info-blue/10 text-info-blue border-info-blue/30',
+          tone: 'info',
           dotColor: 'bg-info-blue',
           Icon: UserPlus,
         };
       case 'returned':
         return {
           title: 'Returned to Stock',
-          color: 'bg-warning/10 text-warning border-warning/30',
+          tone: 'warning',
           dotColor: 'bg-warning',
           Icon: CornerDownLeft,
         };
       case 'retired':
         return {
           title: 'Decommissioned & Retired',
-          color: 'bg-danger/10 text-danger border-danger/30',
-          dotColor: 'bg-danger',
+          tone: 'neutral',
+          dotColor: 'bg-secondary',
           Icon: Archive,
         };
       case 'deleted':
         return {
           title: 'Permanently Deleted',
-          color: 'bg-danger/10 text-danger border-danger/30',
-          dotColor: 'bg-danger',
+          tone: 'neutral',
+          dotColor: 'bg-secondary',
           Icon: Trash2,
         };
       default:
         return {
           title: type || 'System Event',
-          color: 'bg-raised text-secondary border-border',
+          tone: 'neutral',
           dotColor: 'bg-secondary',
           Icon: History,
         };
@@ -124,22 +128,26 @@ export default function HistoryTimeline({ history = [], tickets = [], assetId = 
   }
 
   return (
-    <div className="bg-surface rounded-xl p-6 border border-border/60 shadow-sm">
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-border/60">
-        <div className="flex items-center gap-2">
-          <History className="w-5 h-5 text-accent" />
-          <h3 className="text-base font-semibold text-primary">Audit History Timeline</h3>
-        </div>
-        <span className="text-xs font-mono text-secondary">
-          {entries.length} {entries.length === 1 ? 'Event' : 'Events'}
-          {ticketCount > 0 && ` · ${ticketCount} ${ticketCount === 1 ? 'Ticket' : 'Tickets'}`}
-        </span>
-      </div>
-
+    <Card>
+      <CardHeader
+        icon={History}
+        level={3}
+        title="Audit History Timeline"
+        actions={(
+          <span className="text-xs font-mono text-secondary">
+            {entries.length} {entries.length === 1 ? 'Event' : 'Events'}
+            {ticketCount > 0 && ` · ${ticketCount} ${ticketCount === 1 ? 'Ticket' : 'Tickets'}`}
+          </span>
+        )}
+      />
+      <CardBody>
       {entries.length === 0 ? (
-        <div className="text-center py-12 text-secondary text-sm">
-          No audit history events recorded for this asset.
-        </div>
+        <EmptyState
+          size="sm"
+          icon={History}
+          title="No audit history events recorded for this asset."
+          description=""
+        />
       ) : (
         <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-raised">
           {entries.map((entry) => {
@@ -155,7 +163,7 @@ export default function HistoryTimeline({ history = [], tickets = [], assetId = 
             }
 
             const event = entry.item;
-            const { title, color, dotColor, Icon } = getEventMeta(event.eventType);
+            const { title, tone, dotColor, Icon } = getEventMeta(event.eventType);
             const formattedTime = safeDateTime(event.eventAt);
 
             return (
@@ -168,9 +176,9 @@ export default function HistoryTimeline({ history = [], tickets = [], assetId = 
                 <div className="bg-base/60 p-4 rounded-xl border border-border/60 space-y-1.5 group-hover:border-border transition-colors">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${color}`}>
+                      <Pill tone={tone}>
                         {title}
-                      </span>
+                      </Pill>
                       {event.employeeName && (
                         <span className="text-xs text-secondary font-medium">
                           → {event.employeeName}
@@ -195,6 +203,7 @@ export default function HistoryTimeline({ history = [], tickets = [], assetId = 
           })}
         </div>
       )}
-    </div>
+      </CardBody>
+    </Card>
   );
 }

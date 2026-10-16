@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Field, { Input, Textarea } from '../ui/Field';
+import { controlClass } from '../ui/fieldStyles';
 import { getEmployees } from '../../api/employeesApi';
 import { Search, UserPlus } from 'lucide-react';
 import { todayLocalISO } from '../../utils/dates';
 import { validateQuantity, parseQuantity } from '../../utils/stock';
 
-const inputClass = 'w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent';
-const labelClass = 'block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5';
 
 /**
  * Give some of a bulk item to one employee. `onAssign(payload, employeeName)`
@@ -91,8 +91,22 @@ export default function StockAssignModal({ isOpen, onClose, item, onAssign }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={item ? `Assign ${item.name}` : 'Assign'} maxWidth="max-w-lg">
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={item ? `Assign ${item.name}` : 'Assign'}
+      maxWidth="max-w-lg"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button type="submit" form="stock-assign-form" variant="primary" loading={submitting} disabled={inStock === 0}>
+            <UserPlus className="w-4 h-4" />
+            <span>Assign</span>
+          </Button>
+        </>
+      )}
+    >
+      <form id="stock-assign-form" onSubmit={handleSubmit} className="space-y-4" noValidate>
         <p className="text-sm text-secondary bg-base/60 border border-border/60 rounded-xl px-3.5 py-2.5" aria-live="polite">
           <strong className="text-primary">{inStock}</strong> in stock
           {!Number.isNaN(qtyNumber) && qtyNumber > 0 && qtyNumber <= inStock && (
@@ -101,7 +115,9 @@ export default function StockAssignModal({ isOpen, onClose, item, onAssign }) {
         </p>
 
         <div>
-          <label htmlFor="stock-assign-search" className={labelClass}>Employee <span className="text-danger">*</span></label>
+          <label htmlFor="stock-assign-search" className="block text-sm font-medium text-primary mb-1.5">
+            Employee<span className="text-error" aria-hidden="true"> *</span>
+          </label>
           <div className="relative mb-2">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" aria-hidden="true" />
             <input
@@ -110,7 +126,7 @@ export default function StockAssignModal({ isOpen, onClose, item, onAssign }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by name, email or department…"
-              className={`${inputClass} pl-9`}
+              className={`${controlClass()} pl-9`}
             />
           </div>
           <div
@@ -153,14 +169,12 @@ export default function StockAssignModal({ isOpen, onClose, item, onAssign }) {
               })
             )}
           </div>
-          {errors.employee && <p id="stock-assign-employee-error" role="alert" className="text-xs text-danger mt-1.5">{errors.employee}</p>}
+          {errors.employee && <p id="stock-assign-employee-error" role="alert" className="text-xs text-error mt-1.5">{errors.employee}</p>}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="stock-assign-quantity" className={labelClass}>Quantity <span className="text-danger">*</span></label>
-            <input
-              id="stock-assign-quantity"
+          <Field id="stock-assign-quantity" label="Quantity" required error={errors.quantity}>
+            <Input
               type="number"
               inputMode="numeric"
               min="1"
@@ -168,46 +182,26 @@ export default function StockAssignModal({ isOpen, onClose, item, onAssign }) {
               step="1"
               value={quantity}
               onChange={(e) => { setQuantity(e.target.value); setErrors((prev) => ({ ...prev, quantity: null })); }}
-              aria-invalid={Boolean(errors.quantity)}
-              aria-describedby={errors.quantity ? 'stock-assign-quantity-error' : undefined}
-              className={`${inputClass} font-mono`}
+              className="font-mono"
             />
-            {errors.quantity && <p id="stock-assign-quantity-error" role="alert" className="text-xs text-danger mt-1.5">{errors.quantity}</p>}
-          </div>
-          <div>
-            <label htmlFor="stock-assign-date" className={labelClass}>Date given</label>
-            <input
-              id="stock-assign-date"
+          </Field>
+          <Field id="stock-assign-date" label="Date given" error={errors.date}>
+            <Input
               type="date"
               value={assignedDate}
               onChange={(e) => setAssignedDate(e.target.value)}
-              aria-invalid={Boolean(errors.date)}
-              aria-describedby={errors.date ? 'stock-assign-date-error' : undefined}
-              className={inputClass}
             />
-            {errors.date && <p id="stock-assign-date-error" role="alert" className="text-xs text-danger mt-1.5">{errors.date}</p>}
-          </div>
+          </Field>
         </div>
 
-        <div>
-          <label htmlFor="stock-assign-note" className={labelClass}>Note (optional)</label>
-          <textarea
-            id="stock-assign-note"
+        <Field id="stock-assign-note" label="Note (optional)">
+          <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}
             rows={2}
-            className={inputClass}
           />
-        </div>
-
-        <div className="pt-3 border-t border-border flex flex-wrap items-center justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>
-          <Button type="submit" variant="primary" loading={submitting} disabled={inStock === 0}>
-            <UserPlus className="w-4 h-4" />
-            <span>Assign</span>
-          </Button>
-        </div>
+        </Field>
       </form>
     </Modal>
   );

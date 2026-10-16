@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Pill from '../ui/Pill';
+import Field, { Input, Textarea } from '../ui/Field';
+import { controlClass } from '../ui/fieldStyles';
 import { getEmployees } from '../../api/employeesApi';
 import { Search, Calendar, UserPlus, FileText } from 'lucide-react';
 import { todayLocalISO } from '../../utils/dates';
@@ -67,11 +70,28 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
       onClose={onClose}
       title={isReassign ? `Reassign Asset: ${asset?.name}` : `Assign Asset: ${asset?.name}`}
       maxWidth="max-w-lg"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="assignment-form"
+            variant="primary"
+            loading={submitting}
+            disabled={!selectedEmployeeId}
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>{isReassign ? 'Reassign Hardware' : 'Assign Hardware'}</span>
+          </Button>
+        </>
+      )}
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form id="assignment-form" onSubmit={handleSubmit} className="space-y-5">
         {/* Searchable Employee List */}
         <div>
-          <label htmlFor="assign-employee-search" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+          <label htmlFor="assign-employee-search" className="block text-sm font-medium text-primary mb-1.5">
             Select Employee
           </label>
           <div className="relative mb-2">
@@ -82,7 +102,7 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Filter employees by name, email, or department..."
-              className="w-full pl-9 pr-4 py-2 bg-base border border-border rounded-xl text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              className={`${controlClass()} pl-9 pr-4`}
             />
           </div>
 
@@ -111,9 +131,9 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
                           {emp.name}
                         </span>
                         {isCurrent && (
-                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-info-blue/20 text-info-blue">
+                          <Pill tone="info" className="uppercase">
                             Current Assignee
-                          </span>
+                          </Pill>
                         )}
                       </div>
                       <span className="text-xs text-secondary block mt-0.5">
@@ -133,52 +153,40 @@ export default function AssignmentModal({ isOpen, onClose, onAssign, asset }) {
         </div>
 
         {/* Assignment Date */}
-        <div>
-          <label htmlFor="assign-date" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-accent" />
-            <span>Effective Assignment Date</span>
-          </label>
-          <input
-            id="assign-date"
+        <Field
+          id="assign-date"
+          label={(
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-accent" />
+              <span>Effective Assignment Date</span>
+            </span>
+          )}
+        >
+          <Input
             type="date"
             value={assignedDate}
             onChange={(e) => setAssignedDate(e.target.value)}
             required
-            className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent"
           />
-        </div>
+        </Field>
 
         {/* Optional Notes */}
-        <div>
-          <label htmlFor="assign-note" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <FileText className="w-3.5 h-3.5 text-accent" />
-            <span>Assignment Notes (Optional)</span>
-          </label>
-          <textarea
-            id="assign-note"
+        <Field
+          id="assign-note"
+          label={(
+            <span className="inline-flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-accent" />
+              <span>Assignment Notes (Optional)</span>
+            </span>
+          )}
+        >
+          <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="E.g., Issued with laptop charger, external keyboard, and carry case."
             rows={2}
-            className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
           />
-        </div>
-
-        {/* Footer Actions */}
-        <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={submitting}
-            disabled={!selectedEmployeeId}
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>{isReassign ? 'Reassign Hardware' : 'Assign Hardware'}</span>
-          </Button>
-        </div>
+        </Field>
       </form>
     </Modal>
   );

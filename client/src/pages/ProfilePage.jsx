@@ -8,6 +8,10 @@ import {
 import StatusPill from '../components/ui/StatusPill';
 import Badge from '../components/ui/Badge';
 import PageHeader from '../components/ui/PageHeader';
+import Pill from '../components/ui/Pill';
+import Card, { CardBody, CardHeader } from '../components/ui/Card';
+import EmptyState from '../components/ui/EmptyState';
+import { Input } from '../components/ui/Field';
 import toast from 'react-hot-toast';
 import { workModeLabel } from '../utils/workMode';
 import { formatDate } from '../utils/formatters';
@@ -16,10 +20,11 @@ import { holdingLabel } from '../utils/stock';
 import { useStockHoldings } from '../hooks/useStock';
 import { roleLabel } from '../utils/roleLabel';
 
-const roleColors = {
-  admin:    'bg-accent/10 text-accent border-accent/20',
-  hr:       'bg-info-blue/10 text-info-blue border-info-blue/20',
-  employee: 'bg-success/10 text-success border-success/20',
+// Pill tone for the role chip on the profile card.
+const roleTones = {
+  admin: 'accent',
+  hr: 'info',
+  employee: 'success',
 };
 
 export default function ProfilePage() {
@@ -136,9 +141,9 @@ export default function ProfilePage() {
             <div className="w-20 h-20 rounded-2xl bg-accent/10 border-4 border-surface flex items-center justify-center text-accent text-2xl font-bold uppercase shadow-md" aria-hidden="true">
               {avatarChar}
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${roleColors[profile?.role] || roleColors.employee}`}>
+            <Pill size="md" tone={roleTones[profile?.role] || roleTones.employee}>
               {displayRole || 'Employee'}
-            </span>
+            </Pill>
           </div>
 
           {/* Info Grid */}
@@ -152,14 +157,15 @@ export default function ProfilePage() {
                 <div className="text-[11px] font-semibold text-secondary uppercase tracking-wider mb-1">Name</div>
                 {editingName ? (
                   <div className="flex items-center gap-2">
-                    <input
+                    <Input
                       type="text"
                       autoFocus
                       value={nameValue}
                       onChange={e => setNameValue(e.target.value)}
                       onKeyDown={handleNameKeyDown}
                       maxLength={150}
-                      className="flex-1 min-w-0 text-sm text-primary bg-base border border-accent rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent"
+                      aria-label="Name"
+                      className="flex-1 min-w-0"
                     />
                     <button
                       type="button"
@@ -238,19 +244,17 @@ export default function ProfilePage() {
       </div>
 
       {/* Assigned Assets */}
-      <div className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-border bg-base/50 flex items-center gap-2">
-          <Laptop className="w-4 h-4 text-accent" />
-          <h2 className="text-sm font-semibold text-primary uppercase tracking-wider">My Assigned Assets</h2>
-          <span className="ml-auto text-xs text-secondary">{assets.length} item{assets.length !== 1 ? 's' : ''}</span>
-        </div>
+      <Card aria-labelledby="profile-assets-title">
+        <CardHeader
+          id="profile-assets-title"
+          icon={Laptop}
+          title="My Assigned Assets"
+          actions={<span className="text-xs text-secondary">{assets.length} item{assets.length !== 1 ? 's' : ''}</span>}
+        />
 
-        <div className="p-4">
+        <CardBody>
           {assets.length === 0 ? (
-            <div className="py-10 text-center">
-              <PackageX className="w-8 h-8 text-secondary mx-auto mb-2" />
-              <p className="text-sm text-secondary">No assets currently assigned to you.</p>
-            </div>
+            <EmptyState size="sm" icon={PackageX} title="No assets currently assigned to you." description={null} />
           ) : (
             <div className="space-y-3">
               {assets.map(asset => (
@@ -281,17 +285,18 @@ export default function ProfilePage() {
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Bulk items held (shown only when there are some, as on the dashboard) */}
       {bulkHoldings.length > 0 && (
-        <section aria-labelledby="profile-bulk-items-title" className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-border bg-base/50 flex items-center gap-2">
-            <Package className="w-4 h-4 text-accent" aria-hidden="true" />
-            <h2 id="profile-bulk-items-title" className="text-sm font-semibold text-primary uppercase tracking-wider">Other items</h2>
-            <span className="ml-auto text-xs text-secondary">{bulkHoldings.length} item{bulkHoldings.length !== 1 ? 's' : ''}</span>
-          </div>
+        <Card aria-labelledby="profile-bulk-items-title">
+          <CardHeader
+            id="profile-bulk-items-title"
+            icon={Package}
+            title="Other items"
+            actions={<span className="text-xs text-secondary">{bulkHoldings.length} item{bulkHoldings.length !== 1 ? 's' : ''}</span>}
+          />
           <ul className="p-4 space-y-2">
             {bulkHoldings.map((holding) => (
               <li key={holding.stockItemId} className="bg-base/80 px-3.5 py-2.5 rounded-xl border border-border/80 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -302,7 +307,7 @@ export default function ProfilePage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       )}
     </div>
   );

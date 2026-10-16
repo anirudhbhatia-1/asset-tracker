@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
-import { X, Loader2, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { getCategories } from '../../api/categoriesApi';
 import { getDepartments } from '../../api/employeesApi';
 import useLocations from '../../hooks/useLocations';
-import useFocusTrap from '../../hooks/useFocusTrap';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import Field, { Input, Select, Textarea } from '../ui/Field';
 import { addDaysLocalISO } from '../../utils/dates';
 
 const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
@@ -62,18 +64,14 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
     }
   }, [isOpen]);
 
-  const dialogRef = useRef(null);
-  const titleId = useId();
-  // Traps Tab inside the dialog and closes it on Escape
-  useFocusTrap(dialogRef, isOpen, onClose);
 
   // The form renders after its dropdown data loads, so start on the name
   // field once it exists (desktop only: on touch screens it would pop the
   // keyboard over the dialog).
   useEffect(() => {
-    if (!isOpen || loadingContext || !dialogRef.current) return;
+    if (!isOpen || loadingContext) return;
     const active = document.activeElement;
-    const onField = active && dialogRef.current.contains(active) && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName);
+    const onField = active && active.closest?.('#onboarding-form') && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName);
     let coarse = false;
     try { coarse = window.matchMedia?.('(pointer: coarse)').matches; } catch { coarse = false; }
     if (!onField && !coarse) document.getElementById('onb-new-name')?.focus();
@@ -163,238 +161,189 @@ const CreateOnboardingModal = ({ isOpen, onClose, onSubmit }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
-      
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90dvh] animate-scaleUp">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
-          <h2 id={titleId} className="text-lg font-semibold text-primary">New Onboarding Request</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="New Onboarding Request"
+      maxWidth="max-w-2xl"
+      footer={(
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="onboarding-form" loading={submitting}>
+            Submit Request
+          </Button>
+        </>
+      )}
+    >
+      {loadingContext ? (
+        <div className="py-8 flex justify-center">
+          <Loader2 className="w-8 h-8 text-accent animate-spin" />
         </div>
+      ) : (
+        <form id="onboarding-form" onSubmit={handleSubmit} noValidate className="space-y-6">
+          <p className="text-xs text-secondary -mb-2">Fields marked <span className="text-error">*</span> are required.</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field id="onb-new-name" label="New Hire Name" required error={errors.name}>
+              <Input
+                type="text"
+                value={newHireName}
+                onChange={(e) => { setNewHireName(e.target.value); clearError('name'); }}
+              />
+            </Field>
+            <Field id="onb-new-email" label="Personal Email">
+              <Input
+                type="email"
+                value={newHireEmail}
+                onChange={(e) => setNewHireEmail(e.target.value)}
+              />
+            </Field>
+            <Field id="onb-new-department" label="Department">
+              <Select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+              >
+                <option value="">Select Department...</option>
+                {departments.map(dep => (
+                  <option key={dep} value={dep}>{dep}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="onb-new-location" label="Location">
+              <Select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              >
+                <option value="">Select Location...</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.name}>
+                    {loc.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {location && (() => {
+              const selectedLoc = locations.find(l => l.name === location);
+              const addrs = selectedLoc?.addresses ? (Array.isArray(selectedLoc.addresses) ? selectedLoc.addresses : JSON.parse(selectedLoc.addresses)) : [];
+              if (addrs.length === 0) return null;
+              return (
+                <Field id="onb-new-address" label="Address">
+                  <Select
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  >
+                    <option value="">Select Address...</option>
+                    {addrs.map((addr, idx) => (
+                      <option key={idx} value={addr}>{addr}</option>
+                    ))}
+                  </Select>
+                </Field>
+              );
+            })()}
+            <Field id="onb-new-joining" label="Joining Date" required error={errors.joiningDate}>
+              <Input
+                type="date"
+                value={joiningDate}
+                onChange={(e) => { setJoiningDate(e.target.value); clearError('joiningDate'); }}
+              />
+            </Field>
+          </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
-          {loadingContext ? (
-            <div className="py-8 flex justify-center">
-              <Loader2 className="w-8 h-8 text-accent animate-spin" />
+          <Field id="onb-new-notes" label="General Notes">
+            <Textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+
+          <hr className="border-border" />
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-primary">Hardware Requirements</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAddItem}
+              >
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                Add Item
+              </Button>
             </div>
-          ) : (
-            <form id="onboarding-form" onSubmit={handleSubmit} noValidate className="space-y-6">
-              <p className="text-xs text-secondary -mb-2">Fields marked <span className="text-error">*</span> are required.</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="onb-new-name" className="text-sm font-medium text-primary">New Hire Name <span className="text-error">*</span></label>
-                  <input
-                    id="onb-new-name"
-                    type="text"
-                    required
-                    value={newHireName}
-                    onChange={(e) => { setNewHireName(e.target.value); clearError('name'); }}
-                    aria-invalid={errors.name ? true : undefined}
-                    aria-describedby={errors.name ? 'onb-new-name-error' : undefined}
-                    className={`w-full px-3 py-2 bg-base border ${errors.name ? 'border-error' : 'border-border'} rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent`}
-                  />
-                  {errors.name && <p id="onb-new-name-error" role="alert" className="text-xs text-error">{errors.name}</p>}
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="onb-new-email" className="text-sm font-medium text-primary">Personal Email</label>
-                  <input
-                    id="onb-new-email"
-                    type="email"
-                    value={newHireEmail}
-                    onChange={(e) => setNewHireEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="onb-new-department" className="text-sm font-medium text-primary">Department</label>
-                  <select
-                    id="onb-new-department"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">Select Department...</option>
-                    {departments.map(dep => (
-                      <option key={dep} value={dep}>{dep}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="onb-new-location" className="text-sm font-medium text-primary">Location</label>
-                  <select
-                    id="onb-new-location"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">Select Location...</option>
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.name}>
-                        {loc.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {location && (() => {
-                  const selectedLoc = locations.find(l => l.name === location);
-                  const addrs = selectedLoc?.addresses ? (Array.isArray(selectedLoc.addresses) ? selectedLoc.addresses : JSON.parse(selectedLoc.addresses)) : [];
-                  if (addrs.length === 0) return null;
-                  return (
-                    <div className="space-y-2">
-                      <label htmlFor="onb-new-address" className="text-sm font-medium text-primary">Address</label>
-                      <select
-                        id="onb-new-address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                      >
-                        <option value="">Select Address...</option>
-                        {addrs.map((addr, idx) => (
-                          <option key={idx} value={addr}>{addr}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })()}
-                <div className="space-y-2">
-                  <label htmlFor="onb-new-joining" className="text-sm font-medium text-primary">Joining Date <span className="text-error">*</span></label>
-                  <input
-                    id="onb-new-joining"
-                    type="date"
-                    required
-                    value={joiningDate}
-                    onChange={(e) => { setJoiningDate(e.target.value); clearError('joiningDate'); }}
-                    aria-invalid={errors.joiningDate ? true : undefined}
-                    aria-describedby={errors.joiningDate ? 'onb-new-joining-error' : undefined}
-                    className={`w-full px-3 py-2 bg-base border ${errors.joiningDate ? 'border-error' : 'border-border'} rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent`}
-                  />
-                  {errors.joiningDate && <p id="onb-new-joining-error" role="alert" className="text-xs text-error">{errors.joiningDate}</p>}
-                </div>
+            
+            {items.length === 0 && (
+              <div className="text-sm text-secondary text-center py-4 bg-base rounded-lg border border-dashed border-border">
+                No hardware requested yet. Click 'Add Item' to request equipment.
               </div>
+            )}
 
-              <div className="space-y-2">
-                <label htmlFor="onb-new-notes" className="text-sm font-medium text-primary">General Notes</label>
-                <textarea
-                  id="onb-new-notes"
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm resize-none focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                />
-              </div>
-
-              <hr className="border-border" />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-primary">Hardware Requirements</h3>
+            <div className="space-y-3">
+              {items.map((item, idx) => (
+                <div key={idx} className={`p-3 bg-base rounded-lg border ${errors[`item-${idx}`] ? 'border-error' : 'border-border'} animate-fadeIn`}>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <Select
+                      id={`onb-new-item-${idx}-category`}
+                      aria-label={`Item ${idx + 1} category (required)`}
+                      invalid={Boolean(errors[`item-${idx}`])}
+                      required
+                      value={item.categoryId}
+                      onChange={(e) => handleItemChange(idx, 'categoryId', e.target.value)}
+                    >
+                      <option value="">Select Category...</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </Select>
+                    {categories.length === 0 && !loadingContext && (
+                      <p className="text-xs text-warning mt-1">
+                        No categories available. Ask an admin to create asset categories first.
+                      </p>
+                    )}
+                  </div>
+                  <div className="w-full sm:w-24">
+                    <Input
+                      type="number"
+                      min="1"
+                      required
+                      aria-label={`Item ${idx + 1} quantity`}
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                      placeholder="Qty"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      type="text"
+                      value={item.notes}
+                      onChange={(e) => handleItemChange(idx, 'notes', e.target.value)}
+                      placeholder="Notes (e.g. Mac/Windows)"
+                      aria-label={`Item ${idx + 1} notes`}
+                    />
+                  </div>
                   <button
                     type="button"
-                    onClick={handleAddItem}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/10 rounded-md transition-colors"
+                    aria-label={`Remove item ${idx + 1}`}
+                    onClick={() => handleRemoveItem(idx)}
+                    className="p-2.5 sm:p-2 self-end sm:self-auto text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Item
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                
-                {items.length === 0 && (
-                  <div className="text-sm text-secondary text-center py-4 bg-base rounded-lg border border-dashed border-border">
-                    No hardware requested yet. Click 'Add Item' to request equipment.
-                  </div>
+                {errors[`item-${idx}`] && (
+                  <p role="alert" className="text-xs text-error mt-2">{errors[`item-${idx}`]}</p>
                 )}
-
-                <div className="space-y-3">
-                  {items.map((item, idx) => (
-                    <div key={idx} className={`p-3 bg-base rounded-lg border ${errors[`item-${idx}`] ? 'border-error' : 'border-border'} animate-fadeIn`}>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="flex-1">
-                        <select
-                          id={`onb-new-item-${idx}-category`}
-                          aria-label={`Item ${idx + 1} category (required)`}
-                          aria-invalid={errors[`item-${idx}`] ? true : undefined}
-                          required
-                          value={item.categoryId}
-                          onChange={(e) => handleItemChange(idx, 'categoryId', e.target.value)}
-                          className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                        >
-                          <option value="">Select Category...</option>
-                          {categories.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                        {categories.length === 0 && !loadingContext && (
-                          <p className="text-xs text-warning mt-1">
-                            No categories available. Ask an admin to create asset categories first.
-                          </p>
-                        )}
-                      </div>
-                      <div className="w-full sm:w-24">
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          aria-label={`Item ${idx + 1} quantity`}
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                          placeholder="Qty"
-                          className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          value={item.notes}
-                          onChange={(e) => handleItemChange(idx, 'notes', e.target.value)}
-                          placeholder="Notes (e.g. Mac/Windows)"
-                          aria-label={`Item ${idx + 1} notes`}
-                          className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        aria-label={`Remove item ${idx + 1}`}
-                        onClick={() => handleRemoveItem(idx)}
-                        className="p-2.5 sm:p-2 self-end sm:self-auto text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {errors[`item-${idx}`] && (
-                      <p role="alert" className="text-xs text-error mt-2">{errors[`item-${idx}`]}</p>
-                    )}
-                    </div>
-                  ))}
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
 
-            </form>
-          )}
-        </div>
-
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-base/50 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            form="onboarding-form"
-            type="submit"
-            disabled={submitting}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
-          >
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Submit Request
-          </button>
-        </div>
-      </div>
-    </div>
+        </form>
+      )}
+    </Modal>
   );
 };
 

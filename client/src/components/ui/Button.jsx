@@ -3,7 +3,7 @@ import Spinner from './Spinner';
 
 export default function Button({
   children,
-  variant = 'primary', // 'primary' | 'secondary' | 'danger' | 'danger-outline' | 'ghost'
+  variant = 'primary', // 'primary' | 'secondary' | 'success' | 'danger' | 'danger-outline' | 'ghost'
   size = 'md', // 'sm' | 'md' | 'lg'
   disabled = false,
   loading = false,
@@ -11,6 +11,8 @@ export default function Button({
   type = 'button',
   className = '',
   title,
+  // Anything else (form, aria-label, id, ref…) goes to the <button>.
+  ...rest
 }) {
   const baseClasses = 'inline-flex items-center justify-center font-medium transition-all duration-150 rounded-lg shrink-0 cursor-pointer';
 
@@ -26,7 +28,9 @@ export default function Button({
     danger: 'bg-danger hover:bg-danger/90 active:bg-danger text-on-accent shadow-sm',
     // Quieter destructive action (e.g. permanent delete next to a primary danger action).
     'danger-outline': 'bg-transparent hover:bg-danger/10 active:bg-danger/15 text-danger border border-danger/40',
-    ghost: 'bg-transparent hover:bg-surface/80 active:bg-surface text-secondary hover:text-primary',
+    ghost: 'bg-transparent hover:bg-raised active:bg-raised text-secondary hover:text-primary',
+    // Confirming something good (e.g. "Confirm resolution").
+    success: 'bg-success hover:bg-success/90 active:bg-success text-on-accent shadow-sm',
   };
 
   // Slight press-in on click/tap; skipped when the button can't be used.
@@ -36,6 +40,7 @@ export default function Button({
 
   return (
     <button
+      {...rest}
       type={type}
       onClick={onClick}
       disabled={disabled || loading}

@@ -6,24 +6,21 @@ import { AUDIT_EVENT_GROUPS, auditChangeRows, auditGroupOf, describeAuditEvent }
 import { formatDateTime } from '../../utils/formatters';
 import Button from '../ui/Button';
 import EmptyState from '../ui/EmptyState';
+import Field, { Input, Select } from '../ui/Field';
+import Pill from '../ui/Pill';
+import { controlClass } from '../ui/fieldStyles';
 
 const GROUP_STYLES = {
-  roles: { label: 'Roles', className: 'text-info-purple bg-info-purple/10 border-info-purple/20' },
-  access: { label: 'Login access', className: 'text-info-blue bg-info-blue/10 border-info-blue/20' },
-  passwords: { label: 'Password', className: 'text-warning bg-warning/10 border-warning/20' },
-  data: { label: 'Data', className: 'text-success bg-success/10 border-success/20' },
-  other: { label: 'Other', className: 'text-secondary bg-base border-border' },
+  roles: { label: 'Roles', tone: 'purple' },
+  access: { label: 'Login access', tone: 'info' },
+  passwords: { label: 'Password', tone: 'warning' },
+  data: { label: 'Data', tone: 'success' },
+  other: { label: 'Other', tone: 'neutral' },
 };
-
-const inputClass = 'w-full min-w-0 bg-base border border-border rounded-xl px-3 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all';
 
 function GroupPill({ eventType }) {
   const style = GROUP_STYLES[auditGroupOf(eventType)] || GROUP_STYLES.other;
-  return (
-    <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${style.className}`}>
-      {style.label}
-    </span>
-  );
+  return <Pill tone={style.tone}>{style.label}</Pill>;
 }
 
 // Old → new values for one event; nothing when the event carries none.
@@ -123,8 +120,8 @@ export default function AuditLogTab() {
 
       {/* Filters */}
       <div className="bg-surface rounded-2xl border border-border/80 p-4 shadow-sm grid grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr] gap-3">
-        <div className="space-y-1 col-span-2 lg:col-span-1">
-          <label htmlFor={`${fieldId}-q`} className="text-xs font-semibold text-secondary">Search people</label>
+        <div className="space-y-1.5 col-span-2 lg:col-span-1">
+          <label htmlFor={`${fieldId}-q`} className="block text-sm font-medium text-primary">Search people</label>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-secondary" aria-hidden="true" />
             <input
@@ -134,55 +131,41 @@ export default function AuditLogTab() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Name of who did it or who it affected"
-              className={`${inputClass} pl-9`}
+              className={`${controlClass(false)} min-w-0 pl-9`}
             />
           </div>
         </div>
-        <div className="space-y-1 col-span-2 lg:col-span-1">
-          <label htmlFor={`${fieldId}-group`} className="text-xs font-semibold text-secondary">Event type</label>
-          <select
-            id={`${fieldId}-group`}
-            value={group}
-            onChange={(e) => setGroup(e.target.value)}
-            className={`${inputClass} cursor-pointer`}
-          >
+        <Field id={`${fieldId}-group`} label="Event type" className="col-span-2 lg:col-span-1">
+          <Select value={group} onChange={(e) => setGroup(e.target.value)} className="min-w-0">
             {AUDIT_EVENT_GROUPS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label htmlFor={`${fieldId}-from`} className="text-xs font-semibold text-secondary">From</label>
-          <input
-            id={`${fieldId}-from`}
+          </Select>
+        </Field>
+        <Field id={`${fieldId}-from`} label="From">
+          <Input
             type="date"
             value={from}
             max={to || undefined}
             onChange={(e) => setFrom(e.target.value)}
-            className={inputClass}
+            className="min-w-0"
           />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor={`${fieldId}-to`} className="text-xs font-semibold text-secondary">To</label>
-          <input
-            id={`${fieldId}-to`}
+        </Field>
+        <Field id={`${fieldId}-to`} label="To">
+          <Input
             type="date"
             value={to}
             min={from || undefined}
             onChange={(e) => setTo(e.target.value)}
-            className={inputClass}
+            className="min-w-0"
           />
-        </div>
+        </Field>
         {filtered && (
           <div className="col-span-2 lg:col-span-4 flex items-center justify-between gap-2">
             {dateRangeInvalid ? (
               <p role="alert" className="text-xs text-danger">The “From” date is after the “To” date.</p>
             ) : <span />}
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-secondary hover:text-primary px-2 py-1.5 rounded-lg cursor-pointer"
-            >
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
               <X className="w-3.5 h-3.5" aria-hidden="true" /> Clear filters
-            </button>
+            </Button>
           </div>
         )}
       </div>

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
-import { X, Loader2, Building2, MapPin, ShieldCheck, User, Laptop } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2, MapPin, ShieldCheck } from 'lucide-react';
 import { getLocations } from '../../api/locationsApi';
 import { getEmployees } from '../../api/employeesApi';
 import { useAuth } from '../../context/AuthContext';
 import useRoles, { findRoleValue } from '../../hooks/useRoles';
-import useFocusTrap from '../../hooks/useFocusTrap';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import Field, { Input, Select } from '../ui/Field';
 import { WORK_MODES, normalizeWorkMode } from '../../utils/workMode';
 
 export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, onChangeRole }) {
@@ -72,11 +74,6 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
     load();
   }, [isOpen]);
 
-  const dialogRef = useRef(null);
-  const titleId = useId();
-  // Traps Tab inside the dialog and closes it on Escape
-  useFocusTrap(dialogRef, isOpen && !!employee, onClose);
-
   if (!isOpen || !employee) return null;
 
   // Get addresses for the currently selected location
@@ -114,238 +111,192 @@ export default function EditEmployeeModal({ isOpen, employee, onClose, onSave, o
     }
   };
 
-  const inputClass = "w-full px-3 py-2.5 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all cursor-pointer";
-  const labelClass = "text-xs font-semibold uppercase tracking-wider text-secondary flex items-center gap-1.5 mb-1.5";
+  // Group/read-only labels styled like the Field labels.
+  const labelClass = "block text-sm font-medium text-primary mb-1.5";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-scaleUp max-h-[90dvh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-base/50 shrink-0">
-          <div>
-            <h2 id={titleId} className="text-base font-semibold text-primary">Edit Employee Details</h2>
-            <p className="text-xs text-secondary mt-0.5">Changes are saved to the database immediately.</p>
-          </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-3 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Scrollable Form Body */}
-        <div className="overflow-y-auto flex-1">
-          {loadingContext ? (
-            <div className="py-12 flex flex-col items-center gap-3 text-secondary">
-              <Loader2 className="w-6 h-6 animate-spin text-accent" />
-              <p className="text-sm">Loading location & department data...</p>
-            </div>
-          ) : (
-            <form id="edit-employee-form" onSubmit={handleSubmit} className="p-5 space-y-4">
-              {/* Read-only email */}
-              <div className="space-y-1">
-                <span className={labelClass}>
-                  <User className="w-3.5 h-3.5" /> Email (read-only)
-                </span>
-                <p className="text-sm text-secondary font-mono bg-base/60 px-3 py-2.5 rounded-lg border border-border/60 truncate">
-                  {employee.email}
-                </p>
-              </div>
-
-              {/* Full Name */}
-              <div>
-                <label htmlFor="edit-emp-name" className={labelClass}>
-                  <User className="w-3.5 h-3.5" /> Full Name <span className="text-danger">*</span>
-                </label>
-                <input
-                  id="edit-emp-name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-
-              {/* Department — Dropdown from DB + "Other" text fallback */}
-              <div>
-                <label htmlFor="edit-emp-department" className={labelClass}>
-                  <Building2 className="w-3.5 h-3.5" /> Department
-                </label>
-                <select
-                  id="edit-emp-department"
-                  value={department}
-                  onChange={e => setDepartment(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">— Not assigned —</option>
-                  {departments.map(dep => (
-                    <option key={dep} value={dep}>{dep}</option>
-                  ))}
-                  {/* If current value isn't in the list, still show it */}
-                  {department && !departments.includes(department) && (
-                    <option value={department}>{department} (current)</option>
-                  )}
-                  <option value="__custom__">+ Add new department...</option>
-                </select>
-                {/* Show text input if user picked "custom" */}
-                {department === '__custom__' && (
-                  <input
-                    type="text"
-                    autoFocus
-                    aria-label="New department name"
-                    placeholder="Type department name..."
-                    onChange={e => setDepartment(e.target.value)}
-                    className={`${inputClass} mt-2`}
-                  />
-                )}
-              </div>
-
-              {/* Location — Dropdown from locations table */}
-              <div>
-                <label htmlFor="edit-emp-location" className={labelClass}>
-                  <MapPin className="w-3.5 h-3.5" /> Office Location
-                </label>
-                <select
-                  id="edit-emp-location"
-                  value={location}
-                  onChange={e => handleLocationChange(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">— Not assigned —</option>
-                  {locations.map(loc => (
-                    <option key={loc.id} value={loc.name}>{loc.name}</option>
-                  ))}
-                  {/* If current value isn't in the list, still show it */}
-                  {location && !locations.find(l => l.name === location) && (
-                    <option value={location}>{location} (current)</option>
-                  )}
-                </select>
-              </div>
-
-              {/* Address — Cascades from selected location's addresses (from DB) */}
-              {location && availableAddresses.length > 0 && (
-                <div>
-                  <label htmlFor="edit-emp-address" className={labelClass}>
-                    <MapPin className="w-3.5 h-3.5 text-secondary" /> Office Address
-                  </label>
-                  <select
-                    id="edit-emp-address"
-                    value={address}
-                    onChange={e => setAddress(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">— Select address —</option>
-                    {availableAddresses.map((addr, i) => (
-                      <option key={i} value={addr}>{addr}</option>
-                    ))}
-                  </select>
-                  {address && (
-                    <p className="text-xs text-secondary mt-1 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> {address}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Work mode */}
-              <div>
-                <label htmlFor="edit-emp-work-mode" className={labelClass}>
-                  <Laptop className="w-3.5 h-3.5" /> Work mode
-                </label>
-                <select
-                  id="edit-emp-work-mode"
-                  value={workMode}
-                  onChange={e => setWorkMode(e.target.value)}
-                  className={inputClass}
-                >
-                  {WORK_MODES.map(mode => (
-                    <option key={mode.value} value={mode.value}>{mode.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Role — only shown if the employee already has a login account */}
-              {employee.hasLogin && canEditRole && (
-                <div>
-                  <span className={labelClass}>
-                    <ShieldCheck className="w-3.5 h-3.5" /> System Role
-                  </span>
-                  <div className="space-y-2">
-                    {roles.map(r => (
-                      <label
-                        key={r.value}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                          role === r.value
-                            ? 'border-accent bg-accent/8'
-                            : 'border-border bg-base/60 hover:bg-raised/30'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="role"
-                          value={r.value}
-                          checked={role === r.value}
-                          onChange={() => setRole(r.value)}
-                          className="accent-accent"
-                        />
-                        <div>
-                          <div className={`text-sm font-medium ${role === r.value ? 'text-accent' : 'text-primary'}`}>
-                            {r.name}
-                          </div>
-                          {r.description && <div className="text-xs text-secondary">{r.description}</div>}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-warning mt-2 flex items-start gap-1">
-                    ⚠️ Changing role takes effect on next login.
-                  </p>
-                </div>
-              )}
-
-              {employee.hasLogin && !canEditRole && (
-                <div>
-                  <span className={labelClass}>
-                    <ShieldCheck className="w-3.5 h-3.5" /> System Role
-                  </span>
-                  <div className="p-3 bg-base/60 rounded-lg border border-border/60 text-xs text-secondary flex items-start gap-2">
-                    <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <span>Role changes require role-management access.</span>
-                  </div>
-                </div>
-              )}
-
-              {/* If no login — show info */}
-              {!employee.hasLogin && (
-                <div className="p-3 bg-base/60 rounded-lg border border-border/60 text-xs text-secondary flex items-start gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>This employee doesn't have a login account yet. Use "Manage Role" on the card to grant access first.</span>
-                </div>
-              )}
-            </form>
-          )}
-        </div>
-
-        {/* Sticky Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border bg-base/50 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 rounded-lg transition-colors"
-          >
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Employee Details"
+      headerExtra={<p className="w-full text-xs text-secondary">Changes are saved to the database immediately.</p>}
+      maxWidth="max-w-lg"
+      footer={(
+        <>
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            form="edit-employee-form"
+          </Button>
+          <Button
             type="submit"
-            disabled={submitting || !name.trim() || loadingContext}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+            form="edit-employee-form"
+            loading={submitting}
+            disabled={!name.trim() || loadingContext}
           >
-            {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Save Changes
-          </button>
+          </Button>
+        </>
+      )}
+    >
+      {loadingContext ? (
+        <div className="py-12 flex flex-col items-center gap-3 text-secondary">
+          <Loader2 className="w-6 h-6 animate-spin text-accent" />
+          <p className="text-sm">Loading location & department data...</p>
         </div>
-      </div>
-    </div>
+      ) : (
+        <form id="edit-employee-form" onSubmit={handleSubmit} className="space-y-4">
+          {/* Read-only email */}
+          <div>
+            <span className={labelClass}>Email (read-only)</span>
+            <p className="text-sm text-secondary font-mono bg-base/60 px-3 py-2 rounded-lg border border-border/60 truncate">
+              {employee.email}
+            </p>
+          </div>
+
+          <Field id="edit-emp-name" label="Full Name" required>
+            <Input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+          </Field>
+
+          {/* Department — Dropdown from DB + "Other" text fallback */}
+          <div>
+            <Field id="edit-emp-department" label="Department">
+              <Select
+                value={department}
+                onChange={e => setDepartment(e.target.value)}
+              >
+                <option value="">— Not assigned —</option>
+                {departments.map(dep => (
+                  <option key={dep} value={dep}>{dep}</option>
+                ))}
+                {/* If current value isn't in the list, still show it */}
+                {department && !departments.includes(department) && (
+                  <option value={department}>{department} (current)</option>
+                )}
+                <option value="__custom__">+ Add new department...</option>
+              </Select>
+            </Field>
+            {/* Show text input if user picked "custom" */}
+            {department === '__custom__' && (
+              <Input
+                type="text"
+                autoFocus
+                aria-label="New department name"
+                placeholder="Type department name..."
+                onChange={e => setDepartment(e.target.value)}
+                className="mt-2"
+              />
+            )}
+          </div>
+
+          {/* Location — Dropdown from locations table */}
+          <Field id="edit-emp-location" label="Office Location">
+            <Select
+              value={location}
+              onChange={e => handleLocationChange(e.target.value)}
+            >
+              <option value="">— Not assigned —</option>
+              {locations.map(loc => (
+                <option key={loc.id} value={loc.name}>{loc.name}</option>
+              ))}
+              {/* If current value isn't in the list, still show it */}
+              {location && !locations.find(l => l.name === location) && (
+                <option value={location}>{location} (current)</option>
+              )}
+            </Select>
+          </Field>
+
+          {/* Address — Cascades from selected location's addresses (from DB) */}
+          {location && availableAddresses.length > 0 && (
+            <div>
+              <Field id="edit-emp-address" label="Office Address">
+                <Select
+                  value={address}
+                  onChange={e => setAddress(e.target.value)}
+                >
+                  <option value="">— Select address —</option>
+                  {availableAddresses.map((addr, i) => (
+                    <option key={i} value={addr}>{addr}</option>
+                  ))}
+                </Select>
+              </Field>
+              {address && (
+                <p className="text-xs text-secondary mt-1 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> {address}
+                </p>
+              )}
+            </div>
+          )}
+
+          <Field id="edit-emp-work-mode" label="Work mode">
+            <Select
+              value={workMode}
+              onChange={e => setWorkMode(e.target.value)}
+            >
+              {WORK_MODES.map(mode => (
+                <option key={mode.value} value={mode.value}>{mode.label}</option>
+              ))}
+            </Select>
+          </Field>
+
+          {/* Role — only shown if the employee already has a login account */}
+          {employee.hasLogin && canEditRole && (
+            <div>
+              <span className={labelClass}>System Role</span>
+              <div className="space-y-2">
+                {roles.map(r => (
+                  <label
+                    key={r.value}
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      role === r.value
+                        ? 'border-accent bg-accent/8'
+                        : 'border-border bg-base/60 hover:bg-raised/30'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={r.value}
+                      checked={role === r.value}
+                      onChange={() => setRole(r.value)}
+                      className="accent-accent"
+                    />
+                    <div>
+                      <div className={`text-sm font-medium ${role === r.value ? 'text-accent' : 'text-primary'}`}>
+                        {r.name}
+                      </div>
+                      {r.description && <div className="text-xs text-secondary">{r.description}</div>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-warning mt-2 flex items-start gap-1">
+                ⚠️ Changing role takes effect on next login.
+              </p>
+            </div>
+          )}
+
+          {employee.hasLogin && !canEditRole && (
+            <div>
+              <span className={labelClass}>System Role</span>
+              <div className="p-3 bg-base/60 rounded-lg border border-border/60 text-xs text-secondary flex items-start gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>Role changes require role-management access.</span>
+              </div>
+            </div>
+          )}
+
+          {/* If no login — show info */}
+          {!employee.hasLogin && (
+            <div className="p-3 bg-base/60 rounded-lg border border-border/60 text-xs text-secondary flex items-start gap-2">
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>This employee doesn't have a login account yet. Use "Manage Role" on the card to grant access first.</span>
+            </div>
+          )}
+        </form>
+      )}
+    </Modal>
   );
 }

@@ -1,12 +1,15 @@
 import React, { useRef, useEffect } from 'react';
-import { Bell, X, CheckCircle2, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { Bell, X, CheckCircle2, AlertCircle, AlertTriangle, Info, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDateTime } from '../../utils/formatters';
+import EmptyState from '../ui/EmptyState';
+import Pill from '../ui/Pill';
 
 const iconMap = {
   success: <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />,
   warning: <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />,
   info:    <Info className="w-4 h-4 text-accent shrink-0 mt-0.5" />,
+  danger:  <AlertTriangle className="w-4 h-4 text-danger shrink-0 mt-0.5" />,
 };
 
 export default function NotificationPanel({ isOpen, onClose, notifications, loading, onMarkRead }) {
@@ -65,9 +68,9 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
           <Bell className="w-4 h-4 text-accent" />
           <span className="text-sm font-bold text-primary">Notifications</span>
           {notifications.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-accent text-on-accent text-[10px] font-bold leading-none">
+            <Pill tone="accent">
               {notifications.length}
-            </span>
+            </Pill>
           )}
         </div>
         <button
@@ -98,10 +101,8 @@ export default function NotificationPanel({ isOpen, onClose, notifications, load
             ))}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="py-12 text-center">
-            <Bell className="w-8 h-8 text-secondary/40 mx-auto mb-2" />
-            <p className="text-sm font-medium text-secondary">You're all caught up!</p>
-            <p className="text-xs text-secondary mt-1">No new notifications right now.</p>
+          <div className="p-4">
+            <EmptyState size="sm" icon={Bell} title="You're all caught up!" description="No new notifications right now." />
           </div>
         ) : (
           notifications.map((n) => (

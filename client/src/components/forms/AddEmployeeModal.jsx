@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import { User, Mail, Building2, MapPin, UserPlus, Laptop } from 'lucide-react';
+import Field, { Input, Select } from '../ui/Field';
+import { UserPlus } from 'lucide-react';
 import useLocations from '../../hooks/useLocations';
 import useRoles, { defaultRoleValue } from '../../hooks/useRoles';
 import { rolePayload } from '../../api/employeesApi';
@@ -87,7 +88,25 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, departments =
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Employee" maxWidth="max-w-md">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add New Employee"
+      maxWidth="max-w-md"
+      footer={temporaryPassword ? (
+        <Button variant="primary" onClick={onClose}>Done</Button>
+      ) : (
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button type="submit" form="add-employee-form" variant="primary" loading={submitting}>
+            <UserPlus className="w-4 h-4" aria-hidden="true" />
+            <span>Add Employee Profile</span>
+          </Button>
+        </>
+      )}
+    >
       {temporaryPassword ? (
         <div className="space-y-4">
           <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm text-center">
@@ -106,183 +125,108 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, departments =
               <code className="text-sm font-bold text-accent select-all bg-accent/10 px-2 py-1 rounded">{temporaryPassword}</code>
             </div>
           </div>
-          <div className="pt-4 border-t border-border flex justify-end">
-            <Button variant="primary" onClick={onClose}>Done</Button>
-          </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="add-employee-form" onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="p-3 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger">
               {error}
             </div>
           )}
 
-        {/* Full Name */}
-        <div>
-          <label htmlFor="add-emp-name" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-accent" />
-            <span>Full Name <span className="text-danger">*</span></span>
-          </label>
-          <input
-            id="add-emp-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="E.g., Priya Patel"
-            className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-        </div>
+          <Field id="add-emp-name" label="Full Name" required>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="E.g., Priya Patel"
+            />
+          </Field>
 
-        {/* Email Address */}
-        <div>
-          <label htmlFor="add-emp-email" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <Mail className="w-3.5 h-3.5 text-accent" />
-            <span>Email Address <span className="text-danger">*</span></span>
-          </label>
-          <input
-            id="add-emp-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="E.g., priya.patel@company.com"
-            className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-        </div>
+          <Field id="add-emp-email" label="Email Address" required>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="E.g., priya.patel@company.com"
+            />
+          </Field>
 
-        {/* Department & Location */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="add-emp-department" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-accent" />
-              <span>Department</span>
-            </label>
-            <select
-              id="add-emp-department"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
-            >
-              <option value="">Select department</option>
-              {departmentOptions.map((dep) => (
-                <option key={dep} value={dep}>
-                  {dep}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="add-emp-location" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-accent" />
-              <span>Office</span>
-            </label>
-            <select
-              id="add-emp-location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
-            >
-              <option value="">Select location...</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.name}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {location && (() => {
-          const selectedLoc = locations.find(l => l.name === location);
-          const addrs = selectedLoc?.addresses ? (Array.isArray(selectedLoc.addresses) ? selectedLoc.addresses : JSON.parse(selectedLoc.addresses)) : [];
-          if (addrs.length === 0) return null;
-          return (
-            <div className="mb-4">
-              <label htmlFor="add-emp-address" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-accent" />
-                <span>Office Address</span>
-              </label>
-              <select
-                id="add-emp-address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
-              >
-                <option value="">Select address...</option>
-                {addrs.map((addr, idx) => (
-                  <option key={idx} value={addr}>
-                    {addr}
+          {/* Department & Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field id="add-emp-department" label="Department">
+              <Select value={department} onChange={(e) => setDepartment(e.target.value)}>
+                <option value="">Select department</option>
+                {departmentOptions.map((dep) => (
+                  <option key={dep} value={dep}>
+                    {dep}
                   </option>
                 ))}
-              </select>
-            </div>
-          );
-        })()}
+              </Select>
+            </Field>
 
-        {/* Work mode */}
-        <div>
-          <label htmlFor="add-emp-work-mode" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <Laptop className="w-3.5 h-3.5 text-accent" />
-            <span>Work mode</span>
-          </label>
-          <select
-            id="add-emp-work-mode"
-            value={workMode}
-            onChange={(e) => setWorkMode(e.target.value)}
-            className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
-          >
-            {WORK_MODES.map((mode) => (
-              <option key={mode.value} value={mode.value}>{mode.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Grant Login Access Toggle */}
-        {canGrantAccess && (
-        <div className="pt-2 border-t border-border">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={grantAccess}
-              onChange={(e) => setGrantAccess(e.target.checked)}
-              className="w-4 h-4 rounded text-accent border-border focus:ring-accent"
-            />
-            <span className="text-sm font-medium text-primary">Also create a login account</span>
-          </label>
-          {grantAccess && (
-            <div className="mt-3 ml-7">
-              <label htmlFor="add-emp-role" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-                Role
-              </label>
-              <select
-                id="add-emp-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-xl bg-base border border-border px-3 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
-              >
-                {roles.map((r) => (
-                  <option key={r.value} value={r.value}>{r.name}</option>
+            <Field id="add-emp-location" label="Office">
+              <Select value={location} onChange={(e) => setLocation(e.target.value)}>
+                <option value="">Select location...</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.name}>
+                    {loc.name}
+                  </option>
                 ))}
-              </select>
-            </div>
-          )}
-        </div>
-        )}
+              </Select>
+            </Field>
+          </div>
 
-        {/* Footer Actions */}
-        <div className="pt-4 border-t border-border flex justify-end gap-3 mt-8">
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" loading={submitting}>
-            <UserPlus className="w-4 h-4" />
-            <span>Add Employee Profile</span>
-          </Button>
-        </div>
-      </form>
+          {location && (() => {
+            const selectedLoc = locations.find(l => l.name === location);
+            const addrs = selectedLoc?.addresses ? (Array.isArray(selectedLoc.addresses) ? selectedLoc.addresses : JSON.parse(selectedLoc.addresses)) : [];
+            if (addrs.length === 0) return null;
+            return (
+              <Field id="add-emp-address" label="Office Address" className="mb-4">
+                <Select value={address} onChange={(e) => setAddress(e.target.value)}>
+                  <option value="">Select address...</option>
+                  {addrs.map((addr, idx) => (
+                    <option key={idx} value={addr}>
+                      {addr}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            );
+          })()}
+
+          <Field id="add-emp-work-mode" label="Work mode">
+            <Select value={workMode} onChange={(e) => setWorkMode(e.target.value)}>
+              {WORK_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value}>{mode.label}</option>
+              ))}
+            </Select>
+          </Field>
+
+          {/* Grant Login Access Toggle */}
+          {canGrantAccess && (
+          <div className="pt-2 border-t border-border">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={grantAccess}
+                onChange={(e) => setGrantAccess(e.target.checked)}
+                className="w-4 h-4 rounded text-accent border-border focus:ring-accent"
+              />
+              <span className="text-sm font-medium text-primary">Also create a login account</span>
+            </label>
+            {grantAccess && (
+              <Field id="add-emp-role" label="Role" className="mt-3 ml-7">
+                <Select value={role} onChange={(e) => setRole(e.target.value)}>
+                  {roles.map((r) => (
+                    <option key={r.value} value={r.value}>{r.name}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+          </div>
+          )}
+        </form>
       )}
     </Modal>
   );

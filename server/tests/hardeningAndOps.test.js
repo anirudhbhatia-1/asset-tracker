@@ -625,3 +625,19 @@ describe('RBAC audit item: employees close or reopen their own resolved tickets'
     }
   });
 });
+
+describe('session length', () => {
+  it('lasts 12 hours from sign-in', async () => {
+    const authService = require('../services/authService');
+    const { rows: [person] } = await pool.query("SELECT id FROM employees WHERE email = 'employee@company.com'");
+    const before = Date.now();
+    const { token } = await authService.createSessionForEmployee(person.id);
+    const hashed = require('../services/sessionToken').hashSessionToken(token);
+    const { rows: [session] } = await pool.query('SELECT expires_at FROM sessions WHERE token = $1', [hashed]);
+    expect(authService.SESSION_HOURS).toBe(12);
+    const hours = (new Date(session.expires_at).getTime() - before) / 3600000;
+    expect(hours).toBeGreaterThan(11.99);
+    expect(hours).toBeLessThan(12.01);
+    await pool.query('DELETE FROM sessions WHERE token = $1', [hashed]);
+  });
+});

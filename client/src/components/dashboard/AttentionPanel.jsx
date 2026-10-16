@@ -5,13 +5,15 @@ import useAttention from '../../hooks/useAttention';
 import { Skeleton } from '../ui/Skeleton';
 import { prefetchRoute } from '../../utils/routePrefetch';
 import { attentionSummary } from '../../utils/attention';
+import Button from '../ui/Button';
+import Pill from '../ui/Pill';
 
 const COLLAPSED_KEY = 'attentionPanelCollapsed';
 
 const SEVERITY = {
-  high: { icon: AlertOctagon, label: 'Urgent', bar: 'bg-danger', iconBox: 'bg-danger/10 text-danger border-danger/20', badge: 'bg-danger/10 text-danger border-danger/25' },
-  medium: { icon: AlertTriangle, label: 'Soon', bar: 'bg-warning', iconBox: 'bg-warning/10 text-warning border-warning/20', badge: 'bg-warning/10 text-warning border-warning/25' },
-  low: { icon: Info, label: 'FYI', bar: 'bg-info-blue', iconBox: 'bg-info-blue/10 text-info-blue border-info-blue/20', badge: 'bg-info-blue/10 text-info-blue border-info-blue/25' },
+  high: { icon: AlertOctagon, label: 'Urgent', bar: 'bg-danger', iconBox: 'bg-danger/10 text-danger border-danger/20', tone: 'danger' },
+  medium: { icon: AlertTriangle, label: 'Soon', bar: 'bg-warning', iconBox: 'bg-warning/10 text-warning border-warning/20', tone: 'warning' },
+  low: { icon: Info, label: 'FYI', bar: 'bg-info-blue', iconBox: 'bg-info-blue/10 text-info-blue border-info-blue/20', tone: 'info' },
 };
 
 const readCollapsed = () => {
@@ -36,9 +38,9 @@ function AttentionItem({ item }) {
           <span className="sr-only">{style.label}:</span>
         </span>
         <h3 id={titleId} className="flex-1 min-w-0 text-sm font-semibold text-primary leading-snug">{item.title}</h3>
-        <span className={`shrink-0 min-w-7 text-center px-2 py-0.5 rounded-full text-xs font-bold border ${style.badge}`}>
+        <Pill tone={style.tone} size="md" className="shrink-0 min-w-7 justify-center">
           {item.count}
-        </span>
+        </Pill>
       </div>
 
       {item.entries.length > 0 && (
@@ -121,10 +123,10 @@ export default function AttentionPanel({ className = '' }) {
           <AlertTriangle className="w-4 h-4 text-warning shrink-0" aria-hidden="true" />
           <span className="truncate">{error}</span>
         </span>
-        <button type="button" onClick={refresh} className="inline-flex items-center gap-1.5 shrink-0 text-xs font-medium text-accent hover:underline cursor-pointer min-h-11 sm:min-h-0">
+        <Button variant="ghost" size="sm" onClick={refresh}>
           <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
           Retry
-        </button>
+        </Button>
       </div>
     );
   }

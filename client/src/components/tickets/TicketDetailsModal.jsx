@@ -1,31 +1,28 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
-import { X, Check, Loader2, Package, ArrowRightLeft, History, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Check, Loader2, Package, ArrowRightLeft, History, AlertCircle, AlertTriangle, UserRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { getAvailableAssets } from '../../api/assetsApi';
 import { ticketsApi } from '../../api/ticketsApi';
 import { formatDateTime } from '../../utils/formatters';
 import { canWorkTicket, getTicketStatusOptions, TICKET_STATUS_LABELS } from '../../utils/ticketStatus';
-import { TicketAgeBadge } from './TicketStatusBadge';
-import useFocusTrap from '../../hooks/useFocusTrap';
-import { PRIORITIES, priorityLabel, priorityStyle, queueLabel } from '../../utils/ticketMeta';
-
-const StatusBadge = ({ status }) => {
-  const styles = {
-    open: 'bg-error/10 text-error border-error/20',
-    in_progress: 'bg-warning/10 text-warning border-warning/20',
-    resolved: 'bg-success/10 text-success border-success/20',
-    rejected: 'bg-raised text-secondary border-border',
-    closed: 'bg-secondary/10 text-secondary border-secondary/20'
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wider ${styles[status]}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-};
+import TicketStatusBadge, { PriorityBadge, TicketAgeBadge, TicketTypeBadge } from './TicketStatusBadge';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import Field, { Select, Textarea } from '../ui/Field';
+import { PRIORITIES, queueLabel, historyEventLabel, historyEventActor, ticketRef } from '../../utils/ticketMeta';
 
 const errorMessage = (err, fallback) => err?.response?.data?.message || fallback;
+
+function Detail({ label, children, className = '' }) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <dt className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">{label}</dt>
+      <dd className="text-sm text-primary break-words">{children}</dd>
+    </div>
+  );
+}
 
 // Actions come from the page that owns the ticket list (useTickets there), so
 // a change made here shows up in that list straight away.
@@ -36,6 +33,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
   const isTicketOwner = user?.id != null && ticket?.employee_id != null
     && String(user.id) === String(ticket.employee_id);
   const canResolve = hasPermission('tickets:resolve');
+  const canOpenAssets = hasPermission('assets:read');
   // Only the queue that holds the ticket (or a Director) may work it.
   const canWork = canWorkTicket(user, ticket);
   const canUpdate = canWork && hasPermission('tickets:update') && !!onUpdate;
@@ -109,12 +107,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
     return () => { cancelled = true; };
   }, [showAssetPicker]);
 
-  const dialogRef = useRef(null);
-  const titleId = useId();
-  // Traps Tab inside the dialog and closes it on Escape
-  useFocusTrap(dialogRef, isOpen && !!ticket, onClose);
-
-  if (!isOpen || !ticket) return null;
+  if (!ticket) return null;
 
   const statusOptions = getTicketStatusOptions(ticket.status, canResolve);
   const inTransferMode = showTransferMode || transferOnly;
@@ -138,26 +131,21 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
   // even when they could also work it (e.g. a Director's own ticket).
   const showOwnerActions = ticket.status === 'resolved' && isTicketOwner;
   const ownerActions = (
-    <div className="pt-4 border-t border-accent/10 flex items-center justify-end gap-3 mt-4">
+    <div className="pt-3 flex flex-wrap items-center justify-end gap-3">
       {onReopen && (
-        <button
-          type="button"
-          onClick={() => onReopen(ticket)}
-          disabled={submitting}
-          className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-base/50 rounded-lg transition-colors cursor-pointer"
-        >
+        <Button variant="ghost" onClick={() => onReopen(ticket)} disabled={submitting}>
           Reopen Ticket
-        </button>
+        </Button>
       )}
-      <button
-        type="button"
+      <Button
+        variant="success"
         onClick={() => runAction(() => onConfirmClose(ticket.id), 'Failed to close ticket')}
-        disabled={submitting || !onConfirmClose}
-        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-success hover:bg-success/90 rounded-lg shadow-sm transition-colors cursor-pointer"
+        disabled={!onConfirmClose}
+        loading={submitting}
       >
-        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+        <Check className="w-4 h-4" aria-hidden="true" />
         Confirm Resolution
-      </button>
+      </Button>
     </div>
   );
 
@@ -186,324 +174,261 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket, onUpdate, onTransfer, onC
 
   const getEventIcon = (type) => {
     if (type === 'created') return <Package className="w-3 h-3 text-on-accent" />;
+    if (type === 'escalated') return <AlertTriangle className="w-3 h-3 text-on-accent" />;
     if (type === 'transferred') return <ArrowRightLeft className="w-3 h-3 text-on-accent" />;
     if (type === 'resolved' || type === 'rejected' || type === 'closed') return <Check className="w-3 h-3 text-on-accent" />;
     return <History className="w-3 h-3 text-on-accent" />;
   };
 
+  const requester = ticket.employee_name || (isTicketOwner ? user?.name : null);
+
+  const footer = isHandlingAdmin ? (
+    <Button type="submit" form="resolve-form" loading={submitting}>
+      {inTransferMode ? <ArrowRightLeft className="w-4 h-4" aria-hidden="true" /> : <Check className="w-4 h-4" aria-hidden="true" />}
+      {inTransferMode ? 'Confirm Transfer' : 'Save Changes'}
+    </Button>
+  ) : (
+    <Button variant="secondary" onClick={onClose}>Close</Button>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
-      
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-scaleUp flex flex-col max-h-[90dvh]">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
-          <div className="flex items-center gap-3">
-            <h2 id={titleId} className="text-lg font-semibold text-primary">Ticket #{ticket.id}</h2>
-            <StatusBadge status={ticket.status} />
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${priorityStyle(ticket.priority)}`}>
-              {priorityLabel(ticket.priority)}<span className="sr-only"> priority</span>
-            </span>
-            <TicketAgeBadge ticket={ticket} />
-          </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      title={<span className="font-mono">{ticketRef(ticket)}</span>}
+      headerExtra={(
+        <div className="flex flex-wrap items-center gap-1.5">
+          <TicketStatusBadge status={ticket.status} />
+          <PriorityBadge priority={ticket.priority} />
+          <TicketAgeBadge ticket={ticket} />
         </div>
-
-        {/* Content Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
-          
-          {/* Read Only Ticket Info */}
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium text-secondary uppercase tracking-wider mb-1">Title</h3>
-              <p className="text-base text-primary font-medium">{ticket.title}</p>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Type</h3>
-                <p className="text-sm text-primary capitalize">{ticket.type}</p>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Date</h3>
-                <p className="text-sm text-primary">{formatDateTime(ticket.created_at)}</p>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Department</h3>
-                <p className="text-sm text-primary">{queueLabel(ticket.current_admin_type)}</p>
-              </div>
-              {ticket.type === 'request' && (ticket.category_name || ticket.requested_item) && (
-                <div>
-                  <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Needs</h3>
-                  <p className="text-sm text-primary break-words">
-                    {ticket.category_name || ticket.requested_item}
-                    {!ticket.category_name && <span className="text-xs text-secondary"> (typed in)</span>}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {ticket.description && (
-              <div>
-                <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Description</h3>
-                <div className="bg-base rounded-lg p-3 border border-border overflow-hidden">
-                  <p className="text-sm text-primary whitespace-pre-wrap break-words">{ticket.description}</p>
-                </div>
-              </div>
-            )}
-            
-            {ticket.asset_name && (
-              <div>
-                <h3 className="text-xs font-medium text-secondary uppercase tracking-wider mb-1">Related Device</h3>
-                <p className="text-sm text-primary flex items-center gap-2">
-                  <Package className="w-4 h-4 text-secondary" />
-                  {ticket.asset_name}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <hr className="border-border" />
-
-          {/* History Timeline */}
+      )}
+      footer={footer}
+    >
+      <div className="space-y-6">
+        {/* What the ticket is, and who raised it */}
+        <section aria-label="Ticket details" className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-primary mb-4 flex items-center gap-2">
-              <History className="w-4 h-4 text-accent" /> Ticket Timeline
-            </h3>
-            {loadingHistory ? (
-              <div className="flex items-center gap-2 text-secondary text-sm">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading timeline...
-              </div>
-            ) : (
-              <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-raised">
-                {history.map(event => (
-                  <div key={event.id} className="relative group">
-                    <span className="absolute -left-[31px] top-0 w-6 h-6 rounded-full flex items-center justify-center border-2 border-border shadow bg-secondary">
-                      {getEventIcon(event.event_type)}
-                    </span>
-                    <div className="bg-base/60 p-3 rounded-lg border border-border/60 group-hover:border-border transition-colors text-sm min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 mb-1">
-                        <span className="font-semibold text-primary capitalize">{event.event_type.replace('_', ' ')}</span>
-                        <span className="text-xs text-secondary shrink-0" title={event.created_at}>
-                          {formatDateTime(event.created_at)}
-                        </span>
-                      </div>
-                      {event.event_type === 'transferred' && (
-                        <p className="text-secondary text-xs mb-1">
-                          From <span className="font-medium">{queueLabel(event.from_admin_type)}</span> → <span className="font-medium">{queueLabel(event.to_admin_type)}</span>
-                        </p>
-                      )}
-                      {event.note && <p className="text-primary italic mt-1 bg-surface p-2 rounded">{event.note}</p>}
-                      <p className="text-xs text-secondary mt-1">
-                        By: {event.performed_by_name || 'System'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <p className="text-lg text-primary font-semibold break-words">{ticket.title}</p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              <TicketTypeBadge type={ticket.type} />
+              <span className="text-xs text-secondary">Raised {formatDateTime(ticket.created_at)}</span>
+            </div>
           </div>
 
-          <hr className="border-border" />
-
-          {/* Owner confirm/reopen for a resolved ticket they can also work */}
-          {isHandlingAdmin && showOwnerActions && (
-            <div className="space-y-2 bg-accent/5 border border-accent/10 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-accent">Your ticket was resolved</h3>
-              {ticket.resolution_notes && <p className="text-sm text-primary">{ticket.resolution_notes}</p>}
-              {ownerActions}
-            </div>
-          )}
-
-          {/* Resolution / Transfer Area */}
-          {isHandlingAdmin ? (
-            <form id="resolve-form" onSubmit={handleSubmit} className="space-y-4">
-              
-              {!inTransferMode ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-primary">Admin Resolution</h3>
-                    {canTransfer && canUpdate && (
-                      <button 
-                        type="button" 
-                        onClick={() => { setShowTransferMode(true); setFormError(null); }}
-                        className="text-xs font-medium text-accent hover:text-accent/80 flex items-center gap-1 cursor-pointer"
-                      >
-                        <ArrowRightLeft className="w-3 h-3" />
-                        Transfer Ticket
-                      </button>
-                    )}
-                  </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="ticket-status" className="text-sm font-medium text-primary">Status</label>
-                <select
-                  id="ticket-status"
-                  value={status}
-                  onChange={(e) => { setStatus(e.target.value); setFormError(null); }}
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                >
-                  {/* Only the moves the server allows from the current status */}
-                  {statusOptions.map(value => (
-                    <option key={value} value={value}>{TICKET_STATUS_LABELS[value] || value}</option>
-                  ))}
-                </select>
-                {!canResolve && (
-                  <p className="text-xs text-secondary">Resolving or rejecting needs the Resolve Tickets permission.</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="ticket-priority" className="text-sm font-medium text-primary">Priority</label>
-                <select
-                  id="ticket-priority"
-                  value={priority}
-                  onChange={(e) => { setPriority(e.target.value); setFormError(null); }}
-                  disabled={ticket.status === 'closed'}
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent disabled:opacity-60"
-                >
-                  {PRIORITIES.map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {showAssetPicker && (
-                <div className="space-y-2">
-                  <label htmlFor="ticket-resolved-asset" className="text-sm font-medium text-primary flex items-center gap-2">
-                    Fulfill Request (Select Available Asset)
-                    {loadingAssets && <Loader2 className="w-3 h-3 animate-spin text-accent" />}
-                  </label>
-                  <select
-                    id="ticket-resolved-asset"
-                    value={resolvedAssetId}
-                    onChange={(e) => { setResolvedAssetId(e.target.value); setFormError(null); }}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">-- No asset selected --</option>
-                    {assets.map(a => (
-                      <option key={a.id} value={a.id}>{a.name} ({a.serialNumber})</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-secondary">The selected asset is assigned to the requester when you save.</p>
-                </div>
+          <div className="flex items-start gap-3 bg-base/60 border border-border/60 rounded-lg p-3">
+            <span className="w-9 h-9 rounded-full bg-raised flex items-center justify-center text-secondary shrink-0" aria-hidden="true">
+              <UserRound className="w-4.5 h-4.5" />
+            </span>
+            <dl className="min-w-0">
+              <dt className="text-xs font-medium text-secondary uppercase tracking-wider">Raised by</dt>
+              <dd className="text-sm text-primary font-medium break-words">
+                {requester || `Employee #${ticket.employee_id}`}
+                {isTicketOwner && <span className="text-secondary font-normal"> (you)</span>}
+              </dd>
+              {(ticket.employee_email || ticket.employee_department) && (
+                <dd className="text-xs text-secondary break-words">
+                  {[ticket.employee_email, ticket.employee_department].filter(Boolean).join(' · ')}
+                </dd>
               )}
+            </dl>
+          </div>
 
-              <div className="space-y-2">
-                <label htmlFor="ticket-resolution-notes" className="text-sm font-medium text-primary">Resolution Notes (Optional)</label>
-                <textarea
-                  id="ticket-resolution-notes"
-                  rows={3}
-                  value={resolutionNotes}
-                  onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Explain how this was resolved..."
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-none"
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-primary">
-                  Transfer Ticket
-                </h3>
-                {!transferOnly && (
-                  <button 
-                    type="button" 
-                    onClick={() => { setShowTransferMode(false); setFormError(null); }}
-                    className="text-xs font-medium text-secondary hover:text-primary cursor-pointer"
-                  >
-                    Cancel Transfer
-                  </button>
-                )}
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="ticket-transfer-to" className="text-sm font-medium text-primary">Transfer To</label>
-                <select
-                  id="ticket-transfer-to"
-                  required
-                  value={targetAdminType}
-                  onChange={(e) => setTargetAdminType(e.target.value)}
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                >
-                  <option value="" disabled>Select department...</option>
-                  {ticket.current_admin_type !== 'it' && <option value="it">{queueLabel('it')}</option>}
-                  {ticket.current_admin_type !== 'hardware' && <option value="hardware">{queueLabel('hardware')}</option>}
-                  {ticket.current_admin_type !== 'hr' && <option value="hr">{queueLabel('hr')}</option>}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="ticket-transfer-note" className="text-sm font-medium text-primary">Transfer Reason / Note</label>
-                <textarea
-                  id="ticket-transfer-note"
-                  rows={3}
-                  required
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                  placeholder="Explain why this ticket is being transferred..."
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm placeholder:text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-none"
-                />
-              </div>
-            </>
-          )}
-        </form>
-          ) : (
-            // Employee View of Resolution
-            ticket.status !== 'open' && (
-              <div className="space-y-4 bg-accent/5 border border-accent/10 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-accent">Resolution Details</h3>
-                {ticket.resolution_notes ? (
-                  <p className="text-sm text-primary">{ticket.resolution_notes}</p>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Detail label="Department">{queueLabel(ticket.current_admin_type)}</Detail>
+            {ticket.type === 'request' && (ticket.category_name || ticket.requested_item) && (
+              <Detail label="Needs">
+                {ticket.category_name || ticket.requested_item}
+                {!ticket.category_name && <span className="text-xs text-secondary"> (typed in)</span>}
+              </Detail>
+            )}
+            {ticket.asset_name && (
+              <Detail label="Related device">
+                {canOpenAssets && ticket.asset_id ? (
+                  <Link to={`/inventory/${ticket.asset_id}`} onClick={onClose} className="inline-flex items-center gap-1.5 text-accent hover:underline">
+                    <Package className="w-4 h-4 shrink-0" aria-hidden="true" /> {ticket.asset_name}
+                  </Link>
                 ) : (
-                  <p className="text-sm text-secondary italic">No notes provided.</p>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-secondary shrink-0" aria-hidden="true" /> {ticket.asset_name}
+                  </span>
                 )}
-                
-                {showOwnerActions && ownerActions}
-              </div>
-            )
-          )}
+              </Detail>
+            )}
+          </dl>
 
-          {!isHandlingAdmin && hasPermission('tickets:update') && ticket.status !== 'closed' && (
-            <p className="text-xs text-secondary">
-              This ticket is in the {(ticket.current_admin_type || '').toUpperCase()} queue; only that team or a Director can update it.
-            </p>
+          {ticket.description && (
+            <Detail label="Description">
+              <span className="block bg-base rounded-lg p-3 border border-border whitespace-pre-wrap">{ticket.description}</span>
+            </Detail>
           )}
+        </section>
 
-          {formError && (
-            <div role="alert" className="flex items-start gap-2 bg-error/10 border border-error/20 text-error rounded-lg p-3 text-sm">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{formError}</span>
+        {/* Owner confirm/reopen for a resolved ticket they can also work */}
+        {isHandlingAdmin && showOwnerActions && (
+          <div className="space-y-2 bg-accent/5 border border-accent/15 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-accent">Your ticket was resolved</h3>
+            {ticket.resolution_notes && <p className="text-sm text-primary">{ticket.resolution_notes}</p>}
+            {ownerActions}
+          </div>
+        )}
+
+        {/* Working the ticket comes before the history, so it's in reach. */}
+        {isHandlingAdmin ? (
+          <form id="resolve-form" onSubmit={handleSubmit} className="space-y-4 border-t border-border pt-5">
+            {!inTransferMode ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-primary">Work on this ticket</h3>
+                  {canTransfer && canUpdate && (
+                    <Button variant="ghost" size="sm" onClick={() => { setShowTransferMode(true); setFormError(null); }}>
+                      <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                      Transfer
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field id="ticket-status" label="Status" hint={!canResolve ? 'Resolving or rejecting needs the Resolve Tickets permission.' : undefined}>
+                    <Select value={status} onChange={(e) => { setStatus(e.target.value); setFormError(null); }}>
+                      {/* Only the moves the server allows from the current status */}
+                      {statusOptions.map(value => (
+                        <option key={value} value={value}>{TICKET_STATUS_LABELS[value] || value}</option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field id="ticket-priority" label="Priority">
+                    <Select value={priority} onChange={(e) => { setPriority(e.target.value); setFormError(null); }}>
+                      {PRIORITIES.map((p) => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+
+                {showAssetPicker && (
+                  <Field
+                    id="ticket-resolved-asset"
+                    label="Hand out an asset (optional)"
+                    hint="The selected asset is assigned to the requester when you save."
+                    labelAction={loadingAssets ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" aria-label="Loading assets" /> : null}
+                  >
+                    <Select value={resolvedAssetId} onChange={(e) => { setResolvedAssetId(e.target.value); setFormError(null); }}>
+                      <option value="">No asset</option>
+                      {assets.map(a => (
+                        <option key={a.id} value={a.id}>{a.name} ({a.serialNumber})</option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+
+                <Field id="ticket-resolution-notes" label="Resolution notes (optional)">
+                  <Textarea
+                    rows={3}
+                    maxLength={2000}
+                    value={resolutionNotes}
+                    onChange={(e) => setResolutionNotes(e.target.value)}
+                    placeholder="Explain how this was resolved..."
+                  />
+                </Field>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-primary">Transfer ticket</h3>
+                  {!transferOnly && (
+                    <Button variant="ghost" size="sm" onClick={() => { setShowTransferMode(false); setFormError(null); }}>
+                      Cancel transfer
+                    </Button>
+                  )}
+                </div>
+                <Field id="ticket-transfer-to" label="Transfer to" required>
+                  <Select value={targetAdminType} onChange={(e) => setTargetAdminType(e.target.value)}>
+                    <option value="" disabled>Select department...</option>
+                    {['it', 'hardware', 'hr'].filter((queue) => queue !== ticket.current_admin_type).map((queue) => (
+                      <option key={queue} value={queue}>{queueLabel(queue)}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="ticket-transfer-note" label="Reason" required>
+                  <Textarea
+                    rows={3}
+                    maxLength={1000}
+                    value={transferNote}
+                    onChange={(e) => setTransferNote(e.target.value)}
+                    placeholder="Explain why this ticket is being transferred..."
+                  />
+                </Field>
+              </>
+            )}
+          </form>
+        ) : (
+          // Employee view of the resolution
+          ticket.status !== 'open' && (
+            <div className="space-y-2 bg-accent/5 border border-accent/15 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-accent">Resolution details</h3>
+              {ticket.resolution_notes ? (
+                <p className="text-sm text-primary">{ticket.resolution_notes}</p>
+              ) : (
+                <p className="text-sm text-secondary italic">No notes provided.</p>
+              )}
+              {showOwnerActions && ownerActions}
             </div>
-          )}
-        </div>
+          )
+        )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-base/50 shrink-0">
-          {isHandlingAdmin && (
-            <button
-              form="resolve-form"
-              type="submit"
-              disabled={submitting}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 disabled:opacity-50 rounded-lg shadow-sm transition-colors cursor-pointer"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (inTransferMode ? <ArrowRightLeft className="w-4 h-4" /> : <Check className="w-4 h-4" />)}
-              {inTransferMode ? 'Confirm Transfer' : 'Save Changes'}
-            </button>
+        {!isHandlingAdmin && hasPermission('tickets:update') && ticket.status !== 'closed' && (
+          <p className="text-xs text-secondary">
+            This ticket is in the {queueLabel(ticket.current_admin_type)} queue; only that team or a Director can update it.
+          </p>
+        )}
+
+        {formError && (
+          <div role="alert" className="flex items-start gap-2 bg-error/10 border border-error/20 text-error rounded-lg p-3 text-sm">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{formError}</span>
+          </div>
+        )}
+
+        {/* History */}
+        <section aria-labelledby="ticket-timeline-title" className="border-t border-border pt-5">
+          <h3 id="ticket-timeline-title" className="text-sm font-semibold text-primary mb-4 flex items-center gap-2">
+            <History className="w-4 h-4 text-accent" aria-hidden="true" /> Timeline
+          </h3>
+          {loadingHistory ? (
+            <div className="flex items-center gap-2 text-secondary text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Loading timeline...
+            </div>
+          ) : (
+            <ol className="relative pl-6 space-y-5 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-raised">
+              {history.map(event => (
+                <li key={event.id} className="relative">
+                  <span className="absolute -left-[31px] top-0 w-6 h-6 rounded-full flex items-center justify-center border-2 border-border shadow bg-secondary" aria-hidden="true">
+                    {getEventIcon(event.event_type)}
+                  </span>
+                  <div className="bg-base/60 p-3 rounded-lg border border-border/60 text-sm min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 mb-1">
+                      <span className="font-semibold text-primary">{historyEventLabel(event)}</span>
+                      <span className="text-xs text-secondary shrink-0" title={event.created_at}>
+                        {formatDateTime(event.created_at)}
+                      </span>
+                    </div>
+                    {event.event_type === 'transferred' && (
+                      <p className="text-secondary text-xs mb-1">
+                        From <span className="font-medium">{queueLabel(event.from_admin_type)}</span> → <span className="font-medium">{queueLabel(event.to_admin_type)}</span>
+                      </p>
+                    )}
+                    {event.note && <p className="text-primary italic mt-1 bg-surface p-2 rounded break-words">{event.note}</p>}
+                    <p className="text-xs text-secondary mt-1">By: {historyEventActor(event)}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           )}
-          {!isHandlingAdmin && (
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-on-accent bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-colors cursor-pointer"
-            >
-              Close
-            </button>
-          )}
-        </div>
+        </section>
       </div>
-    </div>
+    </Modal>
   );
 };
 

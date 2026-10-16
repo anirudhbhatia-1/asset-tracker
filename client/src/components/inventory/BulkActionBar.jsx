@@ -1,10 +1,8 @@
 import React, { useId } from 'react';
 import { UserPlus, Undo2, MapPin, Download, QrCode, X, AlertTriangle, Loader2 } from 'lucide-react';
+import Button from '../ui/Button';
 import { BULK_SELECTION_LIMIT, assignBlocker, returnableCount } from '../../utils/assetSelection';
 
-const ACTION_BUTTON = 'inline-flex items-center gap-1.5 shrink-0 min-h-11 sm:min-h-9 px-3 rounded-lg text-sm font-medium border transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed';
-const SECONDARY = `${ACTION_BUTTON} bg-surface border-border text-primary hover:bg-raised disabled:hover:bg-surface`;
-const PRIMARY = `${ACTION_BUTTON} bg-accent border-accent text-on-accent hover:bg-accent-hover disabled:hover:bg-accent`;
 
 /**
  * Actions for the selected assets. Sticks to the bottom of the screen while
@@ -53,57 +51,52 @@ export default function BulkActionBar({
           <p className="pl-1.5 text-sm font-semibold text-primary whitespace-nowrap" aria-live="polite">
             {count} selected
           </p>
-          <button
-            type="button"
-            onClick={onClear}
-            className="inline-flex items-center gap-1 min-h-11 sm:min-h-9 px-2.5 rounded-lg text-xs font-medium text-secondary hover:text-primary hover:bg-raised cursor-pointer"
-          >
+          <Button variant="ghost" size="sm" onClick={onClear}>
             <X className="w-3.5 h-3.5" aria-hidden="true" />
             Clear<span className="sr-only"> selection</span>
-          </button>
+          </Button>
 
           {/* Actions scroll sideways on narrow screens rather than wrapping. */}
           <div className="basis-full sm:basis-0 sm:flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto scrollbar-none sm:justify-end">
             {permissions.assign && (
-              <button
-                type="button"
-                className={PRIMARY}
+              <Button
+                size="sm"
                 onClick={onAssign}
                 disabled={overLimit || Boolean(blocker)}
                 aria-describedby={describedBy(overLimit || Boolean(blocker), blocker ? blockerId : undefined)}
               >
                 <UserPlus className="w-4 h-4" aria-hidden="true" />
                 Assign to…
-              </button>
+              </Button>
             )}
             {permissions.assign && (
-              <button
-                type="button"
-                className={SECONDARY}
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={onReturn}
                 disabled={overLimit || returnable === 0}
                 aria-describedby={describedBy(overLimit || returnable === 0, noReturnable ? returnReasonId : undefined)}
               >
                 <Undo2 className="w-4 h-4" aria-hidden="true" />
                 Return
-              </button>
+              </Button>
             )}
             {permissions.update && (
-              <button type="button" className={SECONDARY} onClick={onEdit} disabled={overLimit} aria-describedby={describedBy(overLimit)}>
+              <Button variant="secondary" size="sm" onClick={onEdit} disabled={overLimit} aria-describedby={describedBy(overLimit)}>
                 <MapPin className="w-4 h-4" aria-hidden="true" />
                 Location / category
-              </button>
+              </Button>
             )}
             {permissions.export && (
-              <button type="button" className={SECONDARY} onClick={onExport} disabled={overLimit || exporting} aria-describedby={describedBy(overLimit)}>
+              <Button variant="secondary" size="sm" onClick={onExport} disabled={overLimit || exporting} aria-describedby={describedBy(overLimit)}>
                 {exporting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Download className="w-4 h-4" aria-hidden="true" />}
                 Export
-              </button>
+              </Button>
             )}
-            <button type="button" className={SECONDARY} onClick={onPrint} disabled={overLimit} aria-describedby={describedBy(overLimit)}>
+            <Button variant="secondary" size="sm" onClick={onPrint} disabled={overLimit} aria-describedby={describedBy(overLimit)}>
               <QrCode className="w-4 h-4" aria-hidden="true" />
               QR labels
-            </button>
+            </Button>
           </div>
         </div>
 

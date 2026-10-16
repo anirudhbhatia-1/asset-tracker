@@ -4,6 +4,7 @@ import useLocations from '../../hooks/useLocations';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
+import Field, { Input, Textarea } from '../ui/Field';
 import { createLocation, updateLocationAddresses } from '../../api/locationsApi';
 import toast from 'react-hot-toast';
 
@@ -100,7 +101,7 @@ export default function LocationsTab() {
         </div>
         {canManageLocations && (
           <Button onClick={() => setIsAddOpen(true)} variant="primary" size="sm">
-            <Plus className="w-4 h-4 mr-1" />
+            <Plus className="w-4 h-4" />
             Add Location
           </Button>
         )}
@@ -129,13 +130,12 @@ export default function LocationsTab() {
               
               {canEditLocations && (
                 <div className="mt-4 pt-4 border-t border-border/60 flex justify-end">
-                  <Button 
-                    onClick={() => openEditModal(loc)} 
-                    variant="secondary" 
-                    size="sm" 
-                    className="text-xs py-1 px-3"
+                  <Button
+                    onClick={() => openEditModal(loc)}
+                    variant="secondary"
+                    size="sm"
                   >
-                    <Edit2 className="w-3.5 h-3.5 mr-1" />
+                    <Edit2 className="w-3.5 h-3.5" />
                     Manage Addresses
                   </Button>
                 </div>
@@ -146,39 +146,49 @@ export default function LocationsTab() {
       </div>
 
       {/* Add Location Modal */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Add Office Location">
-        <form onSubmit={handleAddLocation} className="space-y-4">
-          <div>
-            <label htmlFor="new-location-name" className="block text-xs font-semibold text-secondary uppercase mb-1.5">
-              Location Name <span className="text-danger">*</span>
-            </label>
-            <input
-              id="new-location-name"
+      <Modal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        title="Add Office Location"
+        footer={(
+          <>
+            <Button type="button" variant="secondary" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+            <Button type="submit" form="add-location-form" variant="primary" loading={submitting}>Add Location</Button>
+          </>
+        )}
+      >
+        <form id="add-location-form" onSubmit={handleAddLocation} className="space-y-4">
+          <Field id="new-location-name" label="Location Name" required>
+            <Input
               type="text"
               value={newLocationName}
               onChange={(e) => setNewLocationName(e.target.value)}
               placeholder="E.g., Chennai Office"
-              required
-              className="w-full rounded-xl bg-base border border-border px-3.5 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent"
             />
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" loading={submitting}>Add Location</Button>
-          </div>
+          </Field>
         </form>
       </Modal>
 
       {/* Edit Address Modal */}
-      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Manage Location Addresses">
-        <form onSubmit={handleSaveAddresses} className="space-y-4">
+      <Modal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title="Manage Location Addresses"
+        footer={(
+          <>
+            <Button type="button" variant="secondary" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button type="submit" form="edit-location-addresses-form" variant="primary" loading={submitting}>Save Addresses</Button>
+          </>
+        )}
+      >
+        <form id="edit-location-addresses-form" onSubmit={handleSaveAddresses} className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="block text-xs font-semibold text-secondary uppercase">
+              <span className="block text-sm font-medium text-primary">
                 {editingLocation?.name} Addresses
               </span>
-              <Button type="button" variant="secondary" size="sm" onClick={addAddressField} className="text-xs py-1 px-2">
-                <Plus className="w-3 h-3 mr-1" /> Add Another
+              <Button type="button" variant="secondary" size="sm" onClick={addAddressField}>
+                <Plus className="w-3 h-3" /> Add Another
               </Button>
             </div>
             
@@ -188,12 +198,11 @@ export default function LocationsTab() {
               )}
               {editAddresses.map((addr, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <textarea
+                  <Textarea
                     value={addr}
                     onChange={(e) => updateAddressField(idx, e.target.value)}
                     placeholder="Enter full street address..."
                     rows={2}
-                    className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent resize-none"
                   />
                   <button
                     type="button"
@@ -207,10 +216,6 @@ export default function LocationsTab() {
                 </div>
               ))}
             </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-4 border-t border-border/60">
-            <Button type="button" variant="secondary" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" loading={submitting}>Save Addresses</Button>
           </div>
         </form>
       </Modal>

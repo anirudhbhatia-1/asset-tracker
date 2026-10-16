@@ -2,8 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { User, Mail, Building2, Calendar } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
+import Pill from '../ui/Pill';
 
 export default function AssigneeCard({ asset }) {
+  const { hasPermission } = useAuth();
+  // The directory needs employees:read; without it the name is plain text.
+  const canOpenEmployee = hasPermission('employees:read');
+
   if (!asset || asset.status !== 'in-use' || !asset.assignedTo) {
     return null;
   }
@@ -18,9 +24,9 @@ export default function AssigneeCard({ asset }) {
           <div className="w-2 h-2 rounded-full bg-info-blue animate-ping" />
           <h3 className="text-base font-semibold text-primary">Current Assignee Profile</h3>
         </div>
-        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-info-blue/10 text-info-blue border border-info-blue/30">
+        <Pill tone="info" size="md">
           Active Assignment
-        </span>
+        </Pill>
       </div>
 
       <div className="flex items-start gap-4">
@@ -39,12 +45,18 @@ export default function AssigneeCard({ asset }) {
 
         <div className="min-w-0 flex-1 space-y-2">
           <div>
-            <Link
-              to={`/employees`}
-              className="text-base font-bold text-primary hover:text-accent transition-colors block truncate"
-            >
-              {asset.assigneeName || 'Unknown Employee'}
-            </Link>
+            {canOpenEmployee ? (
+              <Link
+                to={`/employees?employee=${encodeURIComponent(asset.assignedTo)}`}
+                className="text-base font-bold text-primary hover:text-accent transition-colors block truncate"
+              >
+                {asset.assigneeName || 'Unknown Employee'}
+              </Link>
+            ) : (
+              <span className="text-base font-bold text-primary block truncate">
+                {asset.assigneeName || 'Unknown Employee'}
+              </span>
+            )}
             {asset.assigneeEmail && (
               <span className="text-xs text-secondary inline-flex items-center gap-1.5 truncate mt-0.5">
                 <Mail className="w-3.5 h-3.5 text-secondary shrink-0" />

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCard } from '../ui/Skeleton';
 import SegmentedControl from '../ui/SegmentedControl';
+import Card from '../ui/Card';
+import Pill from '../ui/Pill';
 import { resolveColor } from '../../utils/color';
 import { PieChart, ArrowRight } from 'lucide-react';
 
@@ -67,7 +69,7 @@ export default function InventoryBreakdown({
   const hoveredItem = hoveredIndex !== null && chartSegments[hoveredIndex] ? chartSegments[hoveredIndex] : null;
 
   return (
-    <div className="bg-surface rounded-2xl border border-border/80 shadow-sm overflow-hidden h-full flex flex-col">
+    <Card className="h-full">
       {/* Header */}
       <div className="px-3 py-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-base font-bold text-primary flex items-center gap-2">
@@ -146,9 +148,9 @@ export default function InventoryBreakdown({
                     <span className="text-2xl font-extrabold text-primary my-0.5">
                       {hoveredItem.count}
                     </span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                    <Pill tone="accent" size="md">
                       {hoveredItem.percentage}%
-                    </span>
+                    </Pill>
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-all duration-200">
@@ -206,7 +208,7 @@ export default function InventoryBreakdown({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 

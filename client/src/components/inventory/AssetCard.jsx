@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import StatusPill from '../ui/StatusPill';
 import WarrantyBadge from '../ui/WarrantyBadge';
+import Pill from '../ui/Pill';
 import { ChevronRight, MapPin, Calendar, User } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
 import SelectCheckbox from './SelectCheckbox';
@@ -34,9 +35,9 @@ export default function AssetCard({ asset, selectable = false, selected = false,
           <h3 className="font-bold text-primary truncate text-base mb-1.5 group-hover:text-accent transition-colors flex items-center gap-2">
             <span className="truncate">{asset.name}</span>
             {asset.assetType === 'client' && (
-              <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent/10 text-accent uppercase tracking-wider border border-accent/20 mt-0.5">
+              <Pill tone="accent" className="shrink-0 uppercase tracking-wider mt-0.5">
                 Client
-              </span>
+              </Pill>
             )}
           </h3>
           <div className="inline-block bg-base border border-border/50 px-2 py-0.5 rounded text-xs font-mono text-secondary">

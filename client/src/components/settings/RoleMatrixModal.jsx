@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Field, { Input, Select } from '../ui/Field';
+import Pill from '../ui/Pill';
 import { ShieldCheck, Save, Lock } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
@@ -90,8 +92,24 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={role ? `Edit Role: ${role.name}` : 'Create Custom Role'} maxWidth="max-w-2xl">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={role ? `Edit Role: ${role.name}` : 'Create Custom Role'}
+      maxWidth="max-w-2xl"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button type="submit" form="role-matrix-form" variant="primary" loading={submitting}>
+            <Save className="w-4 h-4" />
+            <span>Save Role Permissions</span>
+          </Button>
+        </>
+      )}
+    >
+      <form id="role-matrix-form" onSubmit={handleSubmit} className="space-y-6">
         {error && (
           <div className="p-3 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger">
             {error}
@@ -99,67 +117,57 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="role-name" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-              Role Name <span className="text-danger">*</span>
-            </label>
-            <input
-              id="role-name"
+          <Field
+            id="role-name"
+            label="Role Name"
+            required
+            hint={role?.isSystem ? (
+              <span className="inline-flex items-center gap-1"><Lock className="w-3 h-3" /> System role name cannot be edited</span>
+            ) : undefined}
+          >
+            <Input
               type="text"
               disabled={role?.isSystem}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. IT Auditor"
-              className="w-full px-3 py-2 bg-base border border-border rounded-xl text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-60 cursor-text"
-              required
             />
-            {role?.isSystem && <p className="text-[11px] text-secondary mt-1 flex items-center gap-1"><Lock className="w-3 h-3" /> System role name cannot be edited</p>}
-          </div>
+          </Field>
 
-          <div>
-            <label htmlFor="role-admin-type" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-              Default Target Support Queue (admin_type)
-            </label>
-            <select
-              id="role-admin-type"
-              value={adminType}
-              onChange={(e) => setAdminType(e.target.value)}
-              className="w-full px-3 py-2 bg-base border border-border rounded-xl text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
-            >
+          <Field
+            id="role-admin-type"
+            label="Default Target Support Queue (admin_type)"
+            hint="Default queue assigned to employees when this role is granted."
+          >
+            <Select value={adminType} onChange={(e) => setAdminType(e.target.value)}>
               <option value="">None (Standard User Queue)</option>
               <option value="it">IT Support Queue (it)</option>
               <option value="hardware">Hardware Queue (hardware)</option>
               <option value="hr">HR Operations Queue (hr)</option>
-            </select>
-            <p className="text-[11px] text-secondary mt-1">Default queue assigned to employees when this role is granted.</p>
-          </div>
+            </Select>
+          </Field>
         </div>
 
-        <div>
-          <label htmlFor="role-description" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-            Role Description
-          </label>
-          <input
-            id="role-description"
+        <Field id="role-description" label="Role Description">
+          <Input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe capabilities of this role..."
-            className="w-full px-3 py-2 bg-base border border-border rounded-xl text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-text"
           />
-        </div>
+        </Field>
 
         {/* Permissions Matrix */}
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h4 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-accent" />
               Permissions Matrix
             </h4>
             {role?.isDirector && (
-              <span className="text-xs text-accent font-semibold px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20">
+              <Pill tone="accent" size="md">
                 Director has full unrestricted access (*)
-              </span>
+              </Pill>
             )}
           </div>
 
@@ -210,16 +218,6 @@ export default function RoleMatrixModal({ isOpen, onClose, role, permissionsCata
               );
             })}
           </div>
-        </div>
-
-        <div className="pt-4 border-t border-border flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" loading={submitting}>
-            <Save className="w-4 h-4" />
-            <span>Save Role Permissions</span>
-          </Button>
         </div>
       </form>
     </Modal>

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
+import Card, { CardHeader, CardBody } from '../ui/Card';
+import Field, { Input, Textarea } from '../ui/Field';
 import AssignmentModal from '../forms/AssignmentModal';
 import StatusPill from '../ui/StatusPill';
 import { UserPlus, CornerDownLeft, Archive, Trash2, ShieldAlert, AlertTriangle } from 'lucide-react';
@@ -23,13 +25,23 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
 
   const isRetired = asset.status === 'retired';
   const isClientAsset = asset.assetType === 'client';
+  // Already handed back to the client; the server refuses to assign it again.
+  const isReturnedToClient = isClientAsset && asset.status === 'returned';
+
+  // Each dialog opens with empty inputs, so text typed for a cancelled
+  // action never carries over to the next one.
+  const openReturnModal = () => { setReturnNote(''); setIsReturnModalOpen(true); };
+  const closeReturnModal = () => { setIsReturnModalOpen(false); setReturnNote(''); };
+  const openRetireModal = () => { setRetireNote(''); setIsRetireModalOpen(true); };
+  const closeRetireModal = () => { setIsRetireModalOpen(false); setRetireNote(''); };
+  const openDeleteModal = () => { setDeleteConfirmText(''); setIsDeleteModalOpen(true); };
+  const closeDeleteModal = () => { setIsDeleteModalOpen(false); setDeleteConfirmText(''); };
 
   const handleReturnConfirm = async () => {
     setSubmittingAction(true);
     try {
       await onReturn(returnNote.trim());
-      setIsReturnModalOpen(false);
-      setReturnNote('');
+      closeReturnModal();
     } catch {
       // useAsset already showed the error toast; keep the dialog open.
     } finally {
@@ -38,11 +50,11 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
   };
 
   const handleRetireConfirm = async () => {
+    if (!retireNote.trim()) return;
     setSubmittingAction(true);
     try {
       await onRetire(retireNote.trim());
-      setIsRetireModalOpen(false);
-      setRetireNote('');
+      closeRetireModal();
     } catch {
       // useAsset already showed the error toast; keep the dialog open.
     } finally {
@@ -65,11 +77,9 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
   };
 
   return (
-    <div className="bg-surface rounded-xl border border-border/80 p-6 shadow-sm space-y-4">
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60">
-        <h3 className="text-base font-semibold text-primary">Lifecycle & Operational Controls</h3>
-        <StatusPill status={asset.status} />
-      </div>
+    <Card>
+      <CardHeader level={3} title="Lifecycle & Operational Controls" actions={<StatusPill status={asset.status} />} />
+      <CardBody className="space-y-4">
 
       {isRetired && (
         <div className="bg-base/80 border border-warning/30 rounded-xl p-4 flex items-start gap-3 text-sm text-warning">
@@ -100,7 +110,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
       <div className="flex flex-wrap items-center gap-3">
         {/* Assign / Reassign Button — a client-owned asset in use can only
             be returned to the client, never passed straight to someone else. */}
-        {canAssign && !isRetired && !(isClientAsset && asset.status === 'in-use') && (
+        {canAssign && !isRetired && !isReturnedToClient && !(isClientAsset && asset.status === 'in-use') && (
           <Button
             variant="primary"
             onClick={() => setIsAssignModalOpen(true)}
@@ -112,12 +122,17 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
             <span>{asset.status === 'in-use' ? 'Reassign Asset' : 'Assign to Employee'}</span>
           </Button>
         )}
+        {canAssign && isReturnedToClient && (
+          <p className="text-xs text-secondary">
+            Returned to {asset.clientName || 'the client'}. It can’t be assigned again.
+          </p>
+        )}
 
         {/* Return to Stock Button */}
         {canAssign && asset.status === 'in-use' && !isRetired && (
           <Button
             variant="secondary"
-            onClick={() => setIsReturnModalOpen(true)}
+            onClick={openReturnModal}
             disabled={Boolean(asset.parentId)}
             title={asset.parentId ? 'Managed via parent asset' : undefined}
             className="flex-1 sm:flex-initial"
@@ -131,7 +146,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
         {canDelete && !isRetired && !isClientAsset && (
           <Button
             variant="danger"
-            onClick={() => setIsRetireModalOpen(true)}
+            onClick={openRetireModal}
             className="flex-1 sm:flex-initial"
           >
             <Archive className="w-4 h-4" />
@@ -145,7 +160,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           <div className="w-full sm:w-auto sm:ml-auto pt-3 sm:pt-0 sm:pl-3 border-t sm:border-t-0 sm:border-l border-border/60">
             <Button
               variant="danger-outline"
-              onClick={() => setIsDeleteModalOpen(true)}
+              onClick={openDeleteModal}
               className="w-full sm:w-auto"
               title="Permanently remove asset record"
             >
@@ -155,6 +170,7 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
           </div>
         )}
       </div>
+      </CardBody>
 
       {/* 1. Assignment Modal */}
       {canAssign && (
@@ -169,45 +185,53 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
       {/* 2. Return to Stock Confirmation Modal */}
       {canAssign && <Modal
         isOpen={isReturnModalOpen}
-        onClose={() => !submittingAction && setIsReturnModalOpen(false)}
+        onClose={() => !submittingAction && closeReturnModal()}
         title={isClientAsset ? 'Confirm Return to Client' : 'Confirm Return to Stock'}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-secondary">
-            Are you sure you want to unassign <span className="font-semibold text-primary">{asset.name}</span> ({asset.serialNumber}) from <span className="font-semibold text-primary">{asset.assigneeName}</span> and {isClientAsset ? `mark it as returned to ${asset.clientName || 'the client'}? It will no longer be available to assign.` : 'mark it as available in inventory?'}
-          </p>
-
-          <div>
-            <label htmlFor="return-note" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-              Return Inspection Note (Optional)
-            </label>
-            <textarea
-              id="return-note"
-              value={returnNote}
-              onChange={(e) => setReturnNote(e.target.value)}
-              placeholder="E.g., Returned in excellent condition. Charger included."
-              rows={2}
-              className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-
-          <div className="pt-3 border-t border-border flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setIsReturnModalOpen(false)} disabled={submittingAction}>
+        footer={(
+          <>
+            <Button variant="secondary" onClick={closeReturnModal} disabled={submittingAction}>
               Cancel
             </Button>
             <Button variant="primary" onClick={handleReturnConfirm} loading={submittingAction}>
               <CornerDownLeft className="w-4 h-4" />
               <span>Confirm Return</span>
             </Button>
-          </div>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-secondary">
+            Are you sure you want to unassign <span className="font-semibold text-primary">{asset.name}</span> ({asset.serialNumber}) from <span className="font-semibold text-primary">{asset.assigneeName}</span> and {isClientAsset ? `mark it as returned to ${asset.clientName || 'the client'}? It will no longer be available to assign.` : 'mark it as available in inventory?'}
+          </p>
+
+          <Field id="return-note" label="Return Inspection Note (Optional)">
+            <Textarea
+              value={returnNote}
+              onChange={(e) => setReturnNote(e.target.value)}
+              placeholder="E.g., Returned in excellent condition. Charger included."
+              rows={2}
+              maxLength={500}
+            />
+          </Field>
         </div>
       </Modal>}
 
       {/* 3. Retire Asset Confirmation Modal */}
       {canDelete && <Modal
         isOpen={isRetireModalOpen}
-        onClose={() => !submittingAction && setIsRetireModalOpen(false)}
+        onClose={() => !submittingAction && closeRetireModal()}
         title="Confirm Decommission & Retirement"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={closeRetireModal} disabled={submittingAction}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleRetireConfirm} loading={submittingAction} disabled={!retireNote.trim()}>
+              <Archive className="w-4 h-4" />
+              <span>Confirm Retirement</span>
+            </Button>
+          </>
+        )}
       >
         <div className="space-y-4">
           <div className="bg-danger/10 border border-danger/30 rounded-xl p-3.5 flex items-start gap-3 text-sm text-danger">
@@ -224,40 +248,42 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
             Retiring asset: <span className="font-semibold text-primary">{asset.name}</span> ({asset.serialNumber}).
           </p>
 
-          <div>
-            <label htmlFor="retire-note" className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
-              Reason for Retirement / Disposal Note
-            </label>
-            <textarea
-              id="retire-note"
+          <Field id="retire-note" label="Reason for Retirement / Disposal Note" required>
+            <Textarea
               value={retireNote}
               onChange={(e) => setRetireNote(e.target.value)}
               placeholder="E.g., Hardware motherboard failure. E-waste recycling scheduled."
               rows={2}
-              required
-              className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-danger"
+              maxLength={500}
             />
-          </div>
-
-          <div className="pt-3 border-t border-border flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setIsRetireModalOpen(false)} disabled={submittingAction}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleRetireConfirm} loading={submittingAction}>
-              <Archive className="w-4 h-4" />
-              <span>Confirm Retirement</span>
-            </Button>
-          </div>
+          </Field>
         </div>
       </Modal>}
 
       {/* 4. Delete Asset Confirmation Modal */}
       {canDelete && <Modal
         isOpen={isDeleteModalOpen}
-        onClose={() => !submittingAction && setIsDeleteModalOpen(false)}
+        onClose={() => !submittingAction && closeDeleteModal()}
         title="Confirm Permanent Deletion"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={closeDeleteModal} disabled={submittingAction}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="delete-asset-form"
+              variant="danger"
+              loading={submittingAction}
+              disabled={deleteConfirmText !== asset.name}
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Permanently Delete</span>
+            </Button>
+          </>
+        )}
       >
-        <form onSubmit={handleDeleteConfirm} className="space-y-4">
+        <form id="delete-asset-form" onSubmit={handleDeleteConfirm} className="space-y-4">
           <div className="bg-danger/10 border border-danger/30 rounded-xl p-3.5 flex items-start gap-3 text-sm text-danger">
             <AlertTriangle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
             <div>
@@ -272,31 +298,17 @@ export default function LifecycleActions({ asset, canAssign = false, canDelete =
             To confirm deletion, please type <span className="font-mono font-bold text-primary bg-base px-1.5 py-0.5 rounded border border-border">{asset.name}</span> exactly below:
           </p>
 
-          <input
+          <Input
             type="text"
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             placeholder={asset.name}
+            aria-label={`Type ${asset.name} to confirm deletion`}
             required
-            className="w-full rounded-xl bg-base border border-border p-3 text-sm text-primary font-mono focus:outline-none focus:ring-2 focus:ring-danger"
+            className="font-mono"
           />
-
-          <div className="pt-3 border-t border-border flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={submittingAction}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="danger"
-              loading={submittingAction}
-              disabled={deleteConfirmText !== asset.name}
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Permanently Delete</span>
-            </Button>
-          </div>
         </form>
       </Modal>}
-    </div>
+    </Card>
   );
 }

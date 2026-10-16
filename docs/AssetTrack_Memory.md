@@ -176,7 +176,7 @@ Every decision here was deliberate. Do not change these without documenting a ne
 - **Pivot from In-memory `Map`:** In-memory sessions do not survive multiple app instances or server restarts in a cloud environment.
 - Sessions are stored in the database (`token`, `admin_identifier`, `created_at`, `expires_at`).
 - Evaluated on each request, ensuring persistent and synchronizable sessions.
-- Sessions expire after 8 hours inactivity.
+- Sessions expire 12 hours after sign-in (SESSION_HOURS in server/services/authService.js).
 
 ---
 

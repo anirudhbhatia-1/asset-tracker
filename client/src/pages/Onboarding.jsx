@@ -12,21 +12,8 @@ import PageHeader from '../components/ui/PageHeader';
 import { formatDate } from '../utils/formatters';
 import SegmentedControl from '../components/ui/SegmentedControl';
 import EmptyState from '../components/ui/EmptyState';
-
-const StatusBadge = ({ status }) => {
-  const styles = {
-    pending: 'bg-raised text-secondary border-border',
-    in_progress: 'bg-warning/10 text-warning border-warning/20',
-    arranged: 'bg-success/10 text-success border-success/20',
-    completed: 'bg-success text-on-accent border-success',
-    cancelled: 'bg-error/10 text-error border-error/20'
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border uppercase tracking-wider ${styles[status] || styles.pending}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-};
+import Button from '../components/ui/Button';
+import OnboardingStatusBadge from '../components/hr/OnboardingStatusBadge';
 
 const Onboarding = () => {
   const { hasPermission } = useAuth();
@@ -106,14 +93,10 @@ const Onboarding = () => {
         title="HR Onboarding"
         subtitle={hasPermission('onboarding:fulfill') ? 'Manage IT setup for incoming employees.' : 'Submit and track hardware requests for new hires.'}
         actions={hasPermission('onboarding:create') && (
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-on-accent rounded-lg font-medium shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="w-4 h-4" aria-hidden="true" />
             New Hire Request
-          </button>
+          </Button>
         )}
       />
 
@@ -205,7 +188,7 @@ const Onboarding = () => {
                     <td className="px-6 py-4 font-medium text-primary">
                       {formatDate(req.joining_date)}
                     </td>
-                    <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
+                    <td className="px-6 py-4"><OnboardingStatusBadge status={req.status} /></td>
                     {hasPermission('onboarding:fulfill') && (
                       <td className="px-6 py-4 text-secondary">{req.requested_by_email}</td>
                     )}

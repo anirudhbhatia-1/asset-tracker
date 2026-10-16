@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useId } from 'react';
-import { X, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { getCategories } from '../../api/categoriesApi';
 import { getDepartments } from '../../api/employeesApi';
 import { onboardingApi } from '../../api/onboardingApi';
 import useLocations from '../../hooks/useLocations';
-import useFocusTrap from '../../hooks/useFocusTrap';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import Field, { Input, Select, Textarea } from '../ui/Field';
 import { toDateInputValue } from '../../utils/dates';
 
 const toFormItem = (item) => ({
@@ -98,10 +100,6 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
     return () => { sessionRef.current += 1; };
   }, [isOpen, request]);
 
-  const dialogRef = useRef(null);
-  const titleId = useId();
-  // Traps Tab inside the dialog and closes it on Escape
-  useFocusTrap(dialogRef, isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -164,235 +162,192 @@ const EditOnboardingModal = ({ isOpen, onClose, onUpdate, request }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div aria-hidden="true" className="absolute inset-0 bg-base/75 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
-      
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-2xl bg-surface border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90dvh] animate-scaleUp">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base/50 shrink-0">
-          <h2 id={titleId} className="text-lg font-semibold text-primary">Edit Onboarding Request</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-2.5 sm:p-2 -mr-2 text-secondary hover:text-primary rounded-lg hover:bg-raised/50 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Onboarding Request"
+      maxWidth="max-w-2xl"
+      footer={(
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="onboarding-form" loading={submitting}>
+            Save Changes
+          </Button>
+        </>
+      )}
+    >
+      {loadingContext ? (
+        <div className="py-8 flex justify-center">
+          <Loader2 className="w-8 h-8 text-accent animate-spin" />
         </div>
+      ) : (
+        <form id="onboarding-form" onSubmit={handleSubmit} className="space-y-6">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field id={idFor('name')} label="New Hire Name" required>
+              <Input
+                type="text"
+                value={newHireName}
+                onChange={(e) => setNewHireName(e.target.value)}
+              />
+            </Field>
+            <Field id={idFor('email')} label="Personal Email">
+              <Input
+                type="email"
+                value={newHireEmail}
+                onChange={(e) => setNewHireEmail(e.target.value)}
+              />
+            </Field>
+            <Field id={idFor('department')} label="Department">
+              <Select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+              >
+                <option value="">Select Department...</option>
+                {departments.map(dep => (
+                  <option key={dep} value={dep}>{dep}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field id={idFor('location')} label="Location">
+              <Select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              >
+                <option value="">Select Location...</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.name}>
+                    {loc.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {location && (() => {
+              const selectedLoc = locations.find(l => l.name === location);
+              const addrs = parseAddresses(selectedLoc);
+              if (addrs.length === 0) return null;
+              return (
+                <Field id={idFor('address')} label="Address">
+                  <Select
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  >
+                    <option value="">Select Address...</option>
+                    {addrs.map((addr, idx) => (
+                      <option key={idx} value={addr}>{addr}</option>
+                    ))}
+                  </Select>
+                </Field>
+              );
+            })()}
+            <Field id={idFor('joining')} label="Joining Date" required>
+              <Input
+                type="date"
+                value={joiningDate}
+                onChange={(e) => setJoiningDate(e.target.value)}
+              />
+            </Field>
+          </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
-          {loadingContext ? (
-            <div className="py-8 flex justify-center">
-              <Loader2 className="w-8 h-8 text-accent animate-spin" />
+          <Field id={idFor('notes')} label="General Notes">
+            <Textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+
+          <hr className="border-border" />
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-primary">Hardware Requirements</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAddItem}
+                disabled={!itemsLoaded}
+              >
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                Add Item
+              </Button>
             </div>
-          ) : (
-            <form id="onboarding-form" onSubmit={handleSubmit} className="space-y-6">
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor={idFor('name')} className="text-sm font-medium text-primary">New Hire Name <span className="text-error">*</span></label>
-                  <input
-                    id={idFor('name')}
-                    type="text"
-                    required
-                    value={newHireName}
-                    onChange={(e) => setNewHireName(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor={idFor('email')} className="text-sm font-medium text-primary">Personal Email</label>
-                  <input
-                    id={idFor('email')}
-                    type="email"
-                    value={newHireEmail}
-                    onChange={(e) => setNewHireEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor={idFor('department')} className="text-sm font-medium text-primary">Department</label>
-                  <select
-                    id={idFor('department')}
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">Select Department...</option>
-                    {departments.map(dep => (
-                      <option key={dep} value={dep}>{dep}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor={idFor('location')} className="text-sm font-medium text-primary">Location</label>
-                  <select
-                    id={idFor('location')}
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">Select Location...</option>
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.name}>
-                        {loc.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {location && (() => {
-                  const selectedLoc = locations.find(l => l.name === location);
-                  const addrs = parseAddresses(selectedLoc);
-                  if (addrs.length === 0) return null;
-                  return (
-                    <div className="space-y-2">
-                      <label htmlFor={idFor('address')} className="text-sm font-medium text-primary">Address</label>
-                      <select
-                        id={idFor('address')}
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                      >
-                        <option value="">Select Address...</option>
-                        {addrs.map((addr, idx) => (
-                          <option key={idx} value={addr}>{addr}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })()}
-                <div className="space-y-2">
-                  <label htmlFor={idFor('joining')} className="text-sm font-medium text-primary">Joining Date <span className="text-error">*</span></label>
-                  <input
-                    id={idFor('joining')}
-                    type="date"
-                    required
-                    value={joiningDate}
-                    onChange={(e) => setJoiningDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                  />
-                </div>
+            
+            {!itemsLoaded && (
+              <p className="text-xs text-warning">
+                The requested items could not be loaded; saving keeps them unchanged.
+              </p>
+            )}
+
+            {itemsLoaded && items.length === 0 && (
+              <div className="text-sm text-secondary text-center py-4 bg-base rounded-lg border border-dashed border-border">
+                No hardware requested yet. Click 'Add Item' to request equipment.
               </div>
+            )}
 
-              <div className="space-y-2">
-                <label htmlFor={idFor('notes')} className="text-sm font-medium text-primary">General Notes</label>
-                <textarea
-                  id={idFor('notes')}
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 bg-base border border-border rounded-lg text-primary text-sm resize-none focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                />
-              </div>
-
-              <hr className="border-border" />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-primary">Hardware Requirements</h3>
+            <div className="space-y-3">
+              {items.map((item, idx) => (
+                <div key={idx} className="flex flex-col sm:flex-row gap-3 p-3 bg-base rounded-lg border border-border animate-fadeIn">
+                  <div className="flex-1">
+                    <Select
+                      required
+                      aria-label={`Item ${idx + 1} category`}
+                      value={item.categoryId}
+                      disabled={item.fulfilled}
+                      title={item.fulfilled ? 'An asset is already linked to this item' : undefined}
+                      onChange={(e) => handleItemChange(idx, 'categoryId', e.target.value)}
+                    >
+                      <option value="">Select Category...</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </Select>
+                    {categories.length === 0 && !loadingContext && (
+                      <p className="text-xs text-warning mt-1">
+                        No categories available. Ask an admin to create asset categories first.
+                      </p>
+                    )}
+                  </div>
+                  <div className="w-full sm:w-24">
+                    <Input
+                      type="number"
+                      min="1"
+                      required
+                      aria-label={`Item ${idx + 1} quantity`}
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                      placeholder="Qty"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      type="text"
+                      aria-label={`Item ${idx + 1} notes`}
+                      value={item.notes}
+                      onChange={(e) => handleItemChange(idx, 'notes', e.target.value)}
+                      placeholder="Notes (e.g. Mac/Windows)"
+                    />
+                  </div>
                   <button
                     type="button"
-                    onClick={handleAddItem}
-                    disabled={!itemsLoaded}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/10 rounded-md transition-colors disabled:opacity-50"
+                    aria-label="Remove item"
+                    onClick={() => handleRemoveItem(idx)}
+                    disabled={item.fulfilled}
+                    title={item.fulfilled ? 'An asset is already linked; unassign it before removing this item' : undefined}
+                    className="p-2 text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Item
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                
-                {!itemsLoaded && (
-                  <p className="text-xs text-warning">
-                    The requested items could not be loaded; saving keeps them unchanged.
-                  </p>
-                )}
+              ))}
+            </div>
+          </div>
 
-                {itemsLoaded && items.length === 0 && (
-                  <div className="text-sm text-secondary text-center py-4 bg-base rounded-lg border border-dashed border-border">
-                    No hardware requested yet. Click 'Add Item' to request equipment.
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {items.map((item, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row gap-3 p-3 bg-base rounded-lg border border-border animate-fadeIn">
-                      <div className="flex-1">
-                        <select
-                          required
-                          aria-label={`Item ${idx + 1} category`}
-                          value={item.categoryId}
-                          disabled={item.fulfilled}
-                          title={item.fulfilled ? 'An asset is already linked to this item' : undefined}
-                          onChange={(e) => handleItemChange(idx, 'categoryId', e.target.value)}
-                          className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                        >
-                          <option value="">Select Category...</option>
-                          {categories.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                        {categories.length === 0 && !loadingContext && (
-                          <p className="text-xs text-warning mt-1">
-                            No categories available. Ask an admin to create asset categories first.
-                          </p>
-                        )}
-                      </div>
-                      <div className="w-full sm:w-24">
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          aria-label={`Item ${idx + 1} quantity`}
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                          placeholder="Qty"
-                          className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          aria-label={`Item ${idx + 1} notes`}
-                          value={item.notes}
-                          onChange={(e) => handleItemChange(idx, 'notes', e.target.value)}
-                          placeholder="Notes (e.g. Mac/Windows)"
-                          className="w-full px-3 py-2 bg-surface border border-border rounded-md text-primary text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Remove item"
-                        onClick={() => handleRemoveItem(idx)}
-                        disabled={item.fulfilled}
-                        title={item.fulfilled ? 'An asset is already linked; unassign it before removing this item' : undefined}
-                        className="p-2 text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </form>
-          )}
-        </div>
-
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-base/50 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-secondary hover:text-primary hover:bg-raised/50 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="onboarding-form"
-            disabled={submitting}
-            className="px-4 py-2 bg-accent text-on-accent text-sm font-medium rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
+        </form>
+      )}
+    </Modal>
   );
 };
 

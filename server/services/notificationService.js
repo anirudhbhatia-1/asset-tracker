@@ -115,7 +115,7 @@ const getAdminNotifications = async (adminEmployee) => {
 
     // 2. Tickets transferred to them (from ticket_history, last 24 hours)
     const { rows: transfers } = await pool.query(
-      `SELECT th.created_at, th.performed_by, t.title, t.id, t.priority
+      `SELECT th.created_at, th.performed_by, t.title, t.id
        FROM ticket_history th
        JOIN tickets t ON th.ticket_id = t.id
        WHERE th.event_type = 'transferred'
@@ -130,7 +130,7 @@ const getAdminNotifications = async (adminEmployee) => {
       notifications.push({
         id: `admin-ticket-transfer-${row.id}-${row.created_at}`,
         type: 'warning',
-        title: row.performed_by ? 'Ticket Transferred to You' : `${row.priority === 'urgent' ? 'Urgent' : 'High priority'} ticket moved to you`,
+        title: row.performed_by ? 'Ticket Transferred to You' : 'Ticket moved to you automatically',
         message: row.performed_by
           ? `Ticket "${row.title}" has been transferred to your queue.`
           : `"${row.title}" wasn't picked up by the other team within 10 minutes, so it was moved to your queue.`,
@@ -342,12 +342,13 @@ const getEscalationNotifications = async (user, isDirector) => {
       `SELECT t.id, t.title, t.priority, t.escalated_at, e.name AS employee_name
        FROM tickets t LEFT JOIN employees e ON e.id = t.employee_id
        WHERE t.escalation_stage = 'directors_alerted' AND t.status = 'open'
+         AND t.current_admin_type IN ('it', 'hardware')
        ORDER BY t.escalated_at DESC LIMIT 10`
     );
     for (const row of rows) {
       notifications.push({
         id: `ticket-escalated-${row.id}`,
-        type: 'warning',
+        type: 'danger',
         title: `${row.priority === 'urgent' ? 'Urgent' : 'High priority'} ticket not picked up`,
         message: `"${row.title}" from ${row.employee_name || 'an employee'} was moved between IT Admin and Admin and still nobody has started on it.`,
         link: `/tickets?ticket=${row.id}`,
@@ -358,6 +359,7 @@ const getEscalationNotifications = async (user, isDirector) => {
   const { rows: own } = await pool.query(
     `SELECT id, title, escalated_at FROM tickets
      WHERE employee_id = $1 AND escalation_stage = 'employee_notified' AND status = 'open'
+       AND current_admin_type = 'hr'
      ORDER BY escalated_at DESC LIMIT 5`,
     [user.id]
   );

@@ -6,9 +6,16 @@ import AttentionPanel from '../components/dashboard/AttentionPanel';
 import MetricCard from '../components/dashboard/MetricCard';
 import InventoryBreakdown from '../components/dashboard/InventoryBreakdown';
 import { SkeletonCard } from '../components/ui/Skeleton';
+import Button from '../components/ui/Button';
+import Card, { CardBody, CardHeader } from '../components/ui/Card';
+import EmptyState from '../components/ui/EmptyState';
+import PageHeader from '../components/ui/PageHeader';
 import { PackageCheck, Users, AlertCircle, Archive, RefreshCw, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
+import { PriorityBadge, TicketAgeBadge } from '../components/tickets/TicketStatusBadge';
+import { sortTickets, ticketsLink } from '../utils/ticketQueue';
+import { ticketRef } from '../utils/ticketMeta';
 
 // `embedded` hides the page title when rendered inside another dashboard (Director view).
 export default function Dashboard({ embedded = false }) {
@@ -16,7 +23,9 @@ export default function Dashboard({ embedded = false }) {
   const { hasPermission } = useAuth();
   const canReadTickets = hasPermission('tickets:read');
   const { metrics, breakdown, breakdownByLocation, breakdownByStatus, breakdownByWarranty, lowStockCategories, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
-  const { tickets, loading: ticketsLoading, error: ticketsError, fetchTickets } = useTickets();
+  const { tickets, loading: rawTicketsLoading, error: ticketsError, fetchTickets } = useTickets();
+  // Without tickets:read nothing is fetched, so the hook never leaves its loading state.
+  const ticketsLoading = rawTicketsLoading && canReadTickets;
 
   useEffect(() => {
     if (canReadTickets) {
@@ -32,7 +41,8 @@ export default function Dashboard({ embedded = false }) {
   };
 
   const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in_progress');
-  const pendingTickets = tickets.filter(t => t.status === 'open').slice(0, 5);
+  // Waiting on someone, most urgent and longest-waiting first.
+  const pendingTickets = sortTickets(openTickets, 'priority').slice(0, 5);
 
   const activePercentage = metrics.total ? Math.round((metrics.inUse / metrics.total) * 100) : 0;
 
@@ -43,30 +53,28 @@ export default function Dashboard({ embedded = false }) {
     ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1'
     : 'grid-cols-2 xl:grid-cols-4';
 
+  const refreshButton = (
+    <Button variant="secondary" size="sm" onClick={handleRefresh}>
+      <RefreshCw className={`w-3.5 h-3.5 ${metricsLoading || ticketsLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
+      <span>Refresh Data</span>
+    </Button>
+  );
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header — the global TopBar owns the primary "Add Asset" action */}
-      <div className={`flex flex-col sm:flex-row sm:items-center gap-4 ${embedded ? 'sm:justify-end' : 'justify-between'}`}>
-        {!embedded && (
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-1.5">Fleet operations</p>
-            <h1 className="text-2xl sm:text-[1.7rem] font-bold text-primary tracking-[-0.035em]">IT Asset Dashboard</h1>
-            <p className="text-sm text-secondary mt-1.5">
-              Live snapshot of fleet health, pending actions, and inventory alerts.
-            </p>
-          </div>
-        )}
-        <div className="flex items-center gap-3 self-start sm:self-center">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors shadow-sm cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${metricsLoading || ticketsLoading ? 'animate-spin text-accent' : ''}`} />
-            <span>Refresh Data</span>
-          </button>
+      {embedded ? (
+        <div className="flex justify-end">{refreshButton}</div>
+      ) : (
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-1.5">Fleet operations</p>
+          <PageHeader
+            title="IT Asset Dashboard"
+            subtitle="Live snapshot of fleet health, pending actions, and inventory alerts."
+            actions={refreshButton}
+          />
         </div>
-      </div>
+      )}
 
       {/* What to act on first (the Director page shows its own above the tabs). */}
       {!embedded && <AttentionPanel />}
@@ -75,9 +83,9 @@ export default function Dashboard({ embedded = false }) {
       {(metricsError || ticketsError) && (
         <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-sm text-danger flex items-center justify-between">
           <span>{metricsError || ticketsError}</span>
-          <button onClick={handleRefresh} className="underline text-xs hover:text-primary cursor-pointer">
+          <Button variant="ghost" size="sm" onClick={handleRefresh}>
             Retry
-          </button>
+          </Button>
         </div>
       )}
 
@@ -124,7 +132,7 @@ export default function Dashboard({ embedded = false }) {
               icon={AlertCircle}
               subtitle="Require attention"
               colorClass="text-warning bg-warning/10 border-warning/20"
-              onClick={() => navigate('/tickets')}
+              onClick={() => navigate(ticketsLink({ status: 'active', view: 'all' }))}
             />
             )}
             <MetricCard
@@ -143,60 +151,48 @@ export default function Dashboard({ embedded = false }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Widget A: Pending Tickets (hidden without tickets:read) */}
         {canReadTickets && (
-        <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-warning" />
-              <h2 className="text-sm font-semibold text-primary">Open Tickets</h2>
-            </div>
-            <button onClick={() => navigate('/tickets')} className="text-xs text-accent hover:underline flex items-center gap-1 cursor-pointer">
-              View All <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="p-4 flex-1">
+        <Card>
+          <CardHeader
+            icon={AlertCircle}
+            title="Open Tickets"
+            actions={(
+              <Link to={ticketsLink({ status: 'active', view: 'all' })} className="text-xs text-accent hover:underline flex items-center gap-1">
+                View all <ArrowRight className="w-3 h-3" aria-hidden="true" />
+              </Link>
+            )}
+          />
+          <CardBody>
             {pendingTickets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center py-6">
-                <CheckCircle2 className="w-8 h-8 text-success mb-2" />
-                <p className="text-sm font-medium text-primary">All Clear</p>
-                <p className="text-xs text-secondary mt-1">No pending tickets require attention.</p>
-              </div>
+              <EmptyState size="sm" icon={CheckCircle2} title="All Clear" description="No pending tickets require attention." />
             ) : (
               <div className="space-y-3">
                 {pendingTickets.map(ticket => (
                   <Link key={ticket.id} to={`/tickets?ticket=${ticket.id}`} className="flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-border hover:bg-raised transition-colors cursor-pointer group">
                     <div className="flex-1 min-w-0 pr-4">
                       <p className="text-sm font-medium text-primary truncate">{ticket.title}</p>
-                      <p className="text-xs text-secondary mt-0.5">{ticket.employee_name}</p>
+                      <p className="text-xs text-secondary mt-0.5 truncate">
+                        <span className="font-mono">{ticketRef(ticket)}</span>{ticket.employee_name ? ` · ${ticket.employee_name}` : ''}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase ${
-                        ticket.type === 'issue' ? 'bg-error/10 text-error' : 'bg-info-blue/10 text-info-blue'
-                      }`}>
-                        {ticket.type}
-                      </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <PriorityBadge priority={ticket.priority} />
+                      <TicketAgeBadge ticket={ticket} />
                       <ArrowRight className="w-4 h-4 text-secondary opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </Link>
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
         )}
 
         {/* Widget B: Low Stock Alert (full width when it's the only widget) */}
-        <div className={`bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col ${canReadTickets ? '' : 'lg:col-span-2'}`}>
-          <div className="p-4 border-b border-border flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-warning" />
-            <h2 className="text-sm font-semibold text-primary">Low Stock Alert</h2>
-          </div>
-          <div className="p-4 flex-1">
+        <Card className={canReadTickets ? '' : 'lg:col-span-2'}>
+          <CardHeader icon={AlertTriangle} title="Low Stock Alert" />
+          <CardBody>
             {(!lowStockCategories || lowStockCategories.length === 0) ? (
-              <div className="flex flex-col items-center justify-center h-full text-center py-6">
-                <PackageCheck className="w-8 h-8 text-success mb-2" />
-                <p className="text-sm font-medium text-primary">Stock levels healthy</p>
-                <p className="text-xs text-secondary mt-1">All categories have sufficient available assets.</p>
-              </div>
+              <EmptyState size="sm" icon={PackageCheck} title="Stock levels healthy" description="All categories have sufficient available assets." />
             ) : (
               <div className="space-y-3">
                 {lowStockCategories.map(cat => (
@@ -210,8 +206,8 @@ export default function Dashboard({ embedded = false }) {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
 
       {/* 3. TIER 3 — Bottom Row (Charts) */}

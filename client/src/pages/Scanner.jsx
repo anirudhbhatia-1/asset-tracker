@@ -10,6 +10,7 @@ import RecentScans from '../components/scanner/RecentScans';
 import AssignmentModal from '../components/forms/AssignmentModal';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import { Input } from '../components/ui/Field';
 import PageHeader from '../components/ui/PageHeader';
 import { addRecentScan, loadRecentScans, saveRecentScans } from '../utils/recentScans';
 import { RefreshCw, Camera, Search } from 'lucide-react';
@@ -153,34 +154,26 @@ export default function Scanner() {
         subtitle="Decode QR tags or 1D barcodes with your camera, or type a serial number to look up an asset."
         actions={<>
           {isScanning && cameraAvailable ? (
-            <button
-              type="button"
-              onClick={stopScanner}
-              className="inline-flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors cursor-pointer"
-            >
+            <Button variant="secondary" size="sm" onClick={stopScanner}>
               <span>Pause camera</span>
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              onClick={startScanner}
-              className="inline-flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-semibold bg-accent hover:bg-accent text-on-accent transition-colors shadow-md shadow-accent/20 cursor-pointer"
-            >
+            <Button size="sm" onClick={startScanner}>
               <Camera className="w-3.5 h-3.5" />
               <span>Start camera</span>
-            </button>
+            </Button>
           )}
 
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={resetScan}
             disabled={!scanResult && !scanError}
-            className="inline-flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-medium bg-surface hover:bg-raised text-secondary border border-border transition-colors disabled:opacity-40 cursor-pointer"
             title="Clear the current scan result"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-accent' : ''}`} />
             <span>Clear</span>
-          </button>
+          </Button>
         </>}
       />
 
@@ -200,23 +193,19 @@ export default function Scanner() {
         {/* Manual serial entry — runs the same lookup as a camera decode */}
         <form onSubmit={handleManualLookup} className="w-full max-w-xl mx-auto flex items-center gap-2">
           <label htmlFor="manual-serial" className="sr-only">Serial number</label>
-          <input
+          <Input
             id="manual-serial"
             type="text"
             value={manualSerial}
             onChange={(e) => setManualSerial(e.target.value)}
             placeholder="Enter serial number..."
             autoComplete="off"
-            className="flex-1 min-w-0 px-3 py-2.5 bg-base border border-border rounded-xl text-sm text-primary font-mono placeholder:text-secondary placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+            className="flex-1 min-w-0 font-mono placeholder:font-sans"
           />
-          <button
-            type="submit"
-            disabled={!manualSerial.trim() || loading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-accent hover:bg-accent/90 text-on-accent transition-colors shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
-          >
+          <Button type="submit" disabled={!manualSerial.trim() || loading}>
             <Search className="w-4 h-4" />
             <span>Look up</span>
-          </button>
+          </Button>
         </form>
 
         {/* Loading Indicator when resolving decoded serial against backend */}
@@ -262,6 +251,16 @@ export default function Scanner() {
             onClose={() => !actionBusy && setIsReturnOpen(false)}
             title={isClientAsset ? 'Confirm Return to Client' : 'Confirm Return to Stock'}
             maxWidth="max-w-md"
+            footer={(
+              <>
+                <Button variant="secondary" onClick={() => setIsReturnOpen(false)} disabled={actionBusy}>
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={handleReturnConfirm} loading={actionBusy}>
+                  {isClientAsset ? 'Return to client' : 'Return to stock'}
+                </Button>
+              </>
+            )}
           >
             <p className="text-sm text-secondary">
               Unassign <span className="font-semibold text-primary">{scanResult.name}</span> ({scanResult.serialNumber})
@@ -270,14 +269,6 @@ export default function Scanner() {
                 ? ` and mark it as returned to ${scanResult.clientName || 'the client'}?`
                 : ' and mark it as available in inventory?'}
             </p>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="secondary" onClick={() => setIsReturnOpen(false)} disabled={actionBusy}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={handleReturnConfirm} loading={actionBusy}>
-                {isClientAsset ? 'Return to client' : 'Return to stock'}
-              </Button>
-            </div>
           </Modal>
         </>
       )}

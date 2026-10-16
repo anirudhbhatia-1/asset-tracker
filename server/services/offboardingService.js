@@ -364,9 +364,12 @@ const completeRequest = async (id, { revokeAccess, deactivateEmployee = false },
         `Mark every asset as returned or missing first. Still open: ${pending.map((i) => i.asset_name).join(', ')}`,
         { pendingItems: pending });
     }
+    // Bulk items (bags, cables…) aren't on the checklist; they must be back too.
+    const stock = await employeeService.heldStockItems(client, request.employee_id);
+    if (stock.length) throw employeeService.stockStillHeldError(stock);
 
     const shouldRevoke = typeof revokeAccess === 'boolean' ? revokeAccess : request.revoke_access;
-    const employee = await employeeService.getEmployeeById(request.employee_id);
+    const employee = await employeeService.getEmployeeById(request.employee_id, client);
     const hasActiveLogin = employee.hasLogin && !employee.deletedAt;
     if (shouldRevoke && hasActiveLogin) {
       if (!hasPermission(actingUser, 'employees:grant-access')) {

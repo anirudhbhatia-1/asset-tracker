@@ -525,6 +525,13 @@ const assignAsset = async (id, employeeId, assignedDate, note, actorUser = null,
       err.statusCode = 400;
       throw err;
     }
+    if (current.asset_type === 'client' && current.status === 'returned') {
+      // Already handed back: the device is with the client, not in our stock.
+      throw Object.assign(
+        new Error(`${current.name} has been returned to the client and can't be assigned again.`),
+        { statusCode: 409, reason: 'CLIENT_ASSET_LOCKED' }
+      );
+    }
     if (requireAvailable && current.status !== 'available') {
       const err = new Error(`${current.name} is not available (status: ${current.status})`);
       err.statusCode = 409;

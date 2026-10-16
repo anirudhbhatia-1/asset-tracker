@@ -1,33 +1,31 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Ticket as TicketIcon, AlertCircle } from 'lucide-react';
+import { Plus, Ticket as TicketIcon, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ticketsApi } from '../api/ticketsApi';
 import { useTickets } from '../hooks/useTickets';
 import CreateTicketModal from '../components/forms/CreateTicketModal';
 import TicketDetailsModal from '../components/tickets/TicketDetailsModal';
 import ReopenTicketModal from '../components/tickets/ReopenTicketModal';
-import StatusBadge, { TicketAgeBadge } from '../components/tickets/TicketStatusBadge';
+import StatusBadge, { PriorityBadge, TicketAgeBadge, TicketTypeBadge } from '../components/tickets/TicketStatusBadge';
 import { formatDate } from '../utils/formatters';
 import { onActivateKey } from '../utils/a11y';
 import PageHeader from '../components/ui/PageHeader';
 import SegmentedControl from '../components/ui/SegmentedControl';
 import EmptyState from '../components/ui/EmptyState';
-import { QUEUE_SHORT_LABELS, priorityLabel, priorityStyle } from '../utils/ticketMeta';
-
-const ADMIN_TYPE_LABELS = QUEUE_SHORT_LABELS;
-
-const FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'resolved', label: 'Resolved/Closed' },
-];
+import Button from '../components/ui/Button';
+import { Select } from '../components/ui/Field';
+import SearchBar from '../components/inventory/SearchBar';
+import { QUEUE_SHORT_LABELS, queueLabel, ticketRef } from '../utils/ticketMeta';
+import { PRIORITY_FILTERS, SORTS, STATUS_FILTERS, filterTickets, readTicketQuery, sortTickets } from '../utils/ticketQueue';
 
 // The first load (My Queue / own tickets); a revisit renders its cached rows at once.
 const INITIAL_FILTERS = { scope: undefined };
 // Lower-priority columns, shown from xl so the table fits beside the sidebar.
 const FROM_XL = 'hidden xl:table-cell';
+const TH = 'px-5 py-3.5 font-medium uppercase tracking-wider text-xs';
+const TD = 'px-5 py-3.5';
 
 const Tickets = () => {
   const { user, hasPermission } = useAuth();
@@ -43,18 +41,32 @@ const Tickets = () => {
     tickets, loading, isPlaceholder, error, fetchTickets, createTicket, updateTicket,
     transferTicket, confirmCloseTicket, reopenTicket,
   } = useTickets(INITIAL_FILTERS);
-  
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [reopeningTicket, setReopeningTicket] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [queueScope, setQueueScope] = useState('my_queue'); // 'my_queue' | 'all' | 'my_tickets'
+
+  // Filters live in the URL: /tickets?status=active&priority=urgent_high&view=all&q=vpn&sort=priority
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = readTicketQuery(searchParams, { worksTickets: isAdminOrHr });
+  const queueScope = showQueueToggle || query.view === 'my_tickets' ? query.view : 'my_queue';
+  const setQuery = useCallback((changes) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [key, value] of Object.entries(changes)) {
+        if (value === undefined || value === null || value === '') next.delete(key);
+        else next.set(key, value);
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const handleSearch = useCallback((q) => setQuery({ q }), [setQuery]);
+
   // Which scope the current `tickets` list belongs to, so the deep-link
   // lookup below never searches a stale or still-loading list.
   const [loadedScope, setLoadedScope] = useState(null);
 
   // Deep link from notifications: /tickets?ticket=<id>
-  const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkId = searchParams.get('ticket');
   const handledDeepLinkRef = useRef(null);
 
@@ -94,11 +106,15 @@ const Tickets = () => {
       return;
     }
     // Not in the current view (e.g. another queue): fetch just that ticket.
+    // Ignore the answer if the user has moved on to a different link meanwhile.
     handledDeepLinkRef.current = deepLinkId;
     ticketsApi.getById(deepLinkId)
-      .then((ticket) => setSelectedTicket(ticket))
+      .then((ticket) => {
+        if (ticket && handledDeepLinkRef.current === deepLinkId) setSelectedTicket(ticket);
+      })
       .catch(() => {
-        toast.error(`Ticket #${deepLinkId} was not found or is no longer visible to you.`);
+        if (handledDeepLinkRef.current !== deepLinkId) return;
+        toast.error(`Ticket ${ticketRef({ id: deepLinkId })} was not found or is no longer visible to you.`);
         clearDeepLink();
       });
   }, [deepLinkId, tickets, loadedScope, queueScope, clearDeepLink]);
@@ -120,59 +136,72 @@ const Tickets = () => {
     clearDeepLink();
   }, [clearDeepLink]);
 
-  const filteredTickets = tickets.filter(t => {
-    if (filter === 'all') return true;
-    if (filter === 'active') return t.status === 'open' || t.status === 'in_progress';
-    if (filter === 'resolved') return t.status === 'resolved' || t.status === 'closed' || t.status === 'rejected';
-    return true;
-  });
+  const visibleTickets = sortTickets(filterTickets(tickets, query), query.sort);
+  const isFiltered = query.status !== 'all' || query.priority !== 'all' || Boolean(query.q) || Boolean(query.queue);
+  const showEmployee = isAdminOrHr && queueScope !== 'my_tickets';
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      
-      {/* Header Area */}
       <PageHeader
         icon={TicketIcon}
         title="Support Tickets"
-        subtitle={isAdminOrHr && queueScope !== 'my_tickets' ? 'Manage employee requests and issues.' : 'Track your IT support requests.'}
+        subtitle={isAdminOrHr && queueScope !== 'my_tickets' ? 'Manage employee requests and issues.' : 'Track your support requests.'}
         actions={canRaiseTicket && (
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-on-accent rounded-lg font-medium shadow-sm transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="w-4 h-4" aria-hidden="true" />
             Raise Ticket
-          </button>
+          </Button>
         )}
       />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <SegmentedControl label="Ticket status" value={filter} onChange={setFilter} options={FILTERS} />
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <SegmentedControl label="Ticket status" value={query.status} onChange={(status) => setQuery({ status })} options={STATUS_FILTERS} />
 
-        {showQueueToggle && (
-          <div className="flex items-center gap-2 min-w-0 max-w-full">
-            <span className="text-xs font-medium uppercase tracking-wider text-secondary shrink-0" aria-hidden="true">View:</span>
+          {showQueueToggle && (
             <SegmentedControl
               label="Ticket queue"
               value={queueScope}
-              onChange={setQueueScope}
+              onChange={(view) => setQuery({ view })}
               options={[
                 // No admin type means no queue is assigned; don't guess one.
-                { value: 'my_queue', label: user?.adminType ? `My Queue (${ADMIN_TYPE_LABELS[user.adminType] || user.adminType})` : 'My Queue' },
-                { value: 'all', label: 'All Tickets' },
-                ...(isHr ? [{ value: 'my_tickets', label: 'My Raised Tickets' }] : []),
+                { value: 'my_queue', label: user?.adminType ? `My queue (${QUEUE_SHORT_LABELS[user.adminType] || user.adminType})` : 'My queue' },
+                { value: 'all', label: 'All tickets' },
+                ...(isHr ? [{ value: 'my_tickets', label: 'Raised by me' }] : []),
               ]}
             />
-          </div>
-        )}
+          )}
+          {query.queue && (
+            <button
+              type="button"
+              onClick={() => setQuery({ queue: undefined })}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/15 cursor-pointer"
+              aria-label={`Remove filter: ${queueLabel(query.queue)} tickets only`}
+            >
+              {queueLabel(query.queue)} only <X className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+          <SearchBar
+            initialValue={query.q}
+            onSearch={handleSearch}
+            label="Search tickets"
+            placeholder={showEmployee ? 'Search by title, person, device or TK number...' : 'Search by title, device or TK number...'}
+          />
+          <Select aria-label="Priority" value={query.priority} onChange={(e) => setQuery({ priority: e.target.value })} className="sm:w-44">
+            {PRIORITY_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </Select>
+          <Select aria-label="Sort tickets" value={query.sort} onChange={(e) => setQuery({ sort: e.target.value })} className="sm:w-44">
+            {SORTS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </Select>
+        </div>
       </div>
 
-      {/* Error State */}
       {error && (
-        <div className="bg-error/10 border border-error/20 text-error rounded-lg p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div role="alert" className="bg-error/10 border border-error/20 text-error rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
           <p className="text-sm font-medium">{error}</p>
         </div>
       )}
@@ -180,18 +209,21 @@ const Tickets = () => {
       {/* Tickets (the empty state sits outside the table so it isn't
           clipped by the sideways-scrolling area). Skeleton rows only on the
           first load; switching views or reloading keeps the rows. */}
-      {!loading && filteredTickets.length === 0 ? (
+      {!loading && visibleTickets.length === 0 ? (
         <EmptyState
           icon={TicketIcon}
           title="No tickets found"
-          description={filter === 'all'
-            ? (canRaiseTicket ? 'Nothing here yet. Raise a ticket to report an issue or request hardware.' : 'There are no tickets in this view.')
-            : 'No tickets match this filter.'}
-          actionText={canRaiseTicket ? 'Raise Ticket' : undefined}
-          onAction={canRaiseTicket ? () => setIsCreateModalOpen(true) : undefined}
+          description={isFiltered
+            ? 'No tickets match these filters.'
+            : (canRaiseTicket ? 'Nothing here yet. Raise a ticket to report a problem or request something.' : 'There are no tickets in this view.')}
+          actionText={isFiltered ? 'Clear filters' : (canRaiseTicket ? 'Raise Ticket' : undefined)}
+          onAction={isFiltered
+            ? () => setQuery({ status: 'all', priority: undefined, q: undefined, queue: undefined })
+            : (canRaiseTicket ? () => setIsCreateModalOpen(true) : undefined)}
         />
       ) : (
       <>
+      <p className="sr-only" aria-live="polite">{loading ? '' : `${visibleTickets.length} ticket${visibleTickets.length === 1 ? '' : 's'}`}</p>
       {/* Phones: one card per ticket */}
       <ul aria-label="Support tickets" aria-busy={loading || undefined} className="md:hidden space-y-3">
         {loading ? [1, 2, 3].map((i) => (
@@ -199,31 +231,31 @@ const Tickets = () => {
             <div className="h-4 bg-raised rounded w-48" />
             <div className="h-3 bg-raised rounded w-32" />
           </li>
-        )) : filteredTickets.map((ticket) => (
+        )) : visibleTickets.map((ticket) => (
           <li
             key={ticket.id}
             onClick={() => setSelectedTicket(ticket)}
+            role="button"
+            aria-label={`Open ticket ${ticketRef(ticket)}: ${ticket.title}`}
             tabIndex={0}
             onKeyDown={onActivateKey(() => setSelectedTicket(ticket))}
-            className="bg-surface border border-border rounded-xl shadow-sm p-4 space-y-2 cursor-pointer hover:border-accent/50 transition-colors"
+            className="bg-surface border border-border rounded-xl shadow-sm p-4 space-y-2 cursor-pointer hover:border-accent/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="font-medium text-primary truncate">{ticket.title}</div>
                 <div className="text-xs text-secondary truncate mt-0.5">{ticket.description || 'No description'}</div>
               </div>
-              <span className="font-mono text-xs text-secondary shrink-0">#{ticket.id}</span>
+              <span className="font-mono text-xs text-secondary shrink-0">{ticketRef(ticket)}</span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <StatusBadge status={ticket.status} />
-              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full border ${priorityStyle(ticket.priority)}`}>{priorityLabel(ticket.priority)}<span className="sr-only"> priority</span></span>
+              <PriorityBadge priority={ticket.priority} />
               <TicketAgeBadge ticket={ticket} />
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-secondary">
-              <span className="capitalize">{ticket.type}</span>
-              {isAdminOrHr && queueScope !== 'my_tickets' && (
-                <span>{ticket.employee_name || `Employee #${ticket.employee_id}`}</span>
-              )}
+              <TicketTypeBadge type={ticket.type} />
+              {showEmployee && <span>{ticket.employee_name || `Employee #${ticket.employee_id}`}</span>}
               <span>{formatDate(ticket.created_at)}</span>
             </div>
           </li>
@@ -235,59 +267,56 @@ const Tickets = () => {
           <table aria-label="Support tickets" aria-busy={loading || isPlaceholder || undefined} className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-base border-b border-border text-secondary">
               <tr>
-                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">ID</th>
-                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Title</th>
-                <th scope="col" className={`${FROM_XL} px-6 py-4 font-medium uppercase tracking-wider text-xs`}>Type</th>
-                <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Status</th>
-                {isAdminOrHr && queueScope !== 'my_tickets' && <th scope="col" className="px-6 py-4 font-medium uppercase tracking-wider text-xs">Employee</th>}
-                <th scope="col" className={`${FROM_XL} px-6 py-4 font-medium uppercase tracking-wider text-xs`}>Date</th>
+                <th scope="col" className={TH}>Ticket</th>
+                <th scope="col" className={TH}>Title</th>
+                <th scope="col" className={TH}>Priority</th>
+                <th scope="col" className={TH}>Status</th>
+                {showEmployee && <th scope="col" className={TH}>Raised by</th>}
+                <th scope="col" className={`${FROM_XL} ${TH}`}>Type</th>
+                <th scope="col" className={`${FROM_XL} ${TH}`}>Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                // Skeleton loading rows
                 [1, 2, 3].map((i) => (
                   <tr key={i} className="animate-pulse">
-                    <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-8"></div></td>
-                    <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-48"></div></td>
-                    <td className={`${FROM_XL} px-6 py-4`}><div className="h-4 bg-raised rounded w-16"></div></td>
-                    <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-20"></div></td>
-                    {isAdminOrHr && queueScope !== 'my_tickets' && <td className="px-6 py-4"><div className="h-4 bg-raised rounded w-24"></div></td>}
-                    <td className={`${FROM_XL} px-6 py-4`}><div className="h-4 bg-raised rounded w-24"></div></td>
+                    <td className={TD}><div className="h-4 bg-raised rounded w-14" /></td>
+                    <td className={TD}><div className="h-4 bg-raised rounded w-48" /></td>
+                    <td className={TD}><div className="h-4 bg-raised rounded w-14" /></td>
+                    <td className={TD}><div className="h-4 bg-raised rounded w-20" /></td>
+                    {showEmployee && <td className={TD}><div className="h-4 bg-raised rounded w-24" /></td>}
+                    <td className={`${FROM_XL} ${TD}`}><div className="h-4 bg-raised rounded w-16" /></td>
+                    <td className={`${FROM_XL} ${TD}`}><div className="h-4 bg-raised rounded w-24" /></td>
                   </tr>
                 ))
               ) : (
-                filteredTickets.map((ticket) => (
+                visibleTickets.map((ticket) => (
                   <tr
                     key={ticket.id}
                     onClick={() => setSelectedTicket(ticket)}
+                    role="button"
+                    aria-label={`Open ticket ${ticketRef(ticket)}: ${ticket.title}`}
                     tabIndex={0}
                     onKeyDown={onActivateKey(() => setSelectedTicket(ticket))}
-                    className="hover:bg-raised/30 transition-colors cursor-pointer group"
+                    className="hover:bg-raised/30 transition-colors cursor-pointer group focus-visible:outline-none focus-visible:bg-raised/40"
                   >
-                    <td className="px-6 py-4 font-mono text-xs text-secondary group-hover:text-accent">
-                      #{ticket.id}
-                    </td>
-                    <td className="px-6 py-4">
+                    <td className={`${TD} font-mono text-xs text-secondary group-hover:text-accent`}>{ticketRef(ticket)}</td>
+                    <td className={TD}>
                       <div className="font-medium text-primary max-w-xs truncate">{ticket.title}</div>
                       <div className="text-xs text-secondary truncate max-w-xs mt-0.5">{ticket.description || 'No description'}</div>
                     </td>
-                    <td className={`${FROM_XL} px-6 py-4 capitalize text-secondary`}>{ticket.type}</td>
-                    <td className="px-6 py-4">
+                    <td className={TD}><PriorityBadge priority={ticket.priority} /></td>
+                    <td className={TD}>
                       <div className="flex items-center gap-1.5">
                         <StatusBadge status={ticket.status} />
-                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full border ${priorityStyle(ticket.priority)}`}>{priorityLabel(ticket.priority)}<span className="sr-only"> priority</span></span>
                         <TicketAgeBadge ticket={ticket} />
                       </div>
                     </td>
-                    {isAdminOrHr && queueScope !== 'my_tickets' && (
-                      <td className="px-6 py-4 text-secondary">
-                        {ticket.employee_name || `Employee #${ticket.employee_id}`}
-                      </td>
+                    {showEmployee && (
+                      <td className={`${TD} text-secondary`}>{ticket.employee_name || `Employee #${ticket.employee_id}`}</td>
                     )}
-                    <td className={`${FROM_XL} px-6 py-4 text-secondary`}>
-                      {formatDate(ticket.created_at)}
-                    </td>
+                    <td className={`${FROM_XL} ${TD}`}><TicketTypeBadge type={ticket.type} /></td>
+                    <td className={`${FROM_XL} ${TD} text-secondary`}>{formatDate(ticket.created_at)}</td>
                   </tr>
                 ))
               )}
@@ -298,16 +327,16 @@ const Tickets = () => {
       </>
       )}
 
-      <CreateTicketModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
-        onSubmit={createTicket} 
+      <CreateTicketModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={createTicket}
       />
 
-      <TicketDetailsModal 
-        isOpen={!!selectedTicket} 
-        ticket={selectedTicket} 
-        onClose={closeTicketDetails} 
+      <TicketDetailsModal
+        isOpen={!!selectedTicket}
+        ticket={selectedTicket}
+        onClose={closeTicketDetails}
         onUpdate={updateTicket}
         onTransfer={transferTicket}
         onConfirmClose={confirmCloseTicket}
