@@ -80,6 +80,8 @@ app.use('/api/roles', require('./routes/roles'));
 app.use('/api/audit', require('./routes/audit'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+// Read-only feed for the People Portal; off unless PEOPLE_PORTAL_API_KEY is set.
+app.use('/api/integration', require('./routes/integration'));
 
 // 404 Handler for unmatched routes
 app.use((req, res, next) => {
