@@ -169,7 +169,9 @@ describe('GET /api/search results', () => {
     expect((await search('employee', { q: `#${other.id}` })).body.data.tickets).toEqual([]);
     expect((await search('employee', { q: `#${own.id}` })).body.data.tickets.map((t) => t.id)).toContain(own.id);
 
-    const byId = await search('admin', { q: String(other.id) });
+    // "#<id>" so the query meets the 2-character minimum even when ids are
+    // single digits (a fresh CI database).
+    const byId = await search('admin', { q: `#${other.id}` });
     expect(byId.body.data.tickets[0].id).toBe(other.id);
     expect(ticketIdFrom('TK-0042')).toBe(42);
     expect(ticketIdFrom('#7')).toBe(7);
